@@ -56,12 +56,13 @@ public:
 	void destroy(void) {};
 
    	void doDialog(bool willBeShown = true);
+
+	void NotifyNewFile(void);
+
 	void initFinish(void) {
 		_bStartupFinish = TRUE;
 		::SendMessage(_hSelf, WM_SIZE, 0, 0);
 	};
-
-	void NotifyNewFile(void);
 
 protected:
 
@@ -73,25 +74,25 @@ protected:
 
 	virtual BOOL CALLBACK run_dlgProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam);
 
-	void GetNameStrFromCmd(UINT idButton, char** tip);
+	void GetNameStrFromCmd(UINT idButton, LPTSTR* tip);
 
 	void InitialDialog(void);
 
 	void UpdateDevices(void);
 	void UpdateFolders(void);
-	void UpdateFolderRecursive(char* pszParentPath, HTREEITEM pCurrentItem);
-	BOOL FindFolderAfter(char* itemName, HTREEITEM pAfterItem);
+	void UpdateFolderRecursive(LPTSTR pszParentPath, HTREEITEM pCurrentItem);
+	BOOL FindFolderAfter(LPTSTR itemName, HTREEITEM pAfterItem);
 
-	void SetCaption(char* path);
+	void SetCaption(LPTSTR path);
 
 	void SelectItem(POINT pt);
-	BOOL SelectItem(char* path);
+	BOOL SelectItem(LPTSTR path);
 
-	void RemoveDrive(char* drivePathName);
+	void RemoveDrive(LPTSTR drivePathName);
 
 	void tb_cmd(UINT message);
 
-	void GetFolderPathName(HTREEITEM currentItem, char* folderPathName);
+	void GetFolderPathName(HTREEITEM currentItem, LPTSTR folderPathName);
 
 private:
 	/* Handles */
@@ -104,7 +105,7 @@ private:
 	WNDPROC					_hDefaultSplitterProc;
 	
 	/* some status values */
-	BOOL					_wasVisible;
+	BOOL					_bOldRectInitilized;
 	BOOL					_isSelNotifyEnable;
 
 	/* handles of controls */

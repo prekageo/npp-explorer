@@ -51,12 +51,12 @@ public:
 		Window::init(hInst, hWnd);
 	};
 
-   	UINT doDialog(char* pName, char* pLink, char* pDesc, eLinkDlg linkDlg = LINK_DLG_NONE, BOOL fileMustExist = FALSE);
+   	UINT doDialog(LPTSTR pName, LPTSTR pLink, LPTSTR pDesc, eLinkDlg linkDlg = LINK_DLG_NONE, BOOL fileMustExist = FALSE);
 
     virtual void destroy() {};
 
-	void setTreeElements(ELEM_ITR itr, HIMAGELIST hImageList, INT iUserImagePos, BOOL bWithLink = FALSE);
-	const char* getGroupName(void);
+	void setTreeElements(PELEM pElem, HIMAGELIST hImageList, INT iUserImagePos, BOOL bWithLink = FALSE);
+	LPCTSTR getGroupName(void);
 
 protected :
 	BOOL CALLBACK run_dlgProc(HWND hWnd, UINT Message, WPARAM wParam, LPARAM lParam);
@@ -64,18 +64,17 @@ protected :
 	void DrawChildrenOfItem(HTREEITEM hParentItem);
 
 public:
-	void GetFolderPathName(HTREEITEM hItem, char* name);
+	void GetFolderPathName(HTREEITEM hItem, LPTSTR name);
 
 private:
-	char*			_pName;
-	char*			_pLink;
-	char*			_pDesc;
+	LPTSTR			_pName;
+	LPTSTR			_pLink;
+	LPTSTR			_pDesc;
 	eLinkDlg		_linkDlg;
 	BOOL			_fileMustExist;
 	BOOL			_bWithLink;
 	BOOL			_seeDetails;
-	ELEM_ITR		_itr;
-	ELEM_ITR		_elem_ret;
+	PELEM			_pElem;
 	HIMAGELIST		_hImageList;
 	INT				_iUImgPos;
 	string			_strGroupName;

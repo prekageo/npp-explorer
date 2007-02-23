@@ -2,6 +2,28 @@
 Change-log for Explorer.dll
 
 ------------------------------------------------------------------------------------
+07/02/24  v1.2 :
+------------------------------------------------------------------------------------
+    Fix: Copying a node in Faves and directly deleting it again caused error
+	Fix: Crashing on "Close" in explorer options when plugin is not open
+    Fix: File icons in list always extension-dependent
+    Fix: Splitter now stored correctly in all cases
+    Fix: All dialogs now use standard font
+	Fix: Cancel button in dialog "New Group" works now correct
+    Fix: Changing Links in Favorites is now possible
+    Fix: Folders are now sorted correctly on W2k machines
+	Fix: Crashing on right mouse click in  "C:\Windows\Downloaded Program Files"
+	Fix: Broken icons in folder  "C:\Windows\Downloaded Program Files"
+	Fix: Now short file names are supported on "Folder of Current File"
+    Fix: Saving session over menu "File->Save Session..." didn't update the faves tree
+	New: Menu item on right mouse click to save current over an existing session
+	New: Show hidden files with special icons
+	New: Filter history (max. 20 items)
+	New: Icon for User Folder
+    Typo: "Groop" changed to "Group"
+	Typo: MessageBox "Node exist..." corrected
+ 	
+------------------------------------------------------------------------------------
 07/02/04  v1.1 RC :
 ------------------------------------------------------------------------------------
 	Fix: Opening of favorite folders in Explorer works always

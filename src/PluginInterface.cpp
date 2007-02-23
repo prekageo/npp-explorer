@@ -406,8 +406,8 @@ void toggleFavesDialog(void)
 
 void openOptionDlg(void)
 {
-	optionDlg.doDialog(&exProp);
-	explorerDlg.redraw();
+	if (optionDlg.doDialog(&exProp) == IDOK)
+		explorerDlg.redraw();
 }
 
 void openHelpDlg(void)
@@ -425,6 +425,16 @@ LRESULT CALLBACK SubWndProcNotepad(HWND hWnd, UINT message, WPARAM wParam, LPARA
 
 	switch (message)
 	{
+		case WM_ACTIVATE:
+		{
+			if (LOWORD(wParam) != WA_INACTIVE)
+			{
+				::KillTimer(explorerDlg.getHSelf(), EXT_UPDATE);
+				::SetTimer(explorerDlg.getHSelf(), EXT_UPDATE, 200, NULL);
+			}
+			ret = ::CallWindowProc(wndProcNotepad, hWnd, message, wParam, lParam);
+			break;
+		}
 		case WM_DEVICECHANGE:
 		{
 			if ((wParam == DBT_DEVICEARRIVAL) || (wParam == DBT_DEVICEREMOVECOMPLETE))
@@ -755,16 +765,23 @@ void ExtractIcons(LPCSTR currentPath, LPCSTR volumeName, bool isDir, LPINT iIcon
 
 
 	/* get normal and overlayed icon */
-	SHGetFileInfo(TEMP, 0, &sfi, sizeof(SHFILEINFO), SHGFI_ICON | SHGFI_SMALLICON | SHGFI_OVERLAYINDEX);
-
-//	if (sfi.iIcon == 0)
-//		SHGetFileInfo(TEMP, 0, &sfi, sizeof(SHFILEINFO), SHGFI_ICON | SHGFI_SMALLICON | SHGFI_OVERLAYINDEX);
+	if (isDir)
+	{
+		SHGetFileInfo(TEMP, 0, &sfi, sizeof(SHFILEINFO), SHGFI_ICON | SHGFI_SMALLICON | SHGFI_OVERLAYINDEX);
+		if (TEMP[4] == '\0')
+		{
+			::DestroyIcon(sfi.hIcon);
+			SHGetFileInfo(TEMP, FILE_ATTRIBUTE_NORMAL, &sfi, sizeof(SHFILEINFO), SHGFI_ICON | SHGFI_SMALLICON | SHGFI_OVERLAYINDEX | SHGFI_USEFILEATTRIBUTES);
+		}
+	}
+	else
+	{
+		SHGetFileInfo(TEMP, FILE_ATTRIBUTE_NORMAL, &sfi, sizeof(SHFILEINFO), SHGFI_ICON | SHGFI_SMALLICON | SHGFI_OVERLAYINDEX | SHGFI_USEFILEATTRIBUTES);
+	}
 
 	*iIconNormal	= sfi.iIcon & 0x000000ff;
 	*iIconOverlayed = sfi.iIcon >> 24;
-
-	if (sfi.hIcon != NULL)
-		::DestroyIcon(sfi.hIcon);
+	::DestroyIcon(sfi.hIcon);
 
 	/* get selected icon */
 	if (isDir)

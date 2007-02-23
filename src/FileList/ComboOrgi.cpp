@@ -143,10 +143,10 @@ void ComboOrgi::selectComboText(LPSTR pszText)
 
 void ComboOrgi::setComboList(vector<string> vStrList)
 {
-	INT		iCnt	= vStrList.size();
+	size_t	iCnt	= vStrList.size();
 
 	::SendMessage(_hCombo, CB_RESETCONTENT, 0, 0);
-	for (UINT i = 0; i < iCnt; i++)
+	for (size_t i = 0; i < iCnt; i++)
 	{
 		addText((LPSTR)vStrList[i].c_str());
 	}
@@ -155,11 +155,11 @@ void ComboOrgi::setComboList(vector<string> vStrList)
 void ComboOrgi::getComboList(vector<string> & vStrList)
 {
 	LPSTR	pszTemp	= (LPSTR)new TCHAR[MAX_PATH];
-	INT		iCnt	= ::SendMessage(_hCombo, CB_GETCOUNT, 0, 0);
+	size_t	iCnt	= ::SendMessage(_hCombo, CB_GETCOUNT, 0, 0);
 
 	vStrList.clear();
 
-	for (UINT i = 0; i < iCnt; i++)
+	for (size_t i = 0; i < iCnt; i++)
 	{
 		if (MAX_PATH > ::SendMessage(_hCombo, CB_GETLBTEXTLEN, i, 0))
 		{

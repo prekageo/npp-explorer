@@ -92,7 +92,7 @@ static BYTE ANDMask[128] =
 };
 
 
-void URLCtrl::create(HWND itemHandle, char * link, COLORREF linkColor)
+void URLCtrl::create(HWND itemHandle, LPTSTR link, COLORREF linkColor)
 {
 	// turn on notify style
     ::SetWindowLong(itemHandle, GWL_STYLE, ::GetWindowLong(itemHandle, GWL_STYLE) | SS_NOTIFY);
@@ -162,7 +162,7 @@ LRESULT URLCtrl::runProc(HWND hwnd, UINT Message, WPARAM wParam, LPARAM lParam)
 		    HANDLE hOld = SelectObject(hdc, _hfUnderlined);
 
 		    // Draw the text!
-            char szWinText[_MAX_PATH];
+            TCHAR szWinText[MAX_PATH];
             ::GetWindowText(hwnd, szWinText, sizeof szWinText);
             ::DrawText(hdc, szWinText, -1, &rect, dwDTStyle);
     		

@@ -31,7 +31,7 @@ class DockingDlgInterface : public StaticDialog
 {
 public:
 	DockingDlgInterface(): StaticDialog() {};
-	DockingDlgInterface(int dlgID): StaticDialog(), _dlgID(dlgID) {};
+	DockingDlgInterface(int dlgID): StaticDialog(), _dlgID(dlgID), _bCreated(false) {};
 	
 	virtual void init(HINSTANCE hInst, HWND parent)
 	{
@@ -104,11 +104,13 @@ protected :
 						case DMN_FLOAT:
 						{
 							_isFloating = true;
+							_bCreated   = true;
 							break;
 						}
 						case DMN_DOCK:
 						{
 							_isFloating = false;
+							_bCreated	= true;
 							_iDockedPos = HIWORD(pnmh->code);
 							break;
 						}
@@ -132,6 +134,7 @@ protected :
 	int				_iDockedPos;
 	char            _moduleName[MAX_PATH];
 	char			_pluginName[MAX_PATH];
+	bool			_bCreated;
 };
 
 #endif // DOCKINGDLGINTERFACE_H

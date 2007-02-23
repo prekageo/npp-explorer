@@ -26,9 +26,11 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include <string>
 using namespace std;
 
-
+#ifndef CB_GETCOMBOBOXINFO
 #define	CB_GETCOMBOBOXINFO	0x0164
+#endif
 
+#if(WINVER <= 0x0400)
 struct COMBOBOXINFO 
 {
     int cbSize;
@@ -39,6 +41,7 @@ struct COMBOBOXINFO
     HWND hwndItem;
     HWND hwndList; 
 };
+#endif 
 
 class ComboOrgi
 {

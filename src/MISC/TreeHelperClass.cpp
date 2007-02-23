@@ -27,7 +27,7 @@ void TreeHelper::DrawChildren(HTREEITEM parentItem)
 	WIN32_FIND_DATA		Find	= {0};
 	HANDLE				hFind	= NULL;
 
-	char*	parentFolderPathName = (char*) new char[MAX_PATH];
+	LPTSTR	parentFolderPathName = (LPTSTR) new char[MAX_PATH];
 
 	GetFolderPathName(parentItem, parentFolderPathName);
 
@@ -56,13 +56,15 @@ void TreeHelper::DrawChildren(HTREEITEM parentItem)
 
 	::FindClose(hFind);
 
+	TreeView_SortChildren(_hTreeCtrl, parentItem, TRUE);
+
 	delete [] parentFolderPathName;
 }
 
-HTREEITEM TreeHelper::InsertChildFolder(char* childFolderName, HTREEITEM parentItem, HTREEITEM insertAfter, BOOL bChildrenTest)
+HTREEITEM TreeHelper::InsertChildFolder(LPTSTR childFolderName, HTREEITEM parentItem, HTREEITEM insertAfter, BOOL bChildrenTest)
 {
 	/* We search if it already exists */
-	char*		TEMP		 = (char*)new char[MAX_PATH];
+	LPTSTR		TEMP		 = (LPTSTR)new char[MAX_PATH];
 	HTREEITEM	pCurrentItem = TreeView_GetNextItem(_hTreeCtrl, parentItem, TVGN_CHILD);
 
 	while (pCurrentItem != NULL)
@@ -98,22 +100,36 @@ HTREEITEM TreeHelper::InsertChildFolder(char* childFolderName, HTREEITEM parentI
 	}
 
 	/* insert item */
-	int			iIconNormal		= 0;
-	int			iIconSelected	= 0;
-	int			iIconOverlayed	= 0;
+	INT					iIconNormal		= 0;
+	INT					iIconSelected	= 0;
+	INT					iIconOverlayed	= 0;
+	BOOL				bHidden			= FALSE;
+	WIN32_FIND_DATA		Find			= {0};
+	HANDLE				hFind			= NULL;
 
 	/* get icons */
 	ExtractIcons(parentFolderPathName, NULL, true, &iIconNormal, &iIconSelected, &iIconOverlayed);
+	hFind = ::FindFirstFile(parentFolderPathName, &Find);
+	bHidden = ((Find.dwFileAttributes & FILE_ATTRIBUTE_HIDDEN) != 0);
+	::FindClose(hFind);
 
 	/* set item */
-	pCurrentItem = InsertItem(childFolderName, iIconNormal, iIconSelected, iIconOverlayed, parentItem, insertAfter, haveChildren);
+	pCurrentItem = InsertItem(childFolderName, iIconNormal, iIconSelected, iIconOverlayed, bHidden, parentItem, insertAfter, haveChildren);
 
 	delete [] TEMP;
 
 	return pCurrentItem;
 }
 
-HTREEITEM TreeHelper::InsertItem(char* lpszItem, int nImage, int nSelectedIamage, int nOverlayedImage, HTREEITEM hParent, HTREEITEM hInsertAfter, BOOL haveChildren, LPARAM lParam)
+HTREEITEM TreeHelper::InsertItem(LPTSTR lpszItem, 
+								 INT nImage, 
+								 INT nSelectedIamage, 
+								 INT nOverlayedImage,
+								 BOOL bHidden,
+								 HTREEITEM hParent, 
+								 HTREEITEM hInsertAfter, 
+								 BOOL haveChildren, 
+								 LPARAM lParam)
 {
 	TV_INSERTSTRUCT tvis;
 
@@ -133,6 +149,12 @@ HTREEITEM TreeHelper::InsertItem(char* lpszItem, int nImage, int nSelectedIamage
 		tvis.item.state		|= INDEXTOOVERLAYMASK(nOverlayedImage);
 		tvis.item.stateMask	|= TVIS_OVERLAYMASK;
 	}
+	if (bHidden == TRUE)
+	{
+		tvis.item.mask		|= LVIF_STATE;
+		tvis.item.state		|= LVIS_CUT;
+		tvis.item.stateMask |= LVIS_CUT;
+	}
 
 	return TreeView_InsertItem(_hTreeCtrl, &tvis);
 }
@@ -148,7 +170,14 @@ void TreeHelper::DeleteChildren(HTREEITEM parentItem)
 	}
 }
 
-BOOL TreeHelper::UpdateItem(HTREEITEM hItem, char* lpszItem, int nImage, int nSelectedIamage, int nOverlayedImage, BOOL haveChildren, LPARAM lParam)
+BOOL TreeHelper::UpdateItem(HTREEITEM hItem, 
+							LPTSTR lpszItem, 
+							INT nImage, 
+							INT nSelectedIamage, 
+							INT nOverlayedImage, 
+							BOOL bHidden,
+							BOOL haveChildren, 
+							LPARAM lParam)
 {
 	TVITEM	item;
 
@@ -163,6 +192,13 @@ BOOL TreeHelper::UpdateItem(HTREEITEM hItem, char* lpszItem, int nImage, int nSe
 	item.stateMask		|= TVIS_OVERLAYMASK;
 	item.lParam			 = lParam;
 
+	if (bHidden == TRUE)
+	{
+		item.mask		|= LVIF_STATE;
+		item.state		|= LVIS_CUT;
+		item.stateMask  |= LVIS_CUT;
+	}
+
 	/* delete children items when available but not needed */
 	if ((haveChildren == FALSE) && (TreeView_GetChild(_hTreeCtrl, hItem) != NULL))
 	{
@@ -173,7 +209,7 @@ BOOL TreeHelper::UpdateItem(HTREEITEM hItem, char* lpszItem, int nImage, int nSe
 }
 
 
-BOOL TreeHelper::GetItemText(HTREEITEM hItem, char* szBuf, int bufSize)
+BOOL TreeHelper::GetItemText(HTREEITEM hItem, LPTSTR szBuf, INT bufSize)
 {
 	TVITEM			tvi;
 	tvi.mask		= TVIF_TEXT;

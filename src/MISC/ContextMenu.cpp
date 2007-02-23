@@ -136,34 +136,40 @@ UINT ContextMenu::ShowContextMenu(HWND hWndNpp, HWND hWndParent, POINT pt, bool 
 	/* store notepad handle */
 	_hWndNpp = hWndNpp;
 
-	int iMenuType = 0;	// to know which version of IContextMenu is supported
-	LPCONTEXTMENU pContextMenu;	// common pointer to IContextMenu and higher version interface
+	// to know which version of IContextMenu is supported
+	int iMenuType = 0;
 
-	if (!GetContextMenu((void**) &pContextMenu, iMenuType))	
-		return (0);	// something went wrong
+	// common pointer to IContextMenu and higher version interface
+	LPCONTEXTMENU pContextMenu = NULL;
 
-	if (!_hMenu)
+	if (_pidlArray != NULL)
 	{
-		_hMenu = NULL;
-		_hMenu = ::CreateMenu();
-	}
+		if (!_hMenu)
+		{
+			_hMenu = NULL;
+			_hMenu = ::CreateMenu();
+		}
 
-	// lets fill out our popupmenu 
-	pContextMenu->QueryContextMenu( _hMenu,
-									::GetMenuItemCount(_hMenu),
-									MIN_ID,
-									MAX_ID,
-									CMF_NORMAL | ((_strFirstElement.size() > 4)?CMF_CANRENAME:0));
+		if (!GetContextMenu((void**) &pContextMenu, iMenuType))	
+			return (0);	// something went wrong
+
+		// lets fill out our popupmenu 
+		pContextMenu->QueryContextMenu( _hMenu,
+										::GetMenuItemCount(_hMenu),
+										MIN_ID,
+										MAX_ID,
+										CMF_NORMAL | ((_strFirstElement.size() > 4)?CMF_CANRENAME:0));
  
-	// subclass window to handle menurelated messages in ContextMenu 
-	g_OldWndProc	= NULL;
-	if (iMenuType > 1)	// only subclass if its version 2 or 3
-	{
-		g_OldWndProc = (WNDPROC)::SetWindowLong (hWndParent, GWL_WNDPROC, (DWORD) HookWndProc);
-		if (iMenuType == 2)
-			g_IContext2 = (LPCONTEXTMENU2) pContextMenu;
-		else	// version 3
-			g_IContext3 = (LPCONTEXTMENU3) pContextMenu;
+		// subclass window to handle menurelated messages in ContextMenu 
+		g_OldWndProc	= NULL;
+		if (iMenuType > 1)	// only subclass if its version 2 or 3
+		{
+			g_OldWndProc = (WNDPROC)::SetWindowLong (hWndParent, GWL_WNDPROC, (DWORD) HookWndProc);
+			if (iMenuType == 2)
+				g_IContext2 = (LPCONTEXTMENU2) pContextMenu;
+			else	// version 3
+				g_IContext3 = (LPCONTEXTMENU3) pContextMenu;
+		}
 	}
 
 	/************************************* modification for notepad ***********************************/
@@ -183,6 +189,7 @@ UINT ContextMenu::ShowContextMenu(HWND hWndNpp, HWND hWndParent, POINT pt, bool 
 		::AppendMenu(hMainMenu, MF_STRING, MAX_ID + 5, "Open in Other View");
 		::AppendMenu(hMainMenu, MF_STRING, MAX_ID + 6, "Open in New Instance");
 	}
+	::InsertMenu(hMainMenu, 3, MF_BYPOSITION | MF_SEPARATOR, 0, 0);
 	::AppendMenu(hMainMenu, MF_STRING, MAX_ID + 7, "Add to 'Favorites'...");
 
 	if (isFolder)
@@ -194,65 +201,70 @@ UINT ContextMenu::ShowContextMenu(HWND hWndNpp, HWND hWndParent, POINT pt, bool 
 		::AppendMenu(hMainMenu, MF_STRING, MAX_ID + 8, "Full File Path(s) to Document");
 		::AppendMenu(hMainMenu, MF_STRING, MAX_ID + 9, "File Name(s) to Document");
 	}
-	::AppendMenu(hMainMenu, MF_SEPARATOR, 0, 0);
 
-	int				copyAt		= -1;
-	int				items		= ::GetMenuItemCount(_hMenu);
-	char*			szText		= (char*)new char[256];
-	MENUITEMINFO	info		= {0};
-
-	info.cbSize		= sizeof(MENUITEMINFO);
-	info.fMask		= MIIM_TYPE | MIIM_ID | MIIM_SUBMENU;
-
-	if (normal)
+	if (_pidlArray != NULL)
 	{
-		/* store all items in an seperate sub menu until "cut" (25) or "copy" (26) */
-		for (int i = 0; i < items; i++)
+		int				copyAt		= -1;
+		int				items		= ::GetMenuItemCount(_hMenu);
+		char*			szText		= (char*)new char[256];
+		MENUITEMINFO	info		= {0};
+
+		info.cbSize		= sizeof(MENUITEMINFO);
+		info.fMask		= MIIM_TYPE | MIIM_ID | MIIM_SUBMENU;
+
+		::AppendMenu(hMainMenu, MF_SEPARATOR, 0, 0);
+
+		if (normal)
 		{
-			info.cch		= 256;
-			info.dwTypeData	= szText;
-			if (copyAt == -1)
+			/* store all items in an seperate sub menu until "cut" (25) or "copy" (26) */
+			for (int i = 0; i < items; i++)
 			{
-				::GetMenuItemInfo(_hMenu, i, TRUE, &info);
-				if ((info.wID == 25) || (info.wID == 26))
+				info.cch		= 256;
+				info.dwTypeData	= szText;
+				if (copyAt == -1)
 				{
-					copyAt	= i - 1;
+					::GetMenuItemInfo(_hMenu, i, TRUE, &info);
+					if ((info.wID == 25) || (info.wID == 26))
+					{
+						copyAt	= i - 1;
+						::AppendMenu(hMainMenu, info.fType, info.wID, info.dwTypeData);
+						::DeleteMenu(_hMenu, i  , MF_BYPOSITION);
+						::DeleteMenu(_hMenu, i-1, MF_BYPOSITION);
+					}
+				}
+				else
+				{
+					::GetMenuItemInfo(_hMenu, copyAt, TRUE, &info);
 					::AppendMenu(hMainMenu, info.fType, info.wID, info.dwTypeData);
-					::DeleteMenu(_hMenu, i  , MF_BYPOSITION);
-					::DeleteMenu(_hMenu, i-1, MF_BYPOSITION);
+					::DeleteMenu(_hMenu, copyAt, MF_BYPOSITION);
 				}
 			}
-			else
+
+			::InsertMenu(hMainMenu, 4, MF_BYPOSITION | MF_STRING | MF_POPUP, (UINT)_hMenu, "Standard Menu");
+			::InsertMenu(hMainMenu, 5, MF_BYPOSITION | MF_SEPARATOR, 0, 0);
+		}
+		else
+		{
+			/* ignore all items until "cut" (25) or "copy" (26) */
+			for (int i = 0; i < items; i++)
 			{
-				::GetMenuItemInfo(_hMenu, copyAt, TRUE, &info);
-				::AppendMenu(hMainMenu, info.fType, info.wID, info.dwTypeData);
-				::DeleteMenu(_hMenu, copyAt, MF_BYPOSITION);
+				info.cch		= 256;
+				info.dwTypeData	= szText;
+				::GetMenuItemInfo(_hMenu, i, TRUE, &info);
+				if ((copyAt == -1) && ((info.wID == 25) || (info.wID == 26)))
+				{
+					copyAt	= 0;
+				}
+				else if ((info.wID == 20) || (info.wID == 27))
+				{
+					::AppendMenu(hMainMenu, info.fType, info.wID, info.dwTypeData);
+					::AppendMenu(hMainMenu, MF_SEPARATOR, 0, 0);
+				}
 			}
+			::DeleteMenu(hMainMenu, ::GetMenuItemCount(hMainMenu) - 1, MF_BYPOSITION);
 		}
 
-		::InsertMenu(hMainMenu, 3, MF_BYPOSITION | MF_SEPARATOR, 0, 0);
-		::InsertMenu(hMainMenu, 4, MF_BYPOSITION | MF_STRING | MF_POPUP, (UINT)_hMenu, "Standard Menu");
-		::InsertMenu(hMainMenu, 5, MF_BYPOSITION | MF_SEPARATOR, 0, 0);
-	}
-	else
-	{
-		/* ignore all items until "cut" (25) or "copy" (26) */
-		for (int i = 0; i < items; i++)
-		{
-			info.cch		= 256;
-			info.dwTypeData	= szText;
-			::GetMenuItemInfo(_hMenu, i, TRUE, &info);
-			if ((copyAt == -1) && ((info.wID == 25) || (info.wID == 26)))
-			{
-				copyAt	= 0;
-			}
-			else if ((info.wID == 20) || (info.wID == 27))
-			{
-				::AppendMenu(hMainMenu, info.fType, info.wID, info.dwTypeData);
-				::AppendMenu(hMainMenu, MF_SEPARATOR, 0, 0);
-			}
-		}
-		::DeleteMenu(hMainMenu, ::GetMenuItemCount(hMainMenu) - 1, MF_BYPOSITION);
+		delete [] szText;
 	}
 
 	/*****************************************************************************************************/
@@ -261,10 +273,8 @@ UINT ContextMenu::ShowContextMenu(HWND hWndNpp, HWND hWndParent, POINT pt, bool 
 
 	/* free resources */
 	::DestroyMenu(hMainMenu);
-//	::DestroyMenu(_hMenu);
-	delete [] szText;
 
-	if (g_OldWndProc != NULL) // unsubclass
+	if ((_pidlArray != NULL) && (g_OldWndProc != NULL)) // unsubclass
 	{
 		::SetWindowLong(hWndParent, GWL_WNDPROC, (DWORD) g_OldWndProc);
 	}
@@ -340,7 +350,8 @@ UINT ContextMenu::ShowContextMenu(HWND hWndNpp, HWND hWndParent, POINT pt, bool 
 
 	}
 	
-	pContextMenu->Release();
+	if (pContextMenu != NULL)
+		pContextMenu->Release();
 	g_IContext2 = NULL;
 	g_IContext3 = NULL;
 
@@ -403,41 +414,46 @@ void ContextMenu::SetObjects(vector<string> strArray)
 	psfDesktop->ParseDisplayName (NULL, 0, strArray[0].c_str(), NULL, &pidl, NULL);
 #endif
 
-	// now we need the parent IShellFolder interface of pidl, and the relative PIDL to that interface
-	LPITEMIDLIST pidlItem = NULL;	// relative pidl
-	SHBindToParentEx (pidl, IID_IShellFolder, (void **) &_psfFolder, NULL);
-	free (pidlItem);
-	// get interface to IMalloc (need to free the PIDLs allocated by the shell functions)
-	LPMALLOC lpMalloc = NULL;
-	SHGetMalloc (&lpMalloc);
-	lpMalloc->Free (pidl);
-
-	// now we have the IShellFolder interface to the parent folder specified in the first element in strArray
-	// since we assume that all objects are in the same folder (as it's stated in the MSDN)
-	// we now have the IShellFolder interface to every objects parent folder
-	
-	IShellFolder * psfFolder = NULL;
-	_nItems = strArray.size();
-	for (int i = 0; i < _nItems; i++)
+	if (pidl != NULL)
 	{
-#ifndef _UNICODE
-		olePath = (OLECHAR *) calloc (strArray[i].size() + 1, sizeof (OLECHAR));
-		MultiByteToWideChar(CP_ACP, MB_PRECOMPOSED, strArray[i].c_str(), -1, olePath, strArray[i].size() + 1);	
-		psfDesktop->ParseDisplayName (NULL, 0, olePath, NULL, &pidl, NULL);
-		free (olePath);
-#else
-		psfDesktop->ParseDisplayName (NULL, 0, strArray[i].c_str(), NULL, &pidl, NULL);
-#endif
-		_pidlArray = (LPITEMIDLIST *) realloc (_pidlArray, (i + 1) * sizeof (LPITEMIDLIST));
-		// get relative pidl via SHBindToParent
-		SHBindToParentEx (pidl, IID_IShellFolder, (void **) &psfFolder, (LPCITEMIDLIST *) &pidlItem);
-		_pidlArray[i] = CopyPIDL (pidlItem);	// copy relative pidl to pidlArray
+		// now we need the parent IShellFolder interface of pidl, and the relative PIDL to that interface
+		LPITEMIDLIST pidlItem = NULL;	// relative pidl
+		SHBindToParentEx (pidl, IID_IShellFolder, (void **) &_psfFolder, NULL);
 		free (pidlItem);
-		lpMalloc->Free (pidl);		// free pidl allocated by ParseDisplayName
-		psfFolder->Release ();
+		// get interface to IMalloc (need to free the PIDLs allocated by the shell functions)
+		LPMALLOC lpMalloc = NULL;
+		SHGetMalloc (&lpMalloc);
+		if (lpMalloc != NULL) lpMalloc->Free (pidl);
+
+		// now we have the IShellFolder interface to the parent folder specified in the first element in strArray
+		// since we assume that all objects are in the same folder (as it's stated in the MSDN)
+		// we now have the IShellFolder interface to every objects parent folder
+		
+		IShellFolder * psfFolder = NULL;
+		_nItems = strArray.size();
+		for (int i = 0; i < _nItems; i++)
+		{
+#ifndef _UNICODE
+			olePath = (OLECHAR *) calloc (strArray[i].size() + 1, sizeof (OLECHAR));
+			MultiByteToWideChar(CP_ACP, MB_PRECOMPOSED, strArray[i].c_str(), -1, olePath, strArray[i].size() + 1);	
+			psfDesktop->ParseDisplayName (NULL, 0, olePath, NULL, &pidl, NULL);
+			free (olePath);
+#else
+			psfDesktop->ParseDisplayName (NULL, 0, strArray[i].c_str(), NULL, &pidl, NULL);
+#endif
+			_pidlArray = (LPITEMIDLIST *) realloc (_pidlArray, (i + 1) * sizeof (LPITEMIDLIST));
+			// get relative pidl via SHBindToParent
+			SHBindToParentEx (pidl, IID_IShellFolder, (void **) &psfFolder, (LPCITEMIDLIST *) &pidlItem);
+			_pidlArray[i] = CopyPIDL (pidlItem);	// copy relative pidl to pidlArray
+			free (pidlItem);
+			// free pidl allocated by ParseDisplayName
+			if (lpMalloc != NULL) lpMalloc->Free (pidl);
+			if (psfFolder != NULL) psfFolder->Release ();
+		}
+
+		if (lpMalloc != NULL) lpMalloc->Release ();
 	}
-	lpMalloc->Release ();
-	psfDesktop->Release ();
+	if (psfDesktop != NULL) psfDesktop->Release ();
 
 	_bDelete = TRUE;	// indicates that _psfFolder should be deleted by ContextMenu
 }

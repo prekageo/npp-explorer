@@ -21,7 +21,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include "stdio.h"
 
 
-UINT NewDlg::doDialog(char* pFileName, char* pDesc)
+UINT NewDlg::doDialog(LPTSTR pFileName, LPTSTR pDesc)
 {
 	_pFileName = pFileName;
 	_pDesc = pDesc;
@@ -35,7 +35,7 @@ BOOL CALLBACK NewDlg::run_dlgProc(HWND hWnd, UINT Message, WPARAM wParam, LPARAM
 	{
 		case WM_INITDIALOG:
 		{
-			char	szDesc[256];
+			TCHAR	szDesc[MAX_PATH];
 
 			if (_pszWndName != NULL)
 				::SetWindowText(_hSelf, _pszWndName);

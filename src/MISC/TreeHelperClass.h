@@ -32,15 +32,15 @@ public:
 	TreeHelper() : _hTreeCtrl(NULL) {};
 
 	void DrawChildren(HTREEITEM parentItem);
-	HTREEITEM InsertChildFolder(char* childFolderName, HTREEITEM parentItem, HTREEITEM insertAfter = TVI_LAST, BOOL bChildrenTest = TRUE);
-	HTREEITEM InsertItem(char* lpszItem, int nImage, int nSelectedIamage, int nOverlayedImage, HTREEITEM hParent, HTREEITEM hInsertAfter = TVI_LAST, BOOL haveChildren = FALSE, LPARAM lParam = NULL);
-	BOOL UpdateItem(HTREEITEM hItem, char* lpszItem, int nImage, int nSelectedIamage, int nOverlayedImage, BOOL haveChildren = FALSE, LPARAM lParam = NULL);
+	HTREEITEM InsertChildFolder(LPTSTR childFolderName, HTREEITEM parentItem, HTREEITEM insertAfter = TVI_LAST, BOOL bChildrenTest = TRUE);
+	HTREEITEM InsertItem(LPTSTR lpszItem, INT nImage, INT nSelectedIamage, INT nOverlayedImage, BOOL bHidden, HTREEITEM hParent, HTREEITEM hInsertAfter = TVI_LAST, BOOL haveChildren = FALSE, LPARAM lParam = NULL);
+	BOOL UpdateItem(HTREEITEM hItem, LPTSTR lpszItem, INT nImage, INT nSelectedIamage, INT nOverlayedImage, BOOL bHidden, BOOL haveChildren = FALSE, LPARAM lParam = NULL);
 	void DeleteChildren(HTREEITEM parentItem);
-	BOOL GetItemText(HTREEITEM hItem, char* szBuf, int bufSize);
+	BOOL GetItemText(HTREEITEM hItem, LPTSTR szBuf, INT bufSize);
 	LPARAM GetParam(HTREEITEM hItem);
 
 protected:
-	virtual void GetFolderPathName(HTREEITEM currentItem, char* folderPathName) = 0;
+	virtual void GetFolderPathName(HTREEITEM currentItem, LPTSTR folderPathName) = 0;
 
 protected:
 	HWND			_hTreeCtrl;

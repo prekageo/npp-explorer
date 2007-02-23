@@ -44,6 +44,21 @@ using namespace std;
 static char FAVES_DATA[] = "\\Favorites.dat";
 
 
+typedef enum {
+	FM_NEWLINK = 1,
+	FM_NEWGROUP,
+	FM_ADDSESSION,
+	FM_SAVESESSION,
+	FM_COPY,
+	FM_CUT,
+	FM_PASTE,
+	FM_DELETE,
+	FM_PROPERTIES,
+	FM_OPEN,
+	FM_OPENOTHERVIEW,
+	FM_OPENNEWINSTANCE,
+	FM_REOPEN
+} eMenuID;
 
 
 class FavesDialog : public DockingDlgInterface, public TreeHelper
@@ -52,7 +67,7 @@ public:
 	FavesDialog(void);
 	~FavesDialog(void);
 
-    void init(HINSTANCE hInst, NppData nppData, char* pCurrentPath);
+    void init(HINSTANCE hInst, NppData nppData, LPTSTR pCurrentPath);
 
 	void destroy(void)
 	{
@@ -60,7 +75,7 @@ public:
 
    	void doDialog(bool willBeShown = true);
 
-	void AddToFavorties(BOOL isFolder, char* szLink);
+	void AddToFavorties(BOOL isFolder, LPTSTR szLink);
 	void SaveSession(void);
 	void NotifyNewFile(void);
 
@@ -68,13 +83,13 @@ protected:
 
 	virtual BOOL CALLBACK run_dlgProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam);
 
-	void GetNameStrFromCmd(UINT idButton, char** tip);
+	void GetNameStrFromCmd(UINT idButton, LPTSTR* tip);
 	void tb_cmd(UINT message);
 
 	void InitialDialog(void);
 
-	HTREEITEM GetTreeItem(const char* pszGroupName);
-	ELEM_ITR GetElementItr(const char* pszGroupName);
+	HTREEITEM GetTreeItem(LPCTSTR pszGroupName);
+	PELEM GetElementPointer(LPCTSTR pszGroupName);
 	void CopyItem(HTREEITEM hItem);
 	void CutItem(HTREEITEM hItem);
 	void PasteItem(HTREEITEM hItem);
@@ -85,12 +100,13 @@ protected:
 	void EditItem(HTREEITEM hItem);
 	void DeleteItem(HTREEITEM hItem);
 
-	void DeleteRecursive(ELEM_ITR pElement);
+	void DuplicateRecursive(PELEM pTarget, PELEM pSource);
+	void DeleteRecursive(PELEM pElem);
 
 	void OpenContext(HTREEITEM hItem, POINT pt);
-	BOOL DoesNameNotExist(HTREEITEM hItem, char* name);
-	BOOL DoesLinkExist(char* link, int root);
-	void OpenLink(ELEM_ITR elem_itr);
+	BOOL DoesNameNotExist(HTREEITEM hItem, HTREEITEM hCurrItem, LPTSTR name);
+	BOOL DoesLinkExist(LPTSTR link, int root);
+	void OpenLink(PELEM pElem);
 	void UpdateLink(HTREEITEM hItem);
 
 	void SortElementList(vector<tItemElement>* parentElement);
@@ -99,10 +115,10 @@ protected:
 	void DrawSessionChildren(HTREEITEM hItem);
 
 	void ReadSettings(void);
-	void ReadElementTreeRecursive(ELEM_ITR elem_itr, char** ptr);
+	void ReadElementTreeRecursive(ELEM_ITR elem_itr, LPTSTR* ptr);
 
 	void SaveSettings(void);
-	void SaveElementTreeRecursive(ELEM_ITR elem_itr, HANDLE hFile);
+	void SaveElementTreeRecursive(PELEM pElem, HANDLE hFile);
 
 	void ErrorMessage(DWORD err);
 
@@ -117,7 +133,7 @@ protected:
 
 
 public:
-	void GetFolderPathName(HTREEITEM currentItem, char* folderPathName) {};
+	void GetFolderPathName(HTREEITEM currentItem, LPTSTR folderPathName) {};
 
 private:
 	/* Handles */
@@ -132,12 +148,12 @@ private:
 	
 	BOOL					_isSelNotifyEnable;
 	
-	char*					_pCurrentElement;
+	LPTSTR					_pCurrentElement;
 
 	ToolBar					_ToolBar;
 	ReBar					_Rebar;
 
-	ELEM_ITR				_eiOpenLink;
+	PELEM					_peOpenLink;
 
 	/* database */
 	vector<tItemElement>	_vDB;

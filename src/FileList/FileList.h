@@ -37,6 +37,7 @@ using namespace std;
 typedef struct {
 	INT			iIcon;
 	INT			iOverlayed;
+	BOOL		bHidden;
 	string		strName;
 	string		strExt;
 	string		strSize;
@@ -93,7 +94,7 @@ protected:
 
 	void drawHeaderItem(DRAWITEMSTRUCT *pDrawItemStruct);
 
-	void ReadIconToList(INT iItem, LPINT iIcon, LPINT iOverlayed);
+	void ReadIconToList(INT iItem, LPINT iIcon, LPINT iOverlayed, LPBOOL pbHidden);
 	void ReadArrayToList(LPSTR szItem, INT iItem ,INT iSubItem);
 
 	void UpdateList(void);

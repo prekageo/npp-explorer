@@ -41,13 +41,13 @@ PropDlg::PropDlg() : StaticDialog()
 	_linkDlg		= LINK_DLG_NONE;
 	_fileMustExist	= NULL;
 	_seeDetails		= FALSE;
-	_itr			= NULL;
+	_pElem			= NULL;
 	_hImageList		= NULL;
 	_iUImgPos		= 0;
 }
 
 
-UINT PropDlg::doDialog(char* pName, char* pLink, char* pDesc, eLinkDlg linkDlg, BOOL fileMustExist)
+UINT PropDlg::doDialog(LPTSTR pName, LPTSTR pLink, LPTSTR pDesc, eLinkDlg linkDlg, BOOL fileMustExist)
 {
 	_pName			= pName;
 	_pLink			= pLink;
@@ -64,7 +64,7 @@ BOOL CALLBACK PropDlg::run_dlgProc(HWND hWnd, UINT Message, WPARAM wParam, LPARA
 	{
 		case WM_INITDIALOG:
 		{
-			char	szDesc[256];
+			TCHAR	szDesc[256];
 
 			sprintf(szDesc, "%s:", _pDesc);
 			::SetWindowText(::GetDlgItem(_hSelf, IDC_STATIC_FAVES_DESC), szDesc);
@@ -111,12 +111,12 @@ BOOL CALLBACK PropDlg::run_dlgProc(HWND hWnd, UINT Message, WPARAM wParam, LPARA
 			else
 			{
 				/* get current icon offset */
-				UINT	iIconPos	= _itr->uParam & FAVES_PARAM;
+				UINT	iIconPos	= _pElem->uParam & FAVES_PARAM;
 
 				/* set image list */
 				::SendMessage(_hTreeCtrl, TVM_SETIMAGELIST, TVSIL_NORMAL, (LPARAM)_hImageList);
 
-				HTREEITEM hItem = InsertItem(_itr->pszName, _iUImgPos + iIconPos, _iUImgPos + iIconPos, 0, TVI_ROOT, TVI_LAST, TRUE, (LPARAM)_itr);
+				HTREEITEM hItem = InsertItem(_pElem->pszName, _iUImgPos + iIconPos, _iUImgPos + iIconPos, 0, 0, TVI_ROOT, TVI_LAST, TRUE, (LPARAM)_pElem);
 				TreeView_SelectItem(_hTreeCtrl, hItem);
 			}
 
@@ -178,7 +178,7 @@ BOOL CALLBACK PropDlg::run_dlgProc(HWND hWnd, UINT Message, WPARAM wParam, LPARA
 							ZeroMemory(&info, sizeof(info));
 							info.hwndOwner			= _hParent;
 							info.pidlRoot			= NULL;
-							info.pszDisplayName		= (char*)new char[MAX_PATH];
+							info.pszDisplayName		= (LPTSTR)new TCHAR[MAX_PATH];
 							info.lpszTitle			= "Select a folder:";
 							info.ulFlags			= 0;
 							info.lpfn				= BrowseCallbackProc;
@@ -206,7 +206,7 @@ BOOL CALLBACK PropDlg::run_dlgProc(HWND hWnd, UINT Message, WPARAM wParam, LPARA
 					}
 					else
 					{
-						char*	pszLink	= NULL;
+						LPTSTR	pszLink	= NULL;
 
 						FileDlg dlg(_hInst, _hParent);
 
@@ -248,7 +248,7 @@ BOOL CALLBACK PropDlg::run_dlgProc(HWND hWnd, UINT Message, WPARAM wParam, LPARA
 
 					if ((strlen(_pName) != 0) && (strlen(_pLink) != 0))
 					{
-						char*	pszGroupName = (char*)new char[MAX_PATH];
+						LPTSTR	pszGroupName = (LPTSTR)new TCHAR[MAX_PATH];
 
 						GetFolderPathName(TreeView_GetSelection(_hTreeCtrl), pszGroupName);
 						_strGroupName = pszGroupName;
@@ -344,14 +344,14 @@ BOOL CALLBACK PropDlg::run_dlgProc(HWND hWnd, UINT Message, WPARAM wParam, LPARA
 
 							if (hItem != NULL)
 							{
-								ELEM_ITR	elem_itr = (ELEM_ITR)GetParam(hItem);
+								PELEM	pElem = (PELEM)GetParam(hItem);
 
-								if (elem_itr != NULL)
+								if (pElem != NULL)
 								{
-									if (elem_itr->uParam & FAVES_PARAM_LINK)
+									if (pElem->uParam & FAVES_PARAM_LINK)
 									{
-										::SetDlgItemText(_hSelf, IDC_EDIT_NAME, elem_itr->pszName);
-										::SetDlgItemText(_hSelf, IDC_EDIT_LINK, elem_itr->pszLink);
+										::SetDlgItemText(_hSelf, IDC_EDIT_NAME, pElem->pszName);
+										::SetDlgItemText(_hSelf, IDC_EDIT_LINK, pElem->pszLink);
 									}
 									else
 									{
@@ -379,9 +379,9 @@ BOOL CALLBACK PropDlg::run_dlgProc(HWND hWnd, UINT Message, WPARAM wParam, LPARA
 	return FALSE;
 }
 
-void PropDlg::setTreeElements(ELEM_ITR itr, HIMAGELIST hImageList, INT iUImgPos, BOOL bWithLink)
+void PropDlg::setTreeElements(PELEM pElem, HIMAGELIST hImageList, INT iUImgPos, BOOL bWithLink)
 {
-	_itr		= itr;
+	_pElem		= pElem;
 	_hImageList	= hImageList;
 	_iUImgPos	= iUImgPos;
 	_bWithLink	= bWithLink;
@@ -390,7 +390,7 @@ void PropDlg::setTreeElements(ELEM_ITR itr, HIMAGELIST hImageList, INT iUImgPos,
 	_seeDetails = TRUE;
 }
 
-const char* PropDlg::getGroupName(void)
+LPCTSTR PropDlg::getGroupName(void)
 {
 	return _strGroupName.c_str();
 }
@@ -399,47 +399,49 @@ void PropDlg::DrawChildrenOfItem(HTREEITEM hParentItem)
 {
 	BOOL		haveChildren	= FALSE;
 	int			root			= 0;
-	char*		TEMP			= (char*)new char[MAX_PATH];
+	LPTSTR		TEMP			= (LPTSTR)new TCHAR[MAX_PATH];
 	HTREEITEM	pCurrentItem	= TreeView_GetNextItem(_hTreeCtrl, hParentItem, TVGN_CHILD);
 
 	/* get element list */
-	ELEM_ITR	parentElement	= ((ELEM_ITR)GetParam(hParentItem));
+	PELEM		parentElement	= (PELEM)GetParam(hParentItem);
 
 	if (parentElement != NULL)
 	{
 		/* update elements in parent tree */
-		for (ELEM_ITR itr = parentElement->vElements.begin(); itr != parentElement->vElements.end(); itr++)
+		for (size_t i = 0; i < parentElement->vElements.size(); i++)
 		{
+			PELEM	pElem	= &parentElement->vElements[i];
+
 			/* get root */
-			root = itr->uParam & FAVES_PARAM;
+			root = pElem->uParam & FAVES_PARAM;
 
 			/* initialize children */
 			haveChildren		= FALSE;
 
-			if (itr->uParam & FAVES_PARAM_GROUP)
+			if (pElem->uParam & FAVES_PARAM_GROUP)
 			{
-				if (itr->vElements.size() != 0)
+				if (pElem->vElements.size() != 0)
 				{
-					if ((itr->vElements[0].uParam & FAVES_PARAM_GROUP) || (_bWithLink == TRUE))
+					if ((pElem->vElements[0].uParam & FAVES_PARAM_GROUP) || (_bWithLink == TRUE))
 					{
 						haveChildren = TRUE;
 					}
 				}
 				/* add new item */
-				pCurrentItem = InsertItem(itr->pszName, _iUImgPos + 4, _iUImgPos + 4, 0, hParentItem, TVI_LAST, haveChildren, (LPARAM)itr);
+				pCurrentItem = InsertItem(pElem->pszName, _iUImgPos + 4, _iUImgPos + 4, 0, 0, hParentItem, TVI_LAST, haveChildren, (LPARAM)pElem);
 			}
 
-			if ((itr->uParam & FAVES_PARAM_LINK) || (_bWithLink == TRUE))
+			if ((pElem->uParam & FAVES_PARAM_LINK) || (_bWithLink == TRUE))
 			{
 				/* add new item */
-				pCurrentItem = InsertItem(itr->pszName, _iUImgPos + 3, _iUImgPos + 3, 0, hParentItem, TVI_LAST, haveChildren, (LPARAM)itr);
+				pCurrentItem = InsertItem(pElem->pszName, _iUImgPos + 3, _iUImgPos + 3, 0, 0, hParentItem, TVI_LAST, haveChildren, (LPARAM)pElem);
 			}
 		}
 	}
 }
 
 
-void PropDlg::GetFolderPathName(HTREEITEM hItem, char* name)
+void PropDlg::GetFolderPathName(HTREEITEM hItem, LPTSTR name)
 {
 	/* return if current folder is root folder */
 	if (hItem == TVI_ROOT)
@@ -451,8 +453,8 @@ void PropDlg::GetFolderPathName(HTREEITEM hItem, char* name)
 	name[0]	= '\0';
 
 	/* create temp resources */
-	char*	TEMP	= (char*)new char[MAX_PATH];
-	char*	szName	= (char*)new char[MAX_PATH];
+	LPTSTR	TEMP	= (LPTSTR)new TCHAR[MAX_PATH];
+	LPTSTR	szName	= (LPTSTR)new TCHAR[MAX_PATH];
 
 	/* join elements together */
 	while (hItem != NULL)

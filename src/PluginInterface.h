@@ -32,6 +32,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include "Scintilla.h"
 #include "rcNotepad.h"
 #include "winVersion.h"
+#include <TCHAR.H>
 
 #include <vector>
 
@@ -66,11 +67,11 @@ typedef enum {
 	FAVES_ITEM_MAX
 } eFavesElements;
 
-static LPSTR cFavesItemNames[11] = {
-	"[Folders]",
-	"[Files]",
-	"[Web]",
-	"[Sessions]"
+static LPTSTR cFavesItemNames[11] = {
+	_T("[Folders]"),
+	_T("[Files]"),
+	_T("[Web]"),
+	_T("[Sessions]")
 };
 
 #define FAVES_PARAM				0x0000000F
@@ -80,14 +81,13 @@ static LPSTR cFavesItemNames[11] = {
 
 
 typedef struct TItemElement {
-	UINT					uParam;
-	LPSTR					pszName;
-	LPSTR					pszLink;
-	vector<TItemElement>	vElements;
-} tItemElement;
+	UINT						uParam;
+	LPSTR						pszName;
+	LPSTR						pszLink;
+	vector<TItemElement>		vElements;
+} tItemElement, *PELEM;
 
-
-typedef vector<tItemElement>::iterator		ELEM_ITR;
+typedef vector<TItemElement>::iterator		ELEM_ITR;
 
 /********************************************************/
 
@@ -264,11 +264,11 @@ typedef enum {
 } eSizeFmt;
 
 
-const char pszSizeFmt[][18] = {
-	"Bytes",
-	"kBytes",
-	"Dynamic x b/k/M",
-	"Dynamic x,x b/k/M"
+const LPTSTR pszSizeFmt[18] = {
+	_T("Bytes"),
+	_T("kBytes"),
+	_T("Dynamic x b/k/M"),
+	_T("Dynamic x,x b/k/M")
 };
 
 typedef enum {
@@ -277,9 +277,9 @@ typedef enum {
 	DFMT_MAX
 } eDateFmt;
 
-const char pszDateFmt[][12] = {
-	"Y/M/D HH:MM",
-	"D.M.Y HH:MM",
+const LPTSTR pszDateFmt[12] = {
+	_T("Y/M/D HH:MM"),
+	_T("D.M.Y HH:MM")
 };
 
 

@@ -264,7 +264,7 @@ LRESULT FileList::runListProc(HWND hwnd, UINT Message, WPARAM wParam, LPARAM lPa
 				{
 					RECT		rc				= {0};
 					LPSTR		pszItemText		= (LPSTR)new TCHAR[MAX_PATH];
-					UINT		width			= 0;
+					INT			width			= 0;
 
 					::GetClientRect(_hSelf, &rc);
 					ListView_GetItemText(_hSelf, hittest.iItem, hittest.iSubItem, pszItemText, MAX_PATH);
@@ -305,8 +305,8 @@ LRESULT FileList::runListProc(HWND hwnd, UINT Message, WPARAM wParam, LPARAM lPa
 		}
 		case EXM_TOOLTIP:
 		{
-			UINT			uFolders	= _vFolders.size();
-			UINT			uListCnt	= uFolders + _vFiles.size();
+			INT				iFolders	= _vFolders.size();
+			UINT			uListCnt	= iFolders + _vFiles.size();
 			LVHITTESTINFO	hittest		= *((LVHITTESTINFO*)lParam);
 
 			switch (wParam)
@@ -321,7 +321,7 @@ LRESULT FileList::runListProc(HWND hwnd, UINT Message, WPARAM wParam, LPARAM lPa
 					ListView_SetSelectionMark(_hSelf, hittest.iItem);
 
 					/* hide tooltip */
-					if (hittest.iItem < uFolders)
+					if (hittest.iItem < iFolders)
 						_pToolTip.destroy();
 
 					onLMouseBtnDbl();
@@ -640,14 +640,21 @@ void FileList::notify(WPARAM wParam, LPARAM lParam)
 
 			if (lvItem.mask & LVIF_IMAGE)
 			{
-				INT	iOverlayed;
-				ReadIconToList(lvItem.iItem, &lvItem.iImage, &iOverlayed);
+				INT		iOverlayed;
+				BOOL	bHidden;
+				ReadIconToList(lvItem.iItem, &lvItem.iImage, &iOverlayed, &bHidden);
 
 				if (iOverlayed != 0)
 				{
 					lvItem.mask			|= LVIF_STATE;
 					lvItem.state		|= INDEXTOOVERLAYMASK(iOverlayed);
 					lvItem.stateMask	|= LVIS_OVERLAYMASK;
+				}
+				if (bHidden == TRUE)
+				{
+					lvItem.mask			|= LVIF_STATE;
+					lvItem.state		|= LVIS_CUT;
+					lvItem.stateMask	|= LVIS_CUT;
 				}
 			}
 			break;
@@ -863,7 +870,7 @@ void FileList::notify(WPARAM wParam, LPARAM lParam)
 	}
 }
 
-void FileList::ReadIconToList(INT iItem, LPINT piIcon, LPINT piOverlayed)
+void FileList::ReadIconToList(INT iItem, LPINT piIcon, LPINT piOverlayed, LPBOOL pbHidden)
 {
 	INT		maxFolders		= _vFolders.size();
 
@@ -871,11 +878,13 @@ void FileList::ReadIconToList(INT iItem, LPINT piIcon, LPINT piOverlayed)
 	{
 		*piIcon			= _vFolders[iItem].iIcon;
 		*piOverlayed	= _vFolders[iItem].iOverlayed;
+		*pbHidden		= _vFolders[iItem].bHidden;
 	}
 	else
 	{
 		*piIcon			= _vFiles[iItem-maxFolders].iIcon;
 		*piOverlayed	= _vFiles[iItem-maxFolders].iOverlayed;
+		*pbHidden		= _vFiles[iItem-maxFolders].bHidden;
 	}
 }
 
@@ -972,6 +981,7 @@ void FileList::viewPath(LPCSTR currentPath, BOOL redraw)
 			{
 				/* get data in order of list elements */
 				ExtractIcons(currentPath, Find.cFileName, true, &tempData.iIcon, &iIconSelected, &tempData.iOverlayed);
+				tempData.bHidden = ((Find.dwFileAttributes & FILE_ATTRIBUTE_HIDDEN) != 0);
 
 				tempData.strName	= Find.cFileName;
 				tempData.strNameLC	= makeStrLC(Find.cFileName);
@@ -993,6 +1003,7 @@ void FileList::viewPath(LPCSTR currentPath, BOOL redraw)
 				/* if 'Find' is not a folder but a parent one */
 				tempData.iIcon		= _iImageList;
 				tempData.iOverlayed	= 0;
+				tempData.bHidden	= FALSE;
 
 				tempData.strName	= Find.cFileName;
 				tempData.strNameLC	= Find.cFileName;
@@ -1042,6 +1053,7 @@ void FileList::viewPath(LPCSTR currentPath, BOOL redraw)
 
 						/* get icons */
 						ExtractIcons(currentPath, Find.cFileName, false, &tempData.iIcon, &iIconSelected, &tempData.iOverlayed);
+						tempData.bHidden = ((Find.dwFileAttributes & FILE_ATTRIBUTE_HIDDEN) != 0);
 
 						/* extract name and extension */
 						LPSTR	extBeg = strrchr(&Find.cFileName[1], '.');
@@ -1146,7 +1158,7 @@ void FileList::UpdateList(void)
 {
 	INT	iSortPos = _pExProp->iSortPos;
 
-	if (_pExProp->bAddExtToName == TRUE)
+	if ((_pExProp->bAddExtToName == TRUE) && (iSortPos >= 1))
 	{
 		iSortPos++;
 	}

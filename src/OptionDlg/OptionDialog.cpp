@@ -63,7 +63,7 @@ BOOL CALLBACK OptionDlg::run_dlgProc(HWND hwnd, UINT Message, WPARAM wParam, LPA
 					return TRUE;
 				}
 				case IDCANCEL:
-					::EndDialog(_hSelf, -1);
+					::EndDialog(_hSelf, IDCANCEL);
 					return TRUE;
 				case IDOK:
 				{
@@ -71,7 +71,7 @@ BOOL CALLBACK OptionDlg::run_dlgProc(HWND hwnd, UINT Message, WPARAM wParam, LPA
 					{
 						return FALSE;
 					}
-					::EndDialog(_hSelf, 0);
+					::EndDialog(_hSelf, IDOK);
 					return TRUE;
 				}
 				default:
