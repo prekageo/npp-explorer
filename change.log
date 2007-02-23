@@ -1,0 +1,32 @@
+
+Change-log for Explorer.dll
+
+------------------------------------------------------------------------------------
+07/01/07  v1.0 :
+------------------------------------------------------------------------------------
+	New Project Development:
+	Explorer Features
+	- Iconbar (forward, backward, new file/folder, find in files) 
+	- Go to current file in explorer 
+	- Seperate folder and file view 
+	- Folder update in explorer and faves 
+	- Sortable file view as List View (clumns: name, ext) 
+	- Extension filter 
+	- Create/delete/move/rename and copy of files/dirs 
+	- Multiselection for open 
+	- Context menu with 
+	- New file... 
+	- Find in files... 
+	- Open 
+	- Open in new instance 
+	- Selected files names and include as text 
+	Feature list for Favorites: 
+	- Iconbar 
+	- Seperate roots for folders, files and maybe internet links 
+	- Naming and renaming for each item 
+	- Grouping of items 
+	- Session managment 
+	- Open session (additional with add to current opened files) 
+	- Create new session 
+	- Renaming of sessions 
+	- Using of Session Manager on menu selection "File->Save Session..." 

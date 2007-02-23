@@ -1,0 +1,285 @@
+//Microsoft Developer Studio generated resource script.
+//
+#include "resource.h"
+
+#define APSTUDIO_READONLY_SYMBOLS
+/////////////////////////////////////////////////////////////////////////////
+//
+// Generated from the TEXTINCLUDE 2 resource.
+//
+#define APSTUDIO_HIDDEN_SYMBOLS
+#include "windows.h"
+#undef APSTUDIO_HIDDEN_SYMBOLS
+#include "explorerresource.h"
+
+/////////////////////////////////////////////////////////////////////////////
+#undef APSTUDIO_READONLY_SYMBOLS
+
+/////////////////////////////////////////////////////////////////////////////
+// Deutsch (Deutschland) resources
+
+#if !defined(AFX_RESOURCE_DLL) || defined(AFX_TARG_DEU)
+#ifdef _WIN32
+LANGUAGE LANG_GERMAN, SUBLANG_GERMAN
+#pragma code_page(1252)
+#endif //_WIN32
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// Dialog
+//
+
+IDD_HELP_DLG DIALOGEX 0, 0, 230, 157
+STYLE DS_FIXEDSYS | WS_POPUP | WS_BORDER | WS_SYSMENU
+FONT 8, "MS Sans Serif"
+BEGIN
+    DEFPUSHBUTTON   "OK",IDOK,89,137,50,14
+    LTEXT           "jens.plugin.npp@gmx.de",IDC_EMAIL_LINK,65,41,80,8
+    LTEXT           "Author:\t\tJens Lorenz",IDC_STATIC,12,31,183,9
+    GROUPBOX        "Menu entries",IDC_STATIC,7,84,216,47
+    LTEXT           "eMail:",IDC_STATIC,12,41,21,8
+    CTEXT           "At first, I would like to thank Don for his great program and his support to create this plugin.",
+                    IDC_STATIC,7,59,216,18
+    LTEXT           "View Explorer\t\tViews the Explorer dialog.\nView Favorites\t\tViews the Faroites dialog.\nHelp\t\t\tShows this help dialog.",
+                    IDC_STATIC,15,99,203,26
+    CTEXT           "Explorer Plugin for Notepad++ v4.0                 v1.01",
+                    IDC_STATIC,7,7,216,17,SS_CENTERIMAGE,WS_EX_DLGMODALFRAME | 
+                    WS_EX_TRANSPARENT
+END
+
+IDD_EXPLORER_DLG DIALOGEX 0, 0, 164, 267
+STYLE DS_3DLOOK | WS_MINIMIZEBOX | WS_MAXIMIZEBOX | WS_VISIBLE | WS_CAPTION | 
+    WS_SYSMENU | WS_THICKFRAME
+EXSTYLE WS_EX_TOOLWINDOW
+CAPTION "Explorer"
+FONT 8, "MS Sans Serif"
+BEGIN
+    CONTROL         "Tree2",IDC_TREE_FOLDER,"SysTreeView32",TVS_HASBUTTONS | 
+                    TVS_HASLINES | TVS_SHOWSELALWAYS | TVS_INFOTIP | 
+                    TVS_FULLROWSELECT | WS_BORDER | WS_TABSTOP,2,22,161,78
+    CONTROL         "List2",IDC_LIST_FILE,"SysListView32",LVS_REPORT | 
+                    LVS_SHOWSELALWAYS | LVS_OWNERDATA | WS_BORDER | 
+                    WS_TABSTOP,2,119,161,118
+    COMBOBOX        IDC_COMBO_FILTER,28,251,135,69,CBS_DROPDOWN | 
+                    CBS_AUTOHSCROLL | WS_VSCROLL | WS_TABSTOP
+    CONTROL         "",IDC_BUTTON_SPLITTER,"Button",BS_OWNERDRAW,2,103,161,
+                    14
+    PUSHBUTTON      "Filter",IDC_BUTTON_FILTER,3,251,24,13
+    LTEXT           "Filter:",IDC_STATIC_FILTER,7,239,18,8
+END
+
+IDD_NEW_DLG DIALOGEX 0, 0, 254, 63
+STYLE DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
+EXSTYLE WS_EX_TOOLWINDOW
+CAPTION "Explorer"
+FONT 8, "MS Sans Serif", 0, 0, 0x1
+BEGIN
+    EDITTEXT        IDC_EDIT_NEW,13,19,227,12,ES_AUTOHSCROLL
+    DEFPUSHBUTTON   "Ok",IDOK,140,42,50,14
+    PUSHBUTTON      "Cancel",IDCANCEL,197,42,50,14
+    GROUPBOX        "New file:",IDC_STATIC_NEW_DESC,7,7,240,30
+END
+
+IDD_PROP_DLG DIALOGEX 0, 0, 254, 171
+STYLE DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
+EXSTYLE WS_EX_TOOLWINDOW
+CAPTION "Favorites"
+FONT 8, "MS Sans Serif", 0, 0, 0x1
+BEGIN
+    EDITTEXT        IDC_EDIT_NAME,42,20,199,12,ES_AUTOHSCROLL
+    EDITTEXT        IDC_EDIT_LINK,42,35,183,12,ES_AUTOHSCROLL
+    PUSHBUTTON      "...",IDC_BTN_OPENDLG,227,35,14,12
+    PUSHBUTTON      "Details <<",IDC_BUTTON_DETAILS,7,150,50,14
+    CONTROL         "Tree1",IDC_TREE_SELECT,"SysTreeView32",TVS_HASBUTTONS | 
+                    TVS_HASLINES | TVS_DISABLEDRAGDROP | TVS_SHOWSELALWAYS | 
+                    TVS_INFOTIP | TVS_FULLROWSELECT | WS_BORDER | WS_TABSTOP,
+                    13,65,228,74
+    DEFPUSHBUTTON   "Ok",IDOK,139,150,50,14
+    PUSHBUTTON      "Cancel",IDCANCEL,197,150,50,14
+    LTEXT           "Name",IDC_STATIC,13,20,20,12,SS_CENTERIMAGE
+    LTEXT           "Link",IDC_STATIC,13,35,14,12,SS_CENTERIMAGE
+    GROUPBOX        "Properties of file:",IDC_STATIC_FAVES_DESC,7,7,240,138
+    LTEXT           "Select a groop",IDC_STATIC_SELECT,13,55,47,8
+END
+
+
+#ifdef APSTUDIO_INVOKED
+/////////////////////////////////////////////////////////////////////////////
+//
+// TEXTINCLUDE
+//
+
+1 TEXTINCLUDE MOVEABLE PURE 
+BEGIN
+    "resource.h\0"
+END
+
+2 TEXTINCLUDE MOVEABLE PURE 
+BEGIN
+    "#define APSTUDIO_HIDDEN_SYMBOLS\r\n"
+    "#include ""windows.h""\r\n"
+    "#undef APSTUDIO_HIDDEN_SYMBOLS\r\n"
+    "#include ""explorerresource.h""\r\n"
+    "\0"
+END
+
+3 TEXTINCLUDE MOVEABLE PURE 
+BEGIN
+    "\r\n"
+    "\0"
+END
+
+#endif    // APSTUDIO_INVOKED
+
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// DESIGNINFO
+//
+
+#ifdef APSTUDIO_INVOKED
+GUIDELINES DESIGNINFO MOVEABLE PURE 
+BEGIN
+    IDD_EXPLORER_DLG, DIALOG
+    BEGIN
+        RIGHTMARGIN, 163
+    END
+
+    IDD_NEW_DLG, DIALOG
+    BEGIN
+        LEFTMARGIN, 7
+        RIGHTMARGIN, 247
+        TOPMARGIN, 7
+        BOTTOMMARGIN, 56
+    END
+
+    IDD_PROP_DLG, DIALOG
+    BEGIN
+        VERTGUIDE, 7
+        VERTGUIDE, 13
+        VERTGUIDE, 241
+        VERTGUIDE, 247
+        BOTTOMMARGIN, 164
+        HORZGUIDE, 7
+    END
+END
+#endif    // APSTUDIO_INVOKED
+
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// Icon
+//
+
+// Icon with lowest ID value placed first to ensure application icon
+// remains consistent on all systems.
+IDI_PARENTFOLDER        ICON    DISCARDABLE     "..\\res\\parent.ico"
+IDI_FOLDER              ICON    DISCARDABLE     "..\\res\\folder.ico"
+IDI_FILE                ICON    DISCARDABLE     "..\\res\\file.ico"
+IDI_WEB                 ICON    DISCARDABLE     "..\\res\\web.ico"
+IDI_SESSION             ICON    DISCARDABLE     "..\\res\\session.ico"
+IDI_GROOP               ICON    DISCARDABLE     "..\\res\\groop.ico"
+IDI_EXPLORE             ICON    DISCARDABLE     "..\\res\\explore.ico"
+IDI_HEART               ICON    DISCARDABLE     "..\\res\\Heart.ico"
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// Bitmap
+//
+
+IDB_HEADER_HIGHXP       BITMAP  MOVEABLE PURE   "..\\res\\ColumnHeaderSpanHighXP.bmp"
+IDB_HEADER_NORM         BITMAP  MOVEABLE PURE   "..\\res\\ColumnHeaderSpanNorm.bmp"
+IDB_HEADER_ENORM        BITMAP  MOVEABLE PURE   "..\\res\\ColumnHeaderEndNorm.bmp"
+IDB_HEADER_SHIGHXP      BITMAP  MOVEABLE PURE   "..\\res\\ColumnHeaderStartHighXP.bmp"
+IDB_HEADER_EHIGHXP      BITMAP  MOVEABLE PURE   "..\\res\\ColumnHeaderEndHighXP.bmp"
+IDB_HEADER_SORTDOWNNORM BITMAP  MOVEABLE PURE   "..\\res\\ColumnHeaderSortDownNorm.bmp"
+IDB_HEADER_SORTUPNORMXP BITMAP  MOVEABLE PURE   "..\\res\\ColumnHeaderSortUpNormXP.bmp"
+IDB_HEADER_SORTDOWNHIGHXP BITMAP  MOVEABLE PURE   "..\\res\\ColumnHeaderSortDownHighXP.bmp"
+IDB_HEADER_SORTDOWNNORMXP BITMAP  MOVEABLE PURE   "..\\res\\ColumnHeaderSortDownNormXP.bmp"
+IDB_HEADER_SORTUPHIGHXP BITMAP  MOVEABLE PURE   "..\\res\\ColumnHeaderSortUpHighXP.bmp"
+IDB_HEADER_NORMXP       BITMAP  MOVEABLE PURE   "..\\res\\ColumnHeaderSpanNormXP.bmp"
+IDB_HEADER_ENORMXP      BITMAP  MOVEABLE PURE   "..\\res\\ColumnHeaderEndNormXP.bmp"
+IDB_HEADER_SNORM        BITMAP  MOVEABLE PURE   "..\\res\\ColumnHeaderStartNorm.bmp"
+IDB_HEADER_SORTUPNORM   BITMAP  MOVEABLE PURE   "..\\res\\ColumnHeaderSortUpNorm.bmp"
+IDB_EX_UNDO             BITMAP  MOVEABLE PURE   "..\\res\\undo.bmp"
+IDB_EX_REDO             BITMAP  MOVEABLE PURE   "..\\res\\redo.bmp"
+IDB_EX_FILENEW          BITMAP  MOVEABLE PURE   "..\\res\\newFile.bmp"
+IDB_EX_FOLDERNEW        BITMAP  MOVEABLE PURE   "..\\res\\newFolder.bmp"
+IDB_EX_FIND             BITMAP  MOVEABLE PURE   "..\\res\\findFile.bmp"
+IDB_EX_FOLDERGO         BITMAP  MOVEABLE PURE   "..\\res\\folderGo.bmp"
+IDB_EX_UPDATE           BITMAP  MOVEABLE PURE   "..\\res\\update.bmp"
+IDB_EX_LINKNEWFILE      BITMAP  MOVEABLE PURE   "..\\res\\linkNewFile.bmp"
+IDB_EX_LINKNEWFOLDER    BITMAP  MOVEABLE PURE   "..\\res\\linkNewFolder.bmp"
+IDB_EX_LINKNEW          BITMAP  MOVEABLE PURE   "..\\res\\linkNew.bmp"
+IDB_EX_LINKEDIT         BITMAP  MOVEABLE PURE   "..\\res\\linkEdit.bmp"
+IDB_EX_LINKDELETE       BITMAP  MOVEABLE PURE   "..\\res\\linkDelete.bmp"
+IDB_TB_FAVES            BITMAP  DISCARDABLE     "..\\res\\Heart.bmp"
+IDB_TB_EXPLORER         BITMAP  DISCARDABLE     "..\\res\\explore.bmp"
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// Cursor
+//
+
+IDC_UPDOWN              CURSOR  DISCARDABLE     "..\\res\\updown.cur"
+
+#ifndef _MAC
+/////////////////////////////////////////////////////////////////////////////
+//
+// Version
+//
+
+VS_VERSION_INFO VERSIONINFO
+ FILEVERSION 1,0,1,0
+ PRODUCTVERSION 1,0,1,0
+ FILEFLAGSMASK 0x3fL
+#ifdef _DEBUG
+ FILEFLAGS 0x1L
+#else
+ FILEFLAGS 0x0L
+#endif
+ FILEOS 0x40004L
+ FILETYPE 0x2L
+ FILESUBTYPE 0x0L
+BEGIN
+    BLOCK "StringFileInfo"
+    BEGIN
+        BLOCK "040704b0"
+        BEGIN
+            VALUE "Comments", "\0"
+            VALUE "CompanyName", "Jens Lorenz\0"
+            VALUE "FileDescription", "Explorer\0"
+            VALUE "FileVersion", "1, 0, 1, 0\0"
+            VALUE "InternalName", "Explorer\0"
+            VALUE "LegalCopyright", "Copyright © 2006\0"
+            VALUE "LegalTrademarks", "\0"
+            VALUE "OriginalFilename", "Explorer.dll\0"
+            VALUE "PrivateBuild", "\0"
+            VALUE "ProductName", "Jens Lorenz Explorer\0"
+            VALUE "ProductVersion", "1, 0, 1, 0\0"
+            VALUE "SpecialBuild", "\0"
+        END
+    END
+    BLOCK "VarFileInfo"
+    BEGIN
+        VALUE "Translation", 0x407, 1200
+    END
+END
+
+#endif    // !_MAC
+
+#endif    // Deutsch (Deutschland) resources
+/////////////////////////////////////////////////////////////////////////////
+
+
+
+#ifndef APSTUDIO_INVOKED
+/////////////////////////////////////////////////////////////////////////////
+//
+// Generated from the TEXTINCLUDE 3 resource.
+//
+
+
+/////////////////////////////////////////////////////////////////////////////
+#endif    // not APSTUDIO_INVOKED
+
