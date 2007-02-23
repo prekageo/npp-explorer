@@ -5,13 +5,13 @@
 \***********************************************************/
 
 /*
-this file is part of Explorer Plugin for Notepad++
+This file is part of Explorer Plugin for Notepad++
 Copyright (C)2006 Jens Lorenz <jens.plugin.npp@gmx.de>
 
 This program is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License
-as published by the Free Software Foundation; either
-version 2 of the License, or (at your option) any later version.
+as published by the Free Software Foundation; either version 2
+of the License, or (at your option) any later version.
 
 This program is distributed in the hope that it will be useful,
 but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -20,7 +20,7 @@ GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
-Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 */
 
 
@@ -175,24 +175,24 @@ UINT ContextMenu::ShowContextMenu(HWND hWndNpp, HWND hWndParent, POINT pt, bool 
 	{
 		::AppendMenu(hMainMenu, MF_STRING, MAX_ID + 1, "New File...");
 		::AppendMenu(hMainMenu, MF_STRING, MAX_ID + 2, "New Folder...");
-		::AppendMenu(hMainMenu, MF_STRING, MAX_ID + 3, "Find in files...");
+		::AppendMenu(hMainMenu, MF_STRING, MAX_ID + 3, "Find in Files...");
 	}
 	else
 	{
 		::AppendMenu(hMainMenu, MF_STRING, MAX_ID + 4, "Open");
-		::AppendMenu(hMainMenu, MF_STRING, MAX_ID + 5, "Open in other view");
-		::AppendMenu(hMainMenu, MF_STRING, MAX_ID + 6, "Open in new instance");
+		::AppendMenu(hMainMenu, MF_STRING, MAX_ID + 5, "Open in Other View");
+		::AppendMenu(hMainMenu, MF_STRING, MAX_ID + 6, "Open in New Instance");
 	}
 	::AppendMenu(hMainMenu, MF_STRING, MAX_ID + 7, "Add to 'Favorites'...");
 
 	if (isFolder)
 	{
-		::AppendMenu(hMainMenu, MF_STRING, MAX_ID + 8, "Add path(s) to document");
+		::AppendMenu(hMainMenu, MF_STRING, MAX_ID + 8, "Add Path(s) to Document");
 	}
 	else
 	{
-		::AppendMenu(hMainMenu, MF_STRING, MAX_ID + 8, "Full file path(s) to document");
-		::AppendMenu(hMainMenu, MF_STRING, MAX_ID + 9, "File name(s) to document");
+		::AppendMenu(hMainMenu, MF_STRING, MAX_ID + 8, "Full File Path(s) to Document");
+		::AppendMenu(hMainMenu, MF_STRING, MAX_ID + 9, "File Name(s) to Document");
 	}
 	::AppendMenu(hMainMenu, MF_SEPARATOR, 0, 0);
 

@@ -1,19 +1,22 @@
-//this file is part of Explorer Plugin for Notepad++
-//Copyright (C)2005 Jens Lorenz <jens.plugin.npp@gmx.de>
-//
-//This program is free software; you can redistribute it and/or
-//modify it under the terms of the GNU General Public License
-//as published by the Free Software Foundation; either
-//version 2 of the License, or (at your option) any later version.
-//
-//This program is distributed in the hope that it will be useful,
-//but WITHOUT ANY WARRANTY; without even the implied warranty of
-//MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-//GNU General Public License for more details.
-//
-//You should have received a copy of the GNU General Public License
-//along with this program; if not, write to the Free Software
-//Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+/*
+This file is part of Explorer Plugin for Notepad++
+Copyright (C)2006 Jens Lorenz <jens.plugin.npp@gmx.de>
+
+This program is free software; you can redistribute it and/or
+modify it under the terms of the GNU General Public License
+as published by the Free Software Foundation; either version 2
+of the License, or (at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program; if not, write to the Free Software
+Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+*/
+
 
 #ifndef EXPLORERDLG_DEFINE_H
 #define EXPLORERDLG_DEFINE_H
@@ -42,11 +45,15 @@ public:
 	ExplorerDialog(void);
 	~ExplorerDialog(void);
 
-    void init(HINSTANCE hInst, NppData nppData, char* pCurrentPath, int* piSplitterPos, int* piColumnPos);
+    void init(HINSTANCE hInst, NppData nppData, tExProp *prop);
 
-	void destroy(void)
-	{
+	virtual void redraw(void) {
+		/* be sure to update the window first */
+		_FileList.redraw();
+		SelectItem(_pExProp->szCurrentPath);
 	};
+
+	void destroy(void) {};
 
    	void doDialog(bool willBeShown = true);
 	void initFinish(void) {
@@ -64,7 +71,7 @@ protected:
 		return (((ExplorerDialog *)(::GetWindowLong(hwnd, GWL_USERDATA)))->runSplitterProc(hwnd, Message, wParam, lParam));
 	};
 
-	virtual BOOL CALLBACK run_dlgProc(UINT message, WPARAM wParam, LPARAM lParam);
+	virtual BOOL CALLBACK run_dlgProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam);
 
 	void GetNameStrFromCmd(UINT idButton, char** tip);
 
@@ -106,9 +113,6 @@ private:
 	HWND					_hFilter;
 	HWND					_hFilterButton;
 
-	/* pointer to global current path */
-	char*					_pCurrentPath;
-
 	/* classes */
 	FileList				_FileList;
 	ComboOrgi				_ComboFilter;
@@ -116,12 +120,14 @@ private:
 	ReBar					_Rebar;
 
 	/* splitter values */
-	INT*					_piSplitterPos;
 	RECT					_rcOldSize;
-	INT*					_piColumnPos;
+	RECT					_rcOldSizeHorizontal;
 	POINT					_ptOldPos;
+	POINT					_ptOldPosHorizontal;
 	BOOL					_isLeftButtonDown;
-	HCURSOR					_hSplitterCursor;
+	HCURSOR					_hSplitterCursorUpDown;
+	HCURSOR					_hSplitterCursorLeftRight;
+	tExProp*				_pExProp;
 };
 
 

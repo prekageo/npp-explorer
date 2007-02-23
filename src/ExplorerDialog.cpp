@@ -1,19 +1,21 @@
-//this file is part of Explorer Plugin for Notepad++
-//Copyright (C)2005 Jens Lorenz <jens.plugin.npp@gmx.de>
-//
-//This program is free software; you can redistribute it and/or
-//modify it under the terms of the GNU General Public License
-//as published by the Free Software Foundation; either
-//version 2 of the License, or (at your option) any later version.
-//
-//This program is distributed in the hope that it will be useful,
-//but WITHOUT ANY WARRANTY; without even the implied warranty of
-//MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-//GNU General Public License for more details.
-//
-//You should have received a copy of the GNU General Public License
-//along with this program; if not, write to the Free Software
-//Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+/*
+This file is part of Explorer Plugin for Notepad++
+Copyright (C)2006 Jens Lorenz <jens.plugin.npp@gmx.de>
+
+This program is free software; you can redistribute it and/or
+modify it under the terms of the GNU General Public License
+as published by the Free Software Foundation; either version 2
+of the License, or (at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program; if not, write to the Free Software
+Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+*/
 
 #include "PluginInterface.h"
 #include "ExplorerDialog.h"
@@ -35,6 +37,10 @@ ToolTip		toolTip;
 BOOL	DEBUG_ON		= FALSE;
 #define DEBUG_FLAG(x)	if(DEBUG_ON == TRUE) DEBUG(x);
 
+#ifndef CSIDL_PROFILE
+#define CSIDL_PROFILE (0x0028)
+#endif
+
 
 static ToolBarButtonUnit toolBarIcons[] = {
 	
@@ -48,26 +54,54 @@ static ToolBarButtonUnit toolBarIcons[] = {
     {IDM_EX_FILE_NEW,		IDI_SEPARATOR_ICON,		IDI_SEPARATOR_ICON,		IDI_SEPARATOR_ICON, -1},
     {IDM_EX_FOLDER_NEW,		IDI_SEPARATOR_ICON,		IDI_SEPARATOR_ICON,		IDI_SEPARATOR_ICON, -1},
 	{IDM_EX_SEARCH_FIND,	IDI_SEPARATOR_ICON,		IDI_SEPARATOR_ICON,		IDI_SEPARATOR_ICON, -1},
-	 
+	{IDM_EX_GO_TO_FOLDER,	IDI_SEPARATOR_ICON,		IDI_SEPARATOR_ICON,		IDI_SEPARATOR_ICON, -1},
+
 	//-------------------------------------------------------------------------------------//
 	{0,						IDI_SEPARATOR_ICON,		IDI_SEPARATOR_ICON,		IDI_SEPARATOR_ICON, IDI_SEPARATOR_ICON},
 	//-------------------------------------------------------------------------------------//
 	 
-	{IDM_EX_GO_TO_FOLDER,	IDI_SEPARATOR_ICON,		IDI_SEPARATOR_ICON,		IDI_SEPARATOR_ICON, -1},
 	{IDM_EX_UPDATE,			IDI_SEPARATOR_ICON,		IDI_SEPARATOR_ICON,		IDI_SEPARATOR_ICON, -1}
 };
 					
 static int stdIcons[] = {IDB_EX_UNDO, IDB_EX_REDO, IDB_EX_FILENEW, IDB_EX_FOLDERNEW, IDB_EX_FIND, IDB_EX_FOLDERGO, IDB_EX_UPDATE};
 
 
-static char* szToolTip[22] = {
+static ToolBarButtonUnit toolBarIconsNT[] = {
+	
+	{IDM_EX_UNDO,			IDI_SEPARATOR_ICON,		IDI_SEPARATOR_ICON,		IDI_SEPARATOR_ICON, -1},
+	{IDM_EX_REDO,			IDI_SEPARATOR_ICON,		IDI_SEPARATOR_ICON,		IDI_SEPARATOR_ICON, -1},	 
+	 
+	//-------------------------------------------------------------------------------------//
+	{0,						IDI_SEPARATOR_ICON,		IDI_SEPARATOR_ICON,		IDI_SEPARATOR_ICON, IDI_SEPARATOR_ICON},
+	//-------------------------------------------------------------------------------------//
+	 
+    {IDM_EX_FILE_NEW,		IDI_SEPARATOR_ICON,		IDI_SEPARATOR_ICON,		IDI_SEPARATOR_ICON, -1},
+    {IDM_EX_FOLDER_NEW,		IDI_SEPARATOR_ICON,		IDI_SEPARATOR_ICON,		IDI_SEPARATOR_ICON, -1},
+	{IDM_EX_SEARCH_FIND,	IDI_SEPARATOR_ICON,		IDI_SEPARATOR_ICON,		IDI_SEPARATOR_ICON, -1},
+	{IDM_EX_GO_TO_USER,		IDI_SEPARATOR_ICON,		IDI_SEPARATOR_ICON,		IDI_SEPARATOR_ICON, -1},
+	{IDM_EX_GO_TO_FOLDER,	IDI_SEPARATOR_ICON,		IDI_SEPARATOR_ICON,		IDI_SEPARATOR_ICON, -1},
+
+	//-------------------------------------------------------------------------------------//
+	{0,						IDI_SEPARATOR_ICON,		IDI_SEPARATOR_ICON,		IDI_SEPARATOR_ICON, IDI_SEPARATOR_ICON},
+	//-------------------------------------------------------------------------------------//
+	 
+	{IDM_EX_UPDATE,			IDI_SEPARATOR_ICON,		IDI_SEPARATOR_ICON,		IDI_SEPARATOR_ICON, -1}
+};
+					
+static int stdIconsNT[] = {IDB_EX_UNDO, IDB_EX_REDO, IDB_EX_FILENEW, IDB_EX_FOLDERNEW, IDB_EX_FIND, IDB_EX_FOLDERUSER, IDB_EX_FOLDERGO, IDB_EX_UPDATE};
+
+/** 
+ *	Note: On change, keep sure to change order of IDM_EX_... also
+ */
+static char* szToolTip[23] = {
 	"Previous Folder",
 	"Next Folder",
 	"New File...",
 	"New Folder...",
 	"Find in Files...",
-	"Go to Folder",
-	"Update Tree"
+	"Folder of Current File",
+	"User Folder",
+	"Refresh"
 };
 
 
@@ -86,7 +120,7 @@ ExplorerDialog::ExplorerDialog(void) : DockingDlgInterface(IDD_EXPLORER_DLG)
 	_hFilter			= NULL;
 	_isSelNotifyEnable	= TRUE;
 	_isLeftButtonDown	= FALSE;
-	_hSplitterCursor	= NULL;
+	_hSplitterCursorUpDown	= NULL;
 	_bStartupFinish		= FALSE;
 	_hFilterButton		= NULL;
 }
@@ -96,14 +130,12 @@ ExplorerDialog::~ExplorerDialog(void)
 }
 
 
-void ExplorerDialog::init(HINSTANCE hInst, NppData nppData, char* pCurrentPath, INT* piSplitterPos, INT* piColumnPos)
+void ExplorerDialog::init(HINSTANCE hInst, NppData nppData, tExProp *prop)
 {
 	_nppData = nppData;
 	DockingDlgInterface::init(hInst, nppData._nppHandle);
 
-	_pCurrentPath	= pCurrentPath;
-	_piSplitterPos	= piSplitterPos;
-	_piColumnPos	= piColumnPos;
+	_pExProp = prop;
 }
 
 
@@ -115,7 +147,7 @@ void ExplorerDialog::doDialog(bool willBeShown)
 
 		// define the default docking behaviour
 		_data.uMask			= DWS_DF_CONT_LEFT | DWS_ADDINFO | DWS_ICONTAB;
-		_data.pszAddInfo	= _pCurrentPath;
+		_data.pszAddInfo	= _pExProp->szCurrentPath;
 		_data.hIconTab		= (HICON)::LoadImage(_hInst, MAKEINTRESOURCE(IDI_EXPLORE), IMAGE_ICON, 0, 0, LR_LOADMAP3DCOLORS | LR_LOADTRANSPARENT);
 		_data.pszModuleName	= getPluginFileName();
 		_data.dlgID			= DOCKABLE_EXPLORER_INDEX;
@@ -128,9 +160,10 @@ void ExplorerDialog::doDialog(bool willBeShown)
 		_FileList.SetToolBarInfo(&_ToolBar , IDM_EX_UNDO, IDM_EX_REDO);
 
 		/* set data */
-		SelectItem(_pCurrentPath);
+		SelectItem(_pExProp->szCurrentPath);
 
 		/* initilize combo */
+		_ComboFilter.setComboList(_pExProp->vStrFilterHistory);
 		_ComboFilter.addText("*.*");
 
 		/* Update "Go to Folder" icon */
@@ -143,7 +176,7 @@ void ExplorerDialog::doDialog(bool willBeShown)
 }
 
 
-BOOL CALLBACK ExplorerDialog::run_dlgProc(UINT Message, WPARAM wParam, LPARAM lParam)
+BOOL CALLBACK ExplorerDialog::run_dlgProc(HWND hWnd, UINT Message, WPARAM wParam, LPARAM lParam)
 {
 	switch (Message) 
 	{
@@ -170,12 +203,6 @@ BOOL CALLBACK ExplorerDialog::run_dlgProc(UINT Message, WPARAM wParam, LPARAM lP
 		}
 		case WM_COMMAND:
 		{
-			/* Only used on non NT based systems */
-			if (LOWORD(wParam) == IDCANCEL)
-			{
-				display(false);
-			}
-
 			if (((HWND)lParam == _hFilter) && (HIWORD(wParam) == CBN_SELCHANGE))
 			{
 				char	TEMP[MAX_PATH];
@@ -304,7 +331,7 @@ BOOL CALLBACK ExplorerDialog::run_dlgProc(UINT Message, WPARAM wParam, LPARAM lP
 				lpttt->lpszText = tip;
 			}
 
-			DockingDlgInterface::run_dlgProc(Message, wParam, lParam);
+			DockingDlgInterface::run_dlgProc(hWnd, Message, wParam, lParam);
 
 		    return FALSE;
 		}
@@ -315,89 +342,183 @@ BOOL CALLBACK ExplorerDialog::run_dlgProc(UINT Message, WPARAM wParam, LPARAM lP
 			RECT	rc			= {0};
 			RECT	rcWnd		= {0};
 			RECT	rcBuff		= {0};
-			INT		splitterPos	= *_piSplitterPos;
 
-			if (_wasVisible == FALSE)
+			if ((_iDockedPos == CONT_LEFT) || (_iDockedPos == CONT_RIGHT))
 			{
-				/* init "old" client rect size */
-				getClientRect(_rcOldSize);				
-			}
+				INT		splitterPos	= _pExProp->iSplitterPos;
 
-			/* triggered by notification NPPN_READY */
-			if (_bStartupFinish == TRUE)
-			{
-				/* set splitter position (%) */
+				if (_wasVisible == FALSE)
+				{
+					/* init "old" client rect size */
+					getClientRect(_rcOldSize);				
+				}
+
+				/* triggered by notification NPPN_READY */
+				if (_bStartupFinish == TRUE)
+				{
+					/* set splitter position (%) */
+					getClientRect(rc);
+					_pExProp->iSplitterPos -= ((_rcOldSize.bottom - rc.bottom) / 2);
+					splitterPos	= _pExProp->iSplitterPos;
+				}
+
+				/* store old client rect */
+				getClientRect(_rcOldSize);
+
+				/* correct real splitter position */
+				if (splitterPos < 0)
+				{
+					splitterPos = 0;
+				}
+				else if (splitterPos > (rc.bottom - 54))
+				{
+					splitterPos = rc.bottom - 54;
+				}
+
+				/* set position of toolbar */
 				getClientRect(rc);
-				*_piSplitterPos -= ((_rcOldSize.bottom - rc.bottom) / 2);
-				splitterPos	= *_piSplitterPos;
-			}
+				_ToolBar.reSizeTo(rc);
+				_Rebar.reSizeTo(rc);
 
-			/* store old client rect */
-			getClientRect(_rcOldSize);
+				/* set position of tree control */
+				getClientRect(rc);
+				rc.top    += 26;
+				rc.bottom  = splitterPos;
+				::SetWindowPos(_hTreeCtrl, NULL, rc.left, rc.top, rc.right, rc.bottom, SWP_NOZORDER | SWP_SHOWWINDOW);
 
-			/* correct real splitter position */
-			if (splitterPos < 0)
-			{
-				splitterPos = 0;
-			}
-			else if (splitterPos > (rc.bottom - 54))
-			{
-				splitterPos = rc.bottom - 54;
-			}
+				/* set splitter */
+				getClientRect(rc);
+				rc.top	   = (splitterPos + 26);
+				rc.bottom  = 6;
+				::SetWindowPos(_hSplitterCtrl, NULL, rc.left, rc.top, rc.right, rc.bottom, SWP_NOZORDER | SWP_SHOWWINDOW);
 
-			/* set position of toolbar */
-			getClientRect(rc);
-			_Rebar.reSizeTo(rc);
+				/* set position of list control */
+				getClientRect(rc);
+				rc.top	   = (splitterPos + 32);
+				rc.bottom -= (splitterPos + 32 + 22);
+				::SetWindowPos(_hListCtrl, NULL, rc.left, rc.top, rc.right, rc.bottom, SWP_NOZORDER | SWP_SHOWWINDOW);
 
-			/* set position of tree control */
-			getClientRect(rc);
-			rc.top    += 26;
-			rc.bottom  = splitterPos;
-			::SetWindowPos(_hTreeCtrl, NULL, rc.left, rc.top, rc.right, rc.bottom, SWP_NOZORDER | SWP_SHOWWINDOW);
+				/* set position of filter controls */
+				getClientRect(rc);
+				rcBuff = rc;
 
-			/* set splitter */
-			getClientRect(rc);
-			rc.top	   = (splitterPos + 26);
-			rc.bottom  = 6;
-			::SetWindowPos(_hSplitterCtrl, NULL, rc.left, rc.top, rc.right, rc.bottom, SWP_NOZORDER | SWP_SHOWWINDOW);
+				/* set position of static text */
+				if (_hFilterButton == NULL)
+				{
+					hWnd = ::GetDlgItem(_hSelf, IDC_STATIC_FILTER);
+					::GetWindowRect(hWnd, &rcWnd);
+					rc.top	     = rcBuff.bottom - 18;
+					rc.bottom    = 12;
+					rc.left     += 2;
+					rc.right     = rcWnd.right - rcWnd.left;
+					::SetWindowPos(hWnd, NULL, rc.left, rc.top, rc.right, rc.bottom, SWP_NOZORDER | SWP_SHOWWINDOW);
+				}
+				else
+				{
+					rc.top	     = rcBuff.bottom - 21;
+					rc.bottom    = 20;
+					rc.left     += 2;
+					rc.right     = 35;
+					::SetWindowPos(_hFilterButton, NULL, rc.left, rc.top, rc.right, rc.bottom, SWP_NOZORDER | SWP_SHOWWINDOW);
+				}
+				rcBuff.left = rc.right + 4;
 
-			/* set position of list control */
-			getClientRect(rc);
-			rc.top	   = (splitterPos + 32);
-			rc.bottom -= (splitterPos + 32 + 22);
-			::SetWindowPos(_hListCtrl, NULL, rc.left, rc.top, rc.right, rc.bottom, SWP_NOZORDER | SWP_SHOWWINDOW);
-
-			/* set position of filter controls */
-			getClientRect(rc);
-			rcBuff = rc;
-
-			/* set position of static text */
-			if (_hFilterButton == NULL)
-			{
-				hWnd = ::GetDlgItem(_hSelf, IDC_STATIC_FILTER);
-				::GetWindowRect(hWnd, &rcWnd);
-				rc.top	     = rcBuff.bottom - 18;
-				rc.bottom    = 12;
-				rc.left     += 2;
-				rc.right     = rcWnd.right - rcWnd.left;
-				::SetWindowPos(hWnd, NULL, rc.left, rc.top, rc.right, rc.bottom, SWP_NOZORDER | SWP_SHOWWINDOW);
+				/* set position of combo */
+				rc.top		 = rcBuff.bottom - 21;
+				rc.bottom	 = 20;
+				rc.left		 = rcBuff.left;
+				rc.right	 = rcBuff.right - rcBuff.left;
+				::SetWindowPos(_hFilter, NULL, rc.left, rc.top, rc.right, rc.bottom, SWP_NOZORDER | SWP_SHOWWINDOW);				
 			}
 			else
 			{
-				rc.top	     = rcBuff.bottom - 21;
-				rc.bottom    = 20;
-				rc.left     += 2;
-				rc.right     = 35;
-				::SetWindowPos(_hFilterButton, NULL, rc.left, rc.top, rc.right, rc.bottom, SWP_NOZORDER | SWP_SHOWWINDOW);
-			}
-			rcBuff.left = rc.right + 4;
+				INT		splitterPos	= _pExProp->iSplitterPosHorizontal;
 
-			/* set position of combo */
-			rc.top		 = rcBuff.bottom - 21;
-			rc.bottom	 = 20;
-			rc.left		 = rcBuff.left;
-			rc.right	 = rcBuff.right - rcBuff.left;
-			::SetWindowPos(_hFilter, NULL, rc.left, rc.top, rc.right, rc.bottom, SWP_NOZORDER | SWP_SHOWWINDOW);
+				if (_wasVisible == FALSE)
+				{
+					/* init "old" client rect size */
+					getClientRect(_rcOldSizeHorizontal);				
+				}
+
+				/* triggered by notification NPPN_READY */
+				if (_bStartupFinish == TRUE)
+				{
+//					/* set splitter position (%) */
+					getClientRect(rc);
+//					_pExProp->iSplitterPosHorizontal -= ((_rcOldSizeHorizontal.right - rc.right) / 2);
+					splitterPos	= _pExProp->iSplitterPosHorizontal;
+				}
+
+				/* store old client rect */
+				getClientRect(_rcOldSizeHorizontal);
+
+				/* correct real splitter position */
+				if (splitterPos < 0)
+				{
+					splitterPos = 0;
+				}
+				else if (splitterPos > (rc.right - 6))
+				{
+					splitterPos = rc.right - 6;
+				}
+
+				/* set position of toolbar */
+				getClientRect(rc);
+				rc.right   = splitterPos;
+				_ToolBar.reSizeTo(rc);
+				_Rebar.reSizeTo(rc);
+
+				/* set position of tree control */
+				getClientRect(rc);
+				rc.top    += 26;
+				rc.bottom -= 26 + 22;
+				rc.right   = splitterPos;
+				::SetWindowPos(_hTreeCtrl, NULL, rc.left, rc.top, rc.right, rc.bottom, SWP_NOZORDER | SWP_SHOWWINDOW);
+
+				/* set position of filter controls */
+				getClientRect(rc);
+				rcBuff = rc;
+
+				/* set position of static text */
+				if (_hFilterButton == NULL)
+				{
+					hWnd = ::GetDlgItem(_hSelf, IDC_STATIC_FILTER);
+					::GetWindowRect(hWnd, &rcWnd);
+					rc.top	     = rcBuff.bottom - 18;
+					rc.bottom    = 12;
+					rc.left     += 2;
+					rc.right     = rcWnd.right - rcWnd.left;
+					::SetWindowPos(hWnd, NULL, rc.left, rc.top, rc.right, rc.bottom, SWP_NOZORDER | SWP_SHOWWINDOW);
+				}
+				else
+				{
+					rc.top	     = rcBuff.bottom - 21;
+					rc.bottom    = 20;
+					rc.left     += 2;
+					rc.right     = 35;
+					::SetWindowPos(_hFilterButton, NULL, rc.left, rc.top, rc.right, rc.bottom, SWP_NOZORDER | SWP_SHOWWINDOW);
+				}
+				rcBuff.left = rc.right + 4;
+
+				/* set position of combo */
+				rc.top		 = rcBuff.bottom - 21;
+				rc.bottom	 = 20;
+				rc.left		 = rcBuff.left;
+				rc.right	 = splitterPos - rcBuff.left;
+				::SetWindowPos(_hFilter, NULL, rc.left, rc.top, rc.right, rc.bottom, SWP_NOZORDER | SWP_SHOWWINDOW);
+
+				/* set splitter */
+				getClientRect(rc);
+				rc.left		 = splitterPos;
+				rc.right     = 6;
+				::SetWindowPos(_hSplitterCtrl, NULL, rc.left, rc.top, rc.right, rc.bottom, SWP_NOZORDER | SWP_SHOWWINDOW);
+
+				/* set position of list control */
+				getClientRect(rc);
+				rc.left      = splitterPos + 6;
+				rc.right    -= rc.left;
+				::SetWindowPos(_hListCtrl, NULL, rc.left, rc.top, rc.right, rc.bottom, SWP_NOZORDER | SWP_SHOWWINDOW);
+			}
 			break;
 		}
 		case WM_DRAWITEM:
@@ -422,6 +543,7 @@ BOOL CALLBACK ExplorerDialog::run_dlgProc(UINT Message, WPARAM wParam, LPARAM lP
 		case WM_DESTROY:
 		{
 			::DestroyIcon(_data.hIconTab);
+			_ComboFilter.getComboList(_pExProp->vStrFilterHistory);
 			break;
 		}
 		case EXM_CHANGECOMBO:
@@ -546,6 +668,11 @@ BOOL CALLBACK ExplorerDialog::run_dlgProc(UINT Message, WPARAM wParam, LPARAM lP
 				::KillTimer(_hSelf, EXT_UPDATEDEVICE);
 				UpdateDevices();
 			}
+			if (wParam == EXT_UPDATE)
+			{
+				::KillTimer(_hSelf, EXT_UPDATE);
+				tb_cmd(IDM_EX_UPDATE);
+			}
 			if (wParam == EXT_UPDATEPATH)
 			{
 				::KillTimer(_hSelf, EXT_UPDATEPATH);
@@ -562,9 +689,10 @@ BOOL CALLBACK ExplorerDialog::run_dlgProc(UINT Message, WPARAM wParam, LPARAM lP
 				}
 				delete [] strPathName;
 			}
+			return TRUE;
 		}
 		default:
-			return DockingDlgInterface::run_dlgProc(Message, wParam, lParam);
+			return DockingDlgInterface::run_dlgProc(hWnd, Message, wParam, lParam);
 	}
 
 	return FALSE;
@@ -580,25 +708,51 @@ LRESULT ExplorerDialog::runSplitterProc(HWND hwnd, UINT Message, WPARAM wParam, 
 		case WM_LBUTTONDOWN:
 		{
 			_isLeftButtonDown = TRUE;
-			::GetCursorPos(&_ptOldPos);
-			SetCursor(_hSplitterCursor);
+
+			/* set cursor */
+			if (_iDockedPos < CONT_TOP)
+			{
+				::GetCursorPos(&_ptOldPos);
+				SetCursor(_hSplitterCursorUpDown);
+			}
+			else
+			{
+				::GetCursorPos(&_ptOldPosHorizontal);
+				SetCursor(_hSplitterCursorLeftRight);
+			}
 			break;
 		}
 		case WM_LBUTTONUP:
 		{
 			RECT	rc;
 
-			_isLeftButtonDown = FALSE;
-			SetCursor(_hSplitterCursor);
-
 			getClientRect(rc);
-			if (*_piSplitterPos < 0)
+			_isLeftButtonDown = FALSE;
+
+			/* set cursor */
+			if (_iDockedPos < CONT_TOP)
 			{
-				*_piSplitterPos = 0;
+				SetCursor(_hSplitterCursorUpDown);
+				if (_pExProp->iSplitterPos < 0)
+				{
+					_pExProp->iSplitterPos = 0;
+				}
+				else if (_pExProp->iSplitterPos > (rc.bottom - 56))
+				{
+					_pExProp->iSplitterPos = rc.bottom - 56;
+				}
 			}
-			else if (*_piSplitterPos > (rc.bottom - 56))
+			else
 			{
-				*_piSplitterPos = rc.bottom - 56;
+				SetCursor(_hSplitterCursorLeftRight);
+				if (_pExProp->iSplitterPosHorizontal < 0)
+				{
+					_pExProp->iSplitterPosHorizontal = 0;
+				}
+				else if (_pExProp->iSplitterPosHorizontal > (rc.right - 6))
+				{
+					_pExProp->iSplitterPosHorizontal = rc.right - 6;
+				}
 			}
 			break;
 		}
@@ -610,14 +764,31 @@ LRESULT ExplorerDialog::runSplitterProc(HWND hwnd, UINT Message, WPARAM wParam, 
 				
 				::GetCursorPos(&pt);
 
-				if (_ptOldPos.y != pt.y)
+				if (_iDockedPos < CONT_TOP)
 				{
-					*_piSplitterPos		-= _ptOldPos.y - pt.y;
-					::SendMessage(_hSelf, WM_SIZE, 0, 0);
+					if (_ptOldPos.y != pt.y)
+					{
+						_pExProp->iSplitterPos -= _ptOldPos.y - pt.y;
+						::SendMessage(_hSelf, WM_SIZE, 0, 0);
+					}
+					_ptOldPos = pt;
 				}
-				_ptOldPos = pt;
+				else
+				{
+					if (_ptOldPosHorizontal.x != pt.x)
+					{
+						_pExProp->iSplitterPosHorizontal -= _ptOldPosHorizontal.x - pt.x;
+						::SendMessage(_hSelf, WM_SIZE, 0, 0);
+					}
+					_ptOldPosHorizontal = pt;
+				}
 			}
-			SetCursor(_hSplitterCursor);
+
+			/* set cursor */
+			if (_iDockedPos < CONT_TOP)
+				SetCursor(_hSplitterCursorUpDown);
+			else
+				SetCursor(_hSplitterCursorLeftRight);
 			break;
 		}
 		default:
@@ -722,6 +893,20 @@ void ExplorerDialog::tb_cmd(UINT message)
 			delete [] pszPath;
 			break;
 		}
+		case IDM_EX_GO_TO_USER:
+		{
+			char*	pathName	= (char*)new char[MAX_PATH];
+
+			if (SHGetSpecialFolderPath(_hSelf, pathName, CSIDL_PROFILE, FALSE) == TRUE)
+			{
+				strcat(pathName, "\\");
+				SelectItem(pathName);
+			}
+
+			delete [] pathName;
+
+			break;
+		}
 		case IDM_EX_GO_TO_FOLDER:
 		{
 			char*	pathName	= (char*)new char[MAX_PATH];
@@ -757,7 +942,8 @@ void ExplorerDialog::tb_cmd(UINT message)
 void ExplorerDialog::InitialDialog(void)
 {
 	/* subclass splitter */
-	_hSplitterCursor = ::LoadCursor(_hInst, MAKEINTRESOURCE(IDC_UPDOWN));
+	_hSplitterCursorUpDown		= ::LoadCursor(_hInst, MAKEINTRESOURCE(IDC_UPDOWN));
+	_hSplitterCursorLeftRight	= ::LoadCursor(_hInst, MAKEINTRESOURCE(IDC_LEFTRIGHT));
 	::SetWindowLong(_hSplitterCtrl, GWL_USERDATA, reinterpret_cast<LONG>(this));
 	_hDefaultSplitterProc = reinterpret_cast<WNDPROC>(::SetWindowLong(_hSplitterCtrl, GWL_WNDPROC, reinterpret_cast<LONG>(wndDefaultSplitterProc)));
 
@@ -767,10 +953,17 @@ void ExplorerDialog::InitialDialog(void)
 	::SendMessage(_hTreeCtrl, TVM_SETIMAGELIST, TVSIL_NORMAL, (LPARAM)_hImageListSmall);
 
 	/* initial file list */
-	_FileList.init(_hInst, _hSelf, _hListCtrl, _hImageListSmall, _piColumnPos);
+	_FileList.init(_hInst, _hSelf, _hListCtrl, _hImageListSmall, _pExProp);
 
 	/* create toolbar */
-	_ToolBar.init(_hInst, _hSelf, 16, toolBarIcons, sizeof(toolBarIcons)/sizeof(ToolBarButtonUnit), true, stdIcons, sizeof(stdIcons)/sizeof(int));
+	if (GetVersion() & 0x80000000)
+	{
+		_ToolBar.init(_hInst, _hSelf, 16, toolBarIcons, sizeof(toolBarIcons)/sizeof(ToolBarButtonUnit), true, stdIcons, sizeof(stdIcons)/sizeof(int));
+	}
+	else
+	{
+		_ToolBar.init(_hInst, _hSelf, 16, toolBarIconsNT, sizeof(toolBarIconsNT)/sizeof(ToolBarButtonUnit), true, stdIconsNT, sizeof(stdIconsNT)/sizeof(int));
+	}
 	_ToolBar.display();
 	_Rebar.init(_hInst, _hSelf, &_ToolBar);
 	_Rebar.display();
@@ -782,7 +975,7 @@ void ExplorerDialog::InitialDialog(void)
 void ExplorerDialog::SetCaption(char* path)
 {
 	/* store current path */
-	strcpy(_pCurrentPath, path);
+	strcpy(_pExProp->szCurrentPath, path);
 
 	/* update text */
 	updateDockingDlg();
@@ -894,6 +1087,7 @@ void ExplorerDialog::UpdateDevices(void)
 		{
 			/* create volume name */
 			isValidDrive = GetVolumeInformation(drivePathName, TEMP, MAX_PATH, &serialNr, &space, &flags, NULL, 0);
+
 			if (isValidDrive == TRUE)
 			{
 				sprintf(volumeName, "%c: [%s]", 'A' + i, TEMP);

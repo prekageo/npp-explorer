@@ -14,6 +14,7 @@
 //You should have received a copy of the GNU General Public License
 //along with this program; if not, write to the Free Software
 //Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+
 #include <stdarg.h>
 #include "FileDlg.h"
 
@@ -25,7 +26,7 @@ FileDlg::FileDlg(HINSTANCE hInst, HWND hwnd)
     for (int i = 0 ; i < nbExtMax ; i++)
         _extArray[i][0] = '\0';
 
-    memset(_fileExt, 0x00, sizeof(_fileExt));
+    ::ZeroMemory(_fileExt, sizeof(_fileExt));
 	_fileName[0] = '\0';
  
 	_ofn.lStructSize = sizeof(_ofn);     

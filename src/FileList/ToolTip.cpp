@@ -57,7 +57,7 @@ void ToolTip::Show(RECT rectTitle, char* pszTitle, int iXOff, int iWidthOff)
 	// INITIALIZE MEMBERS OF THE TOOLINFO STRUCTURE
 	_ti.cbSize		= sizeof(TOOLINFO);
 	_ti.uFlags		= TTF_TRACK | TTF_ABSOLUTE;
-	_ti.hwnd		= _hParent;
+	_ti.hwnd		= ::GetParent(_hParent);
 	_ti.hinst		= _hInst;
 	_ti.uId			= 0;
 
@@ -82,6 +82,10 @@ LRESULT ToolTip::runProc(UINT message, WPARAM wParam, LPARAM lParam)
 {
     switch (message)
     {
+		case WM_MOUSEACTIVATE:
+		{
+			return MA_NOACTIVATE;
+		}
 		case WM_CREATE:
 		{
 			TRACKMOUSEEVENT tme;
@@ -93,9 +97,9 @@ LRESULT ToolTip::runProc(UINT message, WPARAM wParam, LPARAM lParam)
 			break;
 		}
 		case WM_LBUTTONDBLCLK:
-    	case WM_LBUTTONDOWN:
     	case WM_RBUTTONDOWN:
-        {
+    	case WM_LBUTTONDOWN:
+		{
 			POINT			pt			= {0};
 			LVHITTESTINFO	hittest		= {0};
 
@@ -103,8 +107,8 @@ LRESULT ToolTip::runProc(UINT message, WPARAM wParam, LPARAM lParam)
 			ScreenToClient(_hParent, &hittest.pt);
 			::SendMessage(_hParent, LVM_SUBITEMHITTEST, 0, (LPARAM)&hittest);
 			::SendMessage(_hParent, EXM_TOOLTIP, message, (LPARAM)&hittest);
-    		break;
-        }
+			return TRUE;
+		}
 		case WM_MOUSEMOVE:
 		{
 			if (!_bTrackMouse)
@@ -118,7 +122,7 @@ LRESULT ToolTip::runProc(UINT message, WPARAM wParam, LPARAM lParam)
 			}
 			else
 				_bTrackMouse = FALSE;
-			break;
+			return TRUE;
 		}
  		case WM_MOUSEHOVER:
 		case WM_MOUSELEAVE:
@@ -130,3 +134,4 @@ LRESULT ToolTip::runProc(UINT message, WPARAM wParam, LPARAM lParam)
 
 	return ::CallWindowProc(_defaultProc, _hSelf, message, wParam, lParam);
 }
+

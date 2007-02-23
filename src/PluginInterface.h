@@ -1,24 +1,24 @@
-//this file is part of Explorer Plugin for Notepad++
-//Copyright (C)2006 Jens Lorenz <jens.plugin.npp@gmx.de>
-//
-//This program is free software; you can redistribute it and/or
-//modify it under the terms of the GNU General Public License
-//as published by the Free Software Foundation; either
-//version 2 of the License, or (at your option) any later version.
-//
-//This program is distributed in the hope that it will be useful,
-//but WITHOUT ANY WARRANTY; without even the implied warranty of
-//MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-//GNU General Public License for more details.
-//
-//You should have received a copy of the GNU General Public License
-//along with this program; if not, write to the Free Software
-//Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+/*
+This file is part of Explorer Plugin for Notepad++
+Copyright (C)2006 Jens Lorenz <jens.plugin.npp@gmx.de>
+
+This program is free software; you can redistribute it and/or
+modify it under the terms of the GNU General Public License
+as published by the Free Software Foundation; either version 2
+of the License, or (at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program; if not, write to the Free Software
+Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+*/
 
 
-/**	Version Management for Notepad++ **/
-#define		_DEBUG_
-/** End **/
+// #define		_DEBUG_
 
 
 #ifndef PLUGININTERFACE_H
@@ -38,7 +38,7 @@
 using namespace std;
 
 #ifdef	_DEBUG_
-    static char cDBG[256];
+    static TCHAR cDBG[256];
 
 	#define DEBUG(x)            ::MessageBox(NULL, x, "DEBUG", MB_OK)
 	#define DEBUG_VAL(x)        itoa(x,cDBG,10);DEBUG(cDBG)
@@ -66,7 +66,7 @@ typedef enum {
 	FAVES_ITEM_MAX
 } eFavesElements;
 
-static char* cFavesItemNames[11] = {
+static LPSTR cFavesItemNames[11] = {
 	"[Folders]",
 	"[Files]",
 	"[Web]",
@@ -75,14 +75,14 @@ static char* cFavesItemNames[11] = {
 
 #define FAVES_PARAM				0x0000000F
 #define FAVES_PARAM_MAIN		0x00000010
-#define FAVES_PARAM_GROOP		0x00000020
+#define FAVES_PARAM_GROUP		0x00000020
 #define FAVES_PARAM_LINK		0x00000040
 
 
 typedef struct TItemElement {
 	UINT					uParam;
-	char*					pszName;
-	char*					pszLink;
+	LPSTR					pszName;
+	LPSTR					pszLink;
 	vector<TItemElement>	vElements;
 } tItemElement;
 
@@ -121,9 +121,9 @@ typedef vector<tItemElement>::iterator		ELEM_ITR;
 	#define WM_SAVECURRENTSESSION		(NOTEPADPLUS_USER + 16)
 
 	struct sessionInfo {
-		char* filePathName;
+		LPSTR filePathName;
 		int sessionFile;
-		char** sessionFileArray;
+		LPSTR* sessionFileArray;
 	};
 
 	#define WM_GETOPENFILENAMES_PRIMARY (NOTEPADPLUS_USER + 17)
@@ -159,7 +159,7 @@ typedef vector<tItemElement>::iterator		ELEM_ITR;
 	//void WM_DMM_REGASDCKDLG(0, &tTbData)
 
 	#define WM_LOADSESSION				(NOTEPADPLUS_USER + 34)
-	//void WM_LOADSESSION(0, const char* file name)
+	//void WM_LOADSESSION(0, const LPSTR file name)
 
 	#define WM_DMM_VIEWOTHERTAB			(NOTEPADPLUS_USER + 35)
 	//void WM_DMM_VIEWOTHERTAB(0, tTbData->hClient)
@@ -247,13 +247,61 @@ struct ShortcutKey {
 const int itemNameMaxLen = 64;
 typedef void (__cdecl * PFUNCPLUGINCMD)();
 typedef struct {
-	char _itemName[itemNameMaxLen];
-	PFUNCPLUGINCMD _pFunc;
-	int _cmdID;
-	bool _init2Check;
-	ShortcutKey *_pShKey;
+	TCHAR			_itemName[itemNameMaxLen];
+	PFUNCPLUGINCMD	_pFunc;
+	INT				_cmdID;
+	bool			_init2Check;
+	ShortcutKey*	_pShKey;
 } FuncItem;
 
+
+typedef enum {
+	SFMT_BYTES,
+	SFMT_KBYTE,
+	SFMT_DYNAMIC,
+	SFMT_DYNAMIC_EX,
+	SFMT_MAX
+} eSizeFmt;
+
+
+const char pszSizeFmt[][18] = {
+	"Bytes",
+	"kBytes",
+	"Dynamic x b/k/M",
+	"Dynamic x,x b/k/M"
+};
+
+typedef enum {
+	DFMT_ENG,
+	DFMT_GER,
+	DFMT_MAX
+} eDateFmt;
+
+const char pszDateFmt[][12] = {
+	"Y/M/D HH:MM",
+	"D.M.Y HH:MM",
+};
+
+
+typedef struct {
+	/* pointer to global current path */
+	TCHAR			szCurrentPath[MAX_PATH];
+	INT				iSplitterPos;
+	INT				iSplitterPosHorizontal;
+	BOOL			bAscending;
+	INT				iSortPos;
+	INT				iColumnPosName;
+	INT				iColumnPosExt;
+	INT				iColumnPosSize;
+	INT				iColumnPosDate;
+	BOOL			bShowHidden;
+	BOOL			bViewBraces;
+	BOOL			bViewLong;
+	BOOL			bAddExtToName;
+	eSizeFmt		fmtSize;
+	eDateFmt		fmtDate;
+	vector<string>	vStrFilterHistory;
+} tExProp;
 
 
 
@@ -264,6 +312,7 @@ void initMenu(void);
 
 void toggleExplorerDialog(void);
 void toggleFavesDialog(void);
+void openOptionDlg(void);
 void openHelpDlg(void);
 
 LRESULT CALLBACK SubWndProcNotepad(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam);
@@ -271,14 +320,14 @@ LRESULT CALLBACK SubWndProcNotepad(HWND hWnd, UINT message, WPARAM wParam, LPARA
 
 #define	ALLOW_PARENT_SEL	1
 
-BOOL VolumeNameExists(char* rootDrive, char* volumeName);
+BOOL VolumeNameExists(LPSTR rootDrive, LPSTR volumeName);
 bool IsValidFolder(WIN32_FIND_DATA Find);
 bool IsValidParentFolder(WIN32_FIND_DATA Find);
 bool IsValidFile(WIN32_FIND_DATA Find);
-BOOL HaveChildren(char* parentFolderPathName);
+BOOL HaveChildren(LPSTR parentFolderPathName);
 
 HIMAGELIST GetSystemImageList(BOOL fSmall);
-void ExtractIcons(const char* currentPath, const char* fileName, bool isDir, int* iIconNormal, int* iIconSelected, int* iIconOverlayed);
+void ExtractIcons(LPCSTR currentPath, LPCSTR fileName, bool isDir, LPINT iIconNormal, LPINT iIconSelected, LPINT iIconOverlayed);
 
 /* Extended Window Funcions */
 void ClientToScreen(HWND hWnd, RECT* rect);

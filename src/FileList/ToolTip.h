@@ -57,6 +57,7 @@ protected:
         return (((ToolTip *)(::GetWindowLong(hwnd, GWL_USERDATA)))->runProc(Message, wParam, lParam));
     };
 	LRESULT runProc(UINT Message, WPARAM wParam, LPARAM lParam);
+	void SendHitMessage(void);
 };
 
 #endif // __TOOLTIP_H__

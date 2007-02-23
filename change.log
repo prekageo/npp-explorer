@@ -2,6 +2,18 @@
 Change-log for Explorer.dll
 
 ------------------------------------------------------------------------------------
+07/02/04  v1.1 RC :
+------------------------------------------------------------------------------------
+	Fix: Opening of favorite folders in Explorer works always
+	New: Different layouts on top/buttom and left/right
+	New: Option dialog to do user settings as follows:
+         - Different formats for displaying date and time (LONG)
+	     - Extension now addable to file name
+	     - Disable braces in folder
+	     - Show hidden files
+	Change: Icon list layout
+	
+------------------------------------------------------------------------------------
 07/01/07  v1.0 :
 ------------------------------------------------------------------------------------
 	New Project Development:

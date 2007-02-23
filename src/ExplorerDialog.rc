@@ -29,20 +29,20 @@ LANGUAGE LANG_GERMAN, SUBLANG_GERMAN
 // Dialog
 //
 
-IDD_HELP_DLG DIALOGEX 0, 0, 230, 157
+IDD_HELP_DLG DIALOGEX 0, 0, 230, 167
 STYLE DS_FIXEDSYS | WS_POPUP | WS_BORDER | WS_SYSMENU
-FONT 8, "MS Sans Serif"
+FONT 8, "MS Shell Dlg"
 BEGIN
-    DEFPUSHBUTTON   "OK",IDOK,89,137,50,14
+    DEFPUSHBUTTON   "&Ok",IDOK,89,146,50,14
     LTEXT           "jens.plugin.npp@gmx.de",IDC_EMAIL_LINK,65,41,80,8
     LTEXT           "Author:\t\tJens Lorenz",IDC_STATIC,12,31,183,9
-    GROUPBOX        "Menu entries",IDC_STATIC,7,84,216,47
+    GROUPBOX        "Menu entries",IDC_STATIC,7,84,216,56
     LTEXT           "eMail:",IDC_STATIC,12,41,21,8
     CTEXT           "At first, I would like to thank Don for his great program and his support to create this plugin.",
                     IDC_STATIC,7,59,216,18
-    LTEXT           "View Explorer\t\tViews the Explorer dialog.\nView Favorites\t\tViews the Faroites dialog.\nHelp\t\t\tShows this help dialog.",
-                    IDC_STATIC,15,99,203,26
-    CTEXT           "Explorer Plugin for Notepad++ v4.0                 v1.01",
+    LTEXT           "View Explorer\t\tViews the Explorer dialog.\nView Favorites\t\tViews the Faroites dialog.\nExplorer Options...\tDo here your personal settings of\n\t\t\texplorer file list.\nHelp\t\t\tShows this help dialog.",
+                    IDC_STATIC,15,96,203,42
+    CTEXT           "Explorer Plugin for Notepad++ v4.0.2 RC                v1.1 RC",
                     IDC_STATIC,7,7,216,17,SS_CENTERIMAGE,WS_EX_DLGMODALFRAME | 
                     WS_EX_TRANSPARENT
 END
@@ -52,7 +52,7 @@ STYLE DS_3DLOOK | WS_MINIMIZEBOX | WS_MAXIMIZEBOX | WS_VISIBLE | WS_CAPTION |
     WS_SYSMENU | WS_THICKFRAME
 EXSTYLE WS_EX_TOOLWINDOW
 CAPTION "Explorer"
-FONT 8, "MS Sans Serif"
+FONT 8, "MS Shell Dlg", 0, 0, 0x1
 BEGIN
     CONTROL         "Tree2",IDC_TREE_FOLDER,"SysTreeView32",TVS_HASBUTTONS | 
                     TVS_HASLINES | TVS_SHOWSELALWAYS | TVS_INFOTIP | 
@@ -68,38 +68,63 @@ BEGIN
     LTEXT           "Filter:",IDC_STATIC_FILTER,7,239,18,8
 END
 
-IDD_NEW_DLG DIALOGEX 0, 0, 254, 63
+IDD_NEW_DLG DIALOG DISCARDABLE  0, 0, 254, 62
 STYLE DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
-EXSTYLE WS_EX_TOOLWINDOW
 CAPTION "Explorer"
-FONT 8, "MS Sans Serif", 0, 0, 0x1
+FONT 8, "MS Shell Dlg"
 BEGIN
     EDITTEXT        IDC_EDIT_NEW,13,19,227,12,ES_AUTOHSCROLL
-    DEFPUSHBUTTON   "Ok",IDOK,140,42,50,14
-    PUSHBUTTON      "Cancel",IDCANCEL,197,42,50,14
+    DEFPUSHBUTTON   "&Ok",IDOK,140,41,50,14
+    PUSHBUTTON      "&Cancel",IDCANCEL,197,41,50,14
     GROUPBOX        "New file:",IDC_STATIC_NEW_DESC,7,7,240,30
 END
 
-IDD_PROP_DLG DIALOGEX 0, 0, 254, 171
+IDD_PROP_DLG DIALOG DISCARDABLE  0, 0, 254, 171
 STYLE DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
-EXSTYLE WS_EX_TOOLWINDOW
 CAPTION "Favorites"
-FONT 8, "MS Sans Serif", 0, 0, 0x1
+FONT 8, "MS Shell Dlg"
 BEGIN
     EDITTEXT        IDC_EDIT_NAME,42,20,199,12,ES_AUTOHSCROLL
     EDITTEXT        IDC_EDIT_LINK,42,35,183,12,ES_AUTOHSCROLL
     PUSHBUTTON      "...",IDC_BTN_OPENDLG,227,35,14,12
-    PUSHBUTTON      "Details <<",IDC_BUTTON_DETAILS,7,150,50,14
+    PUSHBUTTON      "&Details <<",IDC_BUTTON_DETAILS,7,150,50,14
     CONTROL         "Tree1",IDC_TREE_SELECT,"SysTreeView32",TVS_HASBUTTONS | 
                     TVS_HASLINES | TVS_DISABLEDRAGDROP | TVS_SHOWSELALWAYS | 
                     TVS_INFOTIP | TVS_FULLROWSELECT | WS_BORDER | WS_TABSTOP,
                     13,65,228,74
-    DEFPUSHBUTTON   "Ok",IDOK,139,150,50,14
-    PUSHBUTTON      "Cancel",IDCANCEL,197,150,50,14
+    DEFPUSHBUTTON   "&Ok",IDOK,139,150,50,14
+    PUSHBUTTON      "&Cancel",IDCANCEL,197,150,50,14
     LTEXT           "Name",IDC_STATIC,13,20,20,12,SS_CENTERIMAGE
     LTEXT           "Link",IDC_STATIC,13,35,14,12,SS_CENTERIMAGE
     GROUPBOX        "Properties of file:",IDC_STATIC_FAVES_DESC,7,7,240,138
-    LTEXT           "Select a groop",IDC_STATIC_SELECT,13,55,47,8
+    LTEXT           "Select a group",IDC_STATIC_SELECT,13,55,47,8
+END
+
+IDD_OPTION_DLG DIALOG DISCARDABLE  0, 0, 216, 86
+STYLE DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
+CAPTION "Explorer Options"
+FONT 8, "MS Shell Dlg"
+BEGIN
+    DEFPUSHBUTTON   "&Ok",IDOK,104,65,50,14
+    PUSHBUTTON      "&Cancel",IDCANCEL,159,65,50,14
+    CONTROL         "&Folder With Braces",IDC_CHECK_BRACES,"Button",
+                    BS_AUTOCHECKBOX | WS_TABSTOP,13,49,76,10
+    GROUPBOX        "      &View 'Long' List",IDC_STATIC_LONG,100,7,109,50
+    CONTROL         "&V",IDC_CHECK_LONG,"Button",BS_AUTOCHECKBOX | 
+                    WS_TABSTOP,106,7,9,8
+    COMBOBOX        IDC_COMBO_SIZE_FORMAT,126,21,77,59,CBS_DROPDOWNLIST | 
+                    WS_VSCROLL | WS_TABSTOP
+    COMBOBOX        IDC_COMBO_DATE_FORMAT,126,37,77,51,CBS_DROPDOWNLIST | 
+                    WS_VSCROLL | WS_TABSTOP
+    GROUPBOX        "Extensions",IDC_STATIC,7,7,89,36
+    CONTROL         "In &Separate Column",IDC_RADIO_SEPARATE,"Button",
+                    BS_AUTORADIOBUTTON,13,18,78,10
+    CONTROL         "&Attached To Name",IDC_RADIO_ATTACHED,"Button",
+                    BS_AUTORADIOBUTTON,13,30,76,10
+    CONTROL         "Show &Hidden Files",IDC_CHECK_HIDDEN,"Button",
+                    BS_AUTOCHECKBOX | WS_TABSTOP,13,62,75,10
+    LTEXT           "Size:",IDC_STATIC,106,21,16,12,SS_CENTERIMAGE
+    LTEXT           "Date:",IDC_STATIC,106,37,18,12,SS_CENTERIMAGE
 END
 
 
@@ -140,6 +165,14 @@ END
 #ifdef APSTUDIO_INVOKED
 GUIDELINES DESIGNINFO MOVEABLE PURE 
 BEGIN
+    IDD_HELP_DLG, DIALOG
+    BEGIN
+        LEFTMARGIN, 7
+        RIGHTMARGIN, 223
+        TOPMARGIN, 7
+        BOTTOMMARGIN, 160
+    END
+
     IDD_EXPLORER_DLG, DIALOG
     BEGIN
         RIGHTMARGIN, 163
@@ -150,7 +183,7 @@ BEGIN
         LEFTMARGIN, 7
         RIGHTMARGIN, 247
         TOPMARGIN, 7
-        BOTTOMMARGIN, 56
+        BOTTOMMARGIN, 55
     END
 
     IDD_PROP_DLG, DIALOG
@@ -161,6 +194,14 @@ BEGIN
         VERTGUIDE, 247
         BOTTOMMARGIN, 164
         HORZGUIDE, 7
+    END
+
+    IDD_OPTION_DLG, DIALOG
+    BEGIN
+        LEFTMARGIN, 7
+        RIGHTMARGIN, 209
+        TOPMARGIN, 7
+        BOTTOMMARGIN, 79
     END
 END
 #endif    // APSTUDIO_INVOKED
@@ -178,7 +219,7 @@ IDI_FOLDER              ICON    DISCARDABLE     "..\\res\\folder.ico"
 IDI_FILE                ICON    DISCARDABLE     "..\\res\\file.ico"
 IDI_WEB                 ICON    DISCARDABLE     "..\\res\\web.ico"
 IDI_SESSION             ICON    DISCARDABLE     "..\\res\\session.ico"
-IDI_GROOP               ICON    DISCARDABLE     "..\\res\\groop.ico"
+IDI_GROUP               ICON    DISCARDABLE     "..\\res\\group.ico"
 IDI_EXPLORE             ICON    DISCARDABLE     "..\\res\\explore.ico"
 IDI_HEART               ICON    DISCARDABLE     "..\\res\\Heart.ico"
 
@@ -215,6 +256,7 @@ IDB_EX_LINKEDIT         BITMAP  MOVEABLE PURE   "..\\res\\linkEdit.bmp"
 IDB_EX_LINKDELETE       BITMAP  MOVEABLE PURE   "..\\res\\linkDelete.bmp"
 IDB_TB_FAVES            BITMAP  DISCARDABLE     "..\\res\\Heart.bmp"
 IDB_TB_EXPLORER         BITMAP  DISCARDABLE     "..\\res\\explore.bmp"
+IDB_EX_FOLDERUSER       BITMAP  MOVEABLE PURE   "..\\res\\folderUser.bmp"
 
 /////////////////////////////////////////////////////////////////////////////
 //
@@ -222,6 +264,7 @@ IDB_TB_EXPLORER         BITMAP  DISCARDABLE     "..\\res\\explore.bmp"
 //
 
 IDC_UPDOWN              CURSOR  DISCARDABLE     "..\\res\\updown.cur"
+IDC_LEFTRIGHT           CURSOR  DISCARDABLE     "..\\res\\leftright.cur"
 
 #ifndef _MAC
 /////////////////////////////////////////////////////////////////////////////
@@ -230,8 +273,8 @@ IDC_UPDOWN              CURSOR  DISCARDABLE     "..\\res\\updown.cur"
 //
 
 VS_VERSION_INFO VERSIONINFO
- FILEVERSION 1,0,1,0
- PRODUCTVERSION 1,0,1,0
+ FILEVERSION 1,1,0,0
+ PRODUCTVERSION 1,1,0,0
  FILEFLAGSMASK 0x3fL
 #ifdef _DEBUG
  FILEFLAGS 0x1L
@@ -248,15 +291,15 @@ BEGIN
         BEGIN
             VALUE "Comments", "\0"
             VALUE "CompanyName", "Jens Lorenz\0"
-            VALUE "FileDescription", "Explorer\0"
-            VALUE "FileVersion", "1, 0, 1, 0\0"
+            VALUE "FileDescription", "Notepad++ Explorer Plugin : a free (GNU) source code file explorer\0"
+            VALUE "FileVersion", "1, 1, 0, 0\0"
             VALUE "InternalName", "Explorer\0"
             VALUE "LegalCopyright", "Copyright © 2006\0"
             VALUE "LegalTrademarks", "\0"
             VALUE "OriginalFilename", "Explorer.dll\0"
             VALUE "PrivateBuild", "\0"
             VALUE "ProductName", "Jens Lorenz Explorer\0"
-            VALUE "ProductVersion", "1, 0, 1, 0\0"
+            VALUE "ProductVersion", "1, 1, 0, 0\0"
             VALUE "SpecialBuild", "\0"
         END
     END

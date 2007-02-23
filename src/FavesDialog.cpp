@@ -1,19 +1,21 @@
-//this file is part of Explorer Plugin for Notepad++
-//Copyright (C)2005 Jens Lorenz <jens.plugin.npp@gmx.de>
-//
-//This program is free software; you can redistribute it and/or
-//modify it under the terms of the GNU General Public License
-//as published by the Free Software Foundation; either
-//version 2 of the License, or (at your option) any later version.
-//
-//This program is distributed in the hope that it will be useful,
-//but WITHOUT ANY WARRANTY; without even the implied warranty of
-//MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-//GNU General Public License for more details.
-//
-//You should have received a copy of the GNU General Public License
-//along with this program; if not, write to the Free Software
-//Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+/*
+This file is part of Explorer Plugin for Notepad++
+Copyright (C)2006 Jens Lorenz <jens.plugin.npp@gmx.de>
+
+This program is free software; you can redistribute it and/or
+modify it under the terms of the GNU General Public License
+as published by the Free Software Foundation; either version 2
+of the License, or (at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program; if not, write to the Free Software
+Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+*/
 
 #include "PluginInterface.h"
 #include "FavesDialog.h"
@@ -54,8 +56,8 @@ static ToolBarButtonUnit toolBarIcons[] = {
 static int stdIcons[] = {IDB_EX_LINKNEWFILE, IDB_EX_LINKNEWFOLDER, IDB_EX_LINKNEW, IDB_EX_LINKEDIT, IDB_EX_LINKDELETE};
 
 static char* szToolTip[23] = {
-	"Link current file...",
-	"Link current folder...",
+	"Link Current File...",
+	"Link Current Folder...",
 	"New Link...",
 	"Edit Link...",
 	"Delete Link"
@@ -99,7 +101,7 @@ void FavesDialog::init(HINSTANCE hInst, NppData nppData, char* pCurrentElement)
 	ImageList_AddIcon(_hImageListSmall, ::LoadIcon(_hInst, MAKEINTRESOURCE(IDI_FILE)));
 	ImageList_AddIcon(_hImageListSmall, ::LoadIcon(_hInst, MAKEINTRESOURCE(IDI_WEB)));
 	ImageList_AddIcon(_hImageListSmall, ::LoadIcon(_hInst, MAKEINTRESOURCE(IDI_SESSION)));
-	ImageList_AddIcon(_hImageListSmall, ::LoadIcon(_hInst, MAKEINTRESOURCE(IDI_GROOP)));
+	ImageList_AddIcon(_hImageListSmall, ::LoadIcon(_hInst, MAKEINTRESOURCE(IDI_GROUP)));
 
 	/* init database */
 	ReadSettings();
@@ -153,7 +155,7 @@ void FavesDialog::NotifyNewFile(void)
 }
 
 
-BOOL CALLBACK FavesDialog::run_dlgProc(UINT Message, WPARAM wParam, LPARAM lParam)
+BOOL CALLBACK FavesDialog::run_dlgProc(HWND hWnd, UINT Message, WPARAM wParam, LPARAM lParam)
 {
 	switch (Message) 
 	{
@@ -308,7 +310,7 @@ BOOL CALLBACK FavesDialog::run_dlgProc(UINT Message, WPARAM wParam, LPARAM lPara
 				lpttt->lpszText = tip;
 			}
 
-			DockingDlgInterface::run_dlgProc(Message, wParam, lParam);
+			DockingDlgInterface::run_dlgProc(hWnd, Message, wParam, lParam);
 
 		    return FALSE;
 		}
@@ -330,12 +332,6 @@ BOOL CALLBACK FavesDialog::run_dlgProc(UINT Message, WPARAM wParam, LPARAM lPara
 		}
 		case WM_COMMAND:
 		{
-			/* Only used on non NT based systems */
-			if (LOWORD(wParam) == IDCANCEL)
-	        {
-				display(false);
-			}
-
 			if ((HWND)lParam == _ToolBar.getHSelf())
 			{
 				tb_cmd(LOWORD(wParam));
@@ -358,7 +354,7 @@ BOOL CALLBACK FavesDialog::run_dlgProc(UINT Message, WPARAM wParam, LPARAM lPara
 			break;
 		}
 		default:
-			DockingDlgInterface::run_dlgProc(Message, wParam, lParam);
+			DockingDlgInterface::run_dlgProc(hWnd, Message, wParam, lParam);
 			break;
 	}
 
@@ -445,7 +441,7 @@ void FavesDialog::InitialDialog(void)
 }
 
 
-HTREEITEM FavesDialog::GetTreeItem(const char* pszGroopName)
+HTREEITEM FavesDialog::GetTreeItem(const char* pszGroupName)
 {
 	if (isCreated())
 	{
@@ -454,8 +450,8 @@ HTREEITEM FavesDialog::GetTreeItem(const char* pszGroopName)
 		char*		pszName		= (char*)new char[MAX_PATH];
 		HTREEITEM	hItem		= TVI_ROOT;
 
-		/* copy the groop name */
-		strcpy(TEMP, pszGroopName);
+		/* copy the group name */
+		strcpy(TEMP, pszGroupName);
 
 		ptr = strtok(TEMP, " ");
 
@@ -485,15 +481,15 @@ HTREEITEM FavesDialog::GetTreeItem(const char* pszGroopName)
 }
 
 
-ELEM_ITR FavesDialog::GetElementItr(const char* pszGroopName)
+ELEM_ITR FavesDialog::GetElementItr(const char* pszGroupName)
 {
 	char*					ptr			= NULL;
 	char*					TEMP		= (char*)new char[MAX_PATH];
 	ELEM_ITR				elem_itr	= _vDB.begin();
 	ELEM_ITR				elem_end	= _vDB.end();
 
-	/* copy the groop name */
-	strcpy(TEMP, pszGroopName);
+	/* copy the group name */
+	strcpy(TEMP, pszGroupName);
 
 	ptr = strtok(TEMP, " ");
 
@@ -639,8 +635,8 @@ void FavesDialog::AddToFavorties(BOOL isFolder, char* szLink)
 				pszLink[strlen(pszLink)-1] = '\0';
 
 			/* get selected item */
-			const char*		szGroopName = dlgProp.getGroopName();
-			hItem = GetTreeItem(szGroopName);
+			const char*		pszGroupName = dlgProp.getGroupName();
+			hItem = GetTreeItem(pszGroupName);
 
 			/* test if name not exist and link exist */
 			if (DoesNameNotExist(hItem, pszName) == TRUE)
@@ -658,7 +654,7 @@ void FavesDialog::AddToFavorties(BOOL isFolder, char* szLink)
 				strcpy(element.pszLink, pszLink);
 
 				/* push element back */
-				ELEM_ITR		elem_itr	= GetElementItr(szGroopName);
+				ELEM_ITR		elem_itr	= GetElementItr(pszGroupName);
 				elem_itr->vElements.push_back(element);
 			}
 		}
@@ -736,11 +732,11 @@ void FavesDialog::AddSaveSession(HTREEITEM hItem, BOOL bSave)
 			if (hItem == NULL)
 			{
 				/* get group name */
-				const char*		szGroopName = dlgProp.getGroopName();
-				hParentItem = GetTreeItem(szGroopName);
+				const char*		pszGroupName = dlgProp.getGroupName();
+				hParentItem = GetTreeItem(pszGroupName);
 
 				/* get pointer by name */
-				elem_itr = GetElementItr(szGroopName);
+				elem_itr = GetElementItr(pszGroupName);
 			}
 
 			/* test if name not exist and link exist on known hItem */
@@ -850,7 +846,7 @@ void FavesDialog::NewItem(HTREEITEM hItem)
 	if (isOk == TRUE)
 	{
 		/* update information */
-		if (elem_itr->uParam & FAVES_PARAM_GROOP)
+		if (elem_itr->uParam & FAVES_PARAM_GROUP)
 		{
 			UpdateLink(TreeView_GetParent(_hTreeCtrl, hItem));
 		}
@@ -878,11 +874,11 @@ void FavesDialog::EditItem(HTREEITEM hItem)
 		char*		pszLink		= (char*)new char[MAX_PATH];
 		char*		pszDesc		= (char*)new char[MAX_PATH];
 
-		if (elem_itr->uParam & FAVES_PARAM_GROOP)
+		if (elem_itr->uParam & FAVES_PARAM_GROUP)
 		{
 			/* get data of current selected element */
 			strcpy(pszName, elem_itr->pszName);
-			strcpy(pszDesc, "Properties of groop");
+			strcpy(pszDesc, "Properties of group");
 
 			/* init new dialog */
 			NewDlg		dlgNew;
@@ -969,8 +965,8 @@ void FavesDialog::DeleteItem(HTREEITEM hItem)
 		/* update information and delete element */
 		TreeView_DeleteItem(_hTreeCtrl, hItem);
 
-		/* update only parent of parent when current item is a groop folder */
-		if (((ELEM_ITR)GetParam(hItemParent))->uParam & FAVES_PARAM_GROOP)
+		/* update only parent of parent when current item is a group folder */
+		if (((ELEM_ITR)GetParam(hItemParent))->uParam & FAVES_PARAM_GROUP)
 		{
 			UpdateLink(TreeView_GetParent(_hTreeCtrl, hItemParent));
 		}
@@ -1007,7 +1003,7 @@ void FavesDialog::OpenContext(HTREEITEM hItem, POINT pt)
 	{
 		int		root	= (elem_itr->uParam & FAVES_PARAM);
 
-		if (elem_itr->uParam & (FAVES_PARAM_MAIN | FAVES_PARAM_GROOP))
+		if (elem_itr->uParam & (FAVES_PARAM_MAIN | FAVES_PARAM_GROUP))
 		{
 			/* create menu and attach one element */
 			hMenu = ::CreatePopupMenu();
@@ -1015,16 +1011,16 @@ void FavesDialog::OpenContext(HTREEITEM hItem, POINT pt)
 			if (root != FAVES_SESSIONS)
 			{
 				::AppendMenu(hMenu, MF_STRING, 1, "New Link...");
-				::AppendMenu(hMenu, MF_STRING, 2, "New Groop...");
+				::AppendMenu(hMenu, MF_STRING, 2, "New Group...");
 			}
 			else
 			{
 				::AppendMenu(hMenu, MF_STRING, 3, "Add existing Session...");
 				::AppendMenu(hMenu, MF_STRING, 4, "Save current Session...");
-				::AppendMenu(hMenu, MF_STRING, 2, "New Groop...");
+				::AppendMenu(hMenu, MF_STRING, 2, "New Group...");
 			}
 
-			if (elem_itr->uParam & FAVES_PARAM_GROOP)
+			if (elem_itr->uParam & FAVES_PARAM_GROUP)
 			{
 				::AppendMenu(hMenu, MF_SEPARATOR, 0, 0);
 				::AppendMenu(hMenu, MF_STRING, 5, "Copy");
@@ -1066,7 +1062,7 @@ void FavesDialog::OpenContext(HTREEITEM hItem, POINT pt)
 
 					pszName[0] = '\0';
 
-					strcpy(pszDesc, "New groop in ");
+					strcpy(pszDesc, "New group in ");
 					strcat(pszDesc, cFavesItemNames[root]);
 
 					/* init new dialog */
@@ -1085,7 +1081,7 @@ void FavesDialog::OpenContext(HTREEITEM hItem, POINT pt)
 								tItemElement	element;
 								element.pszName	= (char*)new char[strlen(pszName)+1];
 								element.pszLink	= NULL;
-								element.uParam	= FAVES_PARAM_GROOP | root;
+								element.uParam	= FAVES_PARAM_GROUP | root;
 								element.vElements.clear();
 
 								strcpy(element.pszName, pszName);
@@ -1093,13 +1089,17 @@ void FavesDialog::OpenContext(HTREEITEM hItem, POINT pt)
 								elem_itr->vElements.push_back(element);
 
 								/* update information */
-								if (elem_itr->uParam & FAVES_PARAM_GROOP)
+								if (elem_itr->uParam & FAVES_PARAM_GROUP)
 								{
 									UpdateLink(TreeView_GetParent(_hTreeCtrl, hItem));
 								}
 								UpdateLink(hItem);
 								TreeView_Expand(_hTreeCtrl, hItem, TVM_EXPAND | TVE_COLLAPSERESET);
 							}
+						}
+						else
+						{
+							isOk = TRUE;
 						}
 					}
 
@@ -1273,7 +1273,7 @@ void FavesDialog::UpdateLink(HTREEITEM	hParentItem)
 			/* initialize children */
 			haveChildren		= FALSE;
 
-			if (itr->uParam & FAVES_PARAM_GROOP)
+			if (itr->uParam & FAVES_PARAM_GROUP)
 			{
 				iIconNormal		= _iUserImagePos + 4;
 				iIconSelected	= iIconNormal;
@@ -1478,7 +1478,7 @@ void FavesDialog::OpenLink(ELEM_ITR elem_itr)
 			{
 				extern ExplorerDialog		explorerDlg;
 
-				if (explorerDlg.getHSelf() == NULL)
+				if (explorerDlg.isVisible() == FALSE)
 					explorerDlg.doDialog();
 
 				::SendMessage(explorerDlg.getHSelf(), EXM_OPENDIR, 0, (LPARAM)elem_itr->pszLink);
@@ -1515,7 +1515,7 @@ void FavesDialog::SortElementList(vector<tItemElement>* elementList)
 	/* get all last elements in a seperate list and remove from sort list */
 	for (vector<tItemElement>::iterator itr = elementList->begin(); itr != elementList->end(); itr++)
 	{
-		if (itr->uParam & FAVES_PARAM_GROOP)
+		if (itr->uParam & FAVES_PARAM_GROUP)
 		{
 			sortList.push_back(*itr);
 		}
@@ -1704,7 +1704,7 @@ void FavesDialog::ReadElementTreeRecursive(ELEM_ITR elem_itr, char** ptr)
 
 			*ptr = strtok(NULL, "\n");
 		}
-		else if (strcmp(*ptr, "#GROOP") == 0)
+		else if ((strcmp(*ptr, "#GROUP") == 0) || (strcmp(*ptr, "#GROOP") == 0))
 		{
 			/* group is found, get information and fill out the struct */
 
@@ -1716,9 +1716,9 @@ void FavesDialog::ReadElementTreeRecursive(ELEM_ITR elem_itr, char** ptr)
 				strcpy(element.pszName, &(*ptr)[6]);
 			}
 			else
-				::MessageBox(_hSelf, "Error in file 'Favorites.dat'\nName in GROOP not correct!", "Error", MB_OK);
+				::MessageBox(_hSelf, "Error in file 'Favorites.dat'\nName in GROUP not correct!", "Error", MB_OK);
 
-			element.uParam	= FAVES_PARAM_GROOP | root;
+			element.uParam	= FAVES_PARAM_GROUP | root;
 			element.vElements.clear();
 
 			elem_itr->vElements.push_back(element);
@@ -1802,9 +1802,9 @@ void FavesDialog::SaveElementTreeRecursive(ELEM_ITR elem_itr, HANDLE hFile)
 	/* delete elements of child items */
 	for (ELEM_ITR itr = elem_itr->vElements.begin(); itr != elem_itr->vElements.end(); itr++)
 	{
-		if (itr->uParam & FAVES_PARAM_GROOP)
+		if (itr->uParam & FAVES_PARAM_GROUP)
 		{
-			WriteFile(hFile, "#GROOP\n", strlen("#GROOP\n"), &hasWritten, NULL);
+			WriteFile(hFile, "#GROUP\n", strlen("#GROUP\n"), &hasWritten, NULL);
 
 			size = strlen(itr->pszName)+8;
 			temp = (char*)new char[size];

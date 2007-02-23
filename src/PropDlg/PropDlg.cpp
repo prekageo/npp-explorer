@@ -1,19 +1,22 @@
-//this file is part of Exporer Plugin for Notepad++
-//Copyright (C)2006 Jens Lorenz <jens.plugin.npp@gmx.de>
-//
-//This program is free software; you can redistribute it and/or
-//modify it under the terms of the GNU General Public License
-//as published by the Free Software Foundation; either
-//version 2 of the License, or (at your option) any later version.
-//
-//This program is distributed in the hope that it will be useful,
-//but WITHOUT ANY WARRANTY; without even the implied warranty of
-//MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-//GNU General Public License for more details.
-//
-//You should have received a copy of the GNU General Public License
-//along with this program; if not, write to the Free Software
-//Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+/*
+This file is part of Explorer Plugin for Notepad++
+Copyright (C)2006 Jens Lorenz <jens.plugin.npp@gmx.de>
+
+This program is free software; you can redistribute it and/or
+modify it under the terms of the GNU General Public License
+as published by the Free Software Foundation; either version 2
+of the License, or (at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program; if not, write to the Free Software
+Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+*/
+
 
 #include "PropDlg.h"
 #include "stdio.h"
@@ -55,7 +58,7 @@ UINT PropDlg::doDialog(char* pName, char* pLink, char* pDesc, eLinkDlg linkDlg, 
 }
 
 
-BOOL CALLBACK PropDlg::run_dlgProc(UINT Message, WPARAM wParam, LPARAM lParam)
+BOOL CALLBACK PropDlg::run_dlgProc(HWND hWnd, UINT Message, WPARAM wParam, LPARAM lParam)
 {
 	switch (Message) 
 	{
@@ -172,7 +175,7 @@ BOOL CALLBACK PropDlg::run_dlgProc(UINT Message, WPARAM wParam, LPARAM lParam)
 							// If we were able to get the shell malloc object,
 							// then proceed by initializing the BROWSEINFO stuct
 							BROWSEINFO info;
-							memset(&info, 0, sizeof(info));
+							ZeroMemory(&info, sizeof(info));
 							info.hwndOwner			= _hParent;
 							info.pidlRoot			= NULL;
 							info.pszDisplayName		= (char*)new char[MAX_PATH];
@@ -245,12 +248,12 @@ BOOL CALLBACK PropDlg::run_dlgProc(UINT Message, WPARAM wParam, LPARAM lParam)
 
 					if ((strlen(_pName) != 0) && (strlen(_pLink) != 0))
 					{
-						char*	pszGroopName = (char*)new char[MAX_PATH];
+						char*	pszGroupName = (char*)new char[MAX_PATH];
 
-						GetFolderPathName(TreeView_GetSelection(_hTreeCtrl), pszGroopName);
-						_strGroopName = pszGroopName;
+						GetFolderPathName(TreeView_GetSelection(_hTreeCtrl), pszGroupName);
+						_strGroupName = pszGroupName;
 
-						delete [] pszGroopName;
+						delete [] pszGroupName;
 
 						::EndDialog(_hSelf, TRUE);
 						return TRUE;
@@ -387,9 +390,9 @@ void PropDlg::setTreeElements(ELEM_ITR itr, HIMAGELIST hImageList, INT iUImgPos,
 	_seeDetails = TRUE;
 }
 
-const char* PropDlg::getGroopName(void)
+const char* PropDlg::getGroupName(void)
 {
-	return _strGroopName.c_str();
+	return _strGroupName.c_str();
 }
 
 void PropDlg::DrawChildrenOfItem(HTREEITEM hParentItem)
@@ -413,11 +416,11 @@ void PropDlg::DrawChildrenOfItem(HTREEITEM hParentItem)
 			/* initialize children */
 			haveChildren		= FALSE;
 
-			if (itr->uParam & FAVES_PARAM_GROOP)
+			if (itr->uParam & FAVES_PARAM_GROUP)
 			{
 				if (itr->vElements.size() != 0)
 				{
-					if ((itr->vElements[0].uParam & FAVES_PARAM_GROOP) || (_bWithLink == TRUE))
+					if ((itr->vElements[0].uParam & FAVES_PARAM_GROUP) || (_bWithLink == TRUE))
 					{
 						haveChildren = TRUE;
 					}

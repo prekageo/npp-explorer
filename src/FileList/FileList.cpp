@@ -1,19 +1,21 @@
-//this file is part of Explorer Plugin for Notepad++
-//Copyright (C)2005 Jens Lorenz <jens.plugin.npp@gmx.de>
-//
-//This program is free software; you can redistribute it and/or
-//modify it under the terms of the GNU General Public License
-//as published by the Free Software Foundation; either
-//version 2 of the License, or (at your option) any later version.
-//
-//This program is distributed in the hope that it will be useful,
-//but WITHOUT ANY WARRANTY; without even the implied warranty of
-//MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-//GNU General Public License for more details.
-//
-//You should have received a copy of the GNU General Public License
-//along with this program; if not, write to the Free Software
-//Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+/*
+This file is part of Explorer Plugin for Notepad++
+Copyright (C)2006 Jens Lorenz <jens.plugin.npp@gmx.de>
+
+This program is free software; you can redistribute it and/or
+modify it under the terms of the GNU General Public License
+as published by the Free Software Foundation; either version 2
+of the License, or (at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program; if not, write to the Free Software
+Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+*/
 
 
 #include "FileList.h"
@@ -43,8 +45,6 @@ FileList::FileList(void)
 	_strCurrentPath		= "";
 	_isMouseOver		= FALSE;
 	_isLeftButtonDown	= FALSE;
-	_isUp				= TRUE;
-	_iPos				= 0;
 	_iMouseOver			= -1;
 	_bitmap0			= NULL;
 	_bitmap1			= NULL;
@@ -59,6 +59,10 @@ FileList::FileList(void)
 	_isStackRec			= TRUE;
 	_iItem				= 0;
 	_iSubItem			= 0;
+	_bOldAddExtToName	= FALSE;
+	_bOldViewLong		= FALSE;
+	_iSelMark			= 0;
+	_puSelList			= NULL;
 	strcpy(_szFileFilter, "*.*");
 }
 
@@ -79,19 +83,18 @@ FileList::~FileList(void)
 	_vFiles.clear();
 }
 
-void FileList::init(HINSTANCE hInst, HWND hParent, HWND hParentList, HIMAGELIST hImageList, INT* piColumnPos)
+void FileList::init(HINSTANCE hInst, HWND hParent, HWND hParentList, HIMAGELIST hImageList, tExProp* prop)
 {
-	LVCOLUMN	ColSetup	= {0};
-
 	/* set handles for list */
 	Window::init(hInst, hParent);
-	_hSelf			= hParentList;
-	_piColumnPos	= piColumnPos;
+	_hSelf		= hParentList;
+	_pExProp	= prop;
 
 	/* keep sure to support virtual list with icons */
 	DWORD	dwStyle = ::GetWindowLong(_hSelf, GWL_STYLE);
 	::SetWindowLong(_hSelf, GWL_STYLE, dwStyle | LVS_REPORT | LVS_OWNERDATA | LVS_SHOWSELALWAYS | LVS_SHAREIMAGELISTS);
 
+	/* enable full row select */
 	ListView_SetExtendedListViewStyle(_hSelf, LVS_EX_FULLROWSELECT);
 	ListView_SetCallbackMask(_hSelf, LVIS_OVERLAYMASK);
 
@@ -103,41 +106,13 @@ void FileList::init(HINSTANCE hInst, HWND hParent, HWND hParentList, HIMAGELIST 
 	_iImageList = ImageList_AddIcon(hImageList, ::LoadIcon(_hInst, MAKEINTRESOURCE(IDI_PARENTFOLDER)));
 	::SendMessage(_hSelf, LVM_SETIMAGELIST, LVSIL_SMALL, (LPARAM)hImageList);
 
-	/* enable full row select */
-	/* set caption of list */
-	ColSetup.mask		= LVCF_TEXT | LVCF_FMT | LVCF_WIDTH;
-	ColSetup.fmt		= LVCFMT_CENTER;
-	ColSetup.pszText	= "Name";
-	ColSetup.cchTextMax	= 4;
-	ColSetup.cx			= *_piColumnPos;
-	ListView_InsertColumn(_hSelf, 0, &ColSetup);
-	ColSetup.mask		= LVCF_TEXT | LVCF_FMT | LVCF_WIDTH;
-	ColSetup.fmt		= LVCFMT_LEFT;
-	ColSetup.pszText	= "Ext";
-	ColSetup.cchTextMax	= 3;
-	ColSetup.cx			= 50;
-	ListView_InsertColumn(_hSelf, 1, &ColSetup);
-
 	/* get header control and subclass it */
 	_hHeader = ListView_GetHeader(_hSelf);
 	::SetWindowLong(_hHeader, GWL_USERDATA, reinterpret_cast<LONG>(this));
 	_hDefaultHeaderProc = reinterpret_cast<WNDPROC>(::SetWindowLong(_hHeader, GWL_WNDPROC, reinterpret_cast<LONG>(wndDefaultHeaderProc)));
 
-	/* set owner draw for each item */
-	for(int iCol = 0; iCol < 2; iCol++)
-	{
-		HDITEM hdItem;
-
-		memset(&hdItem, 0, sizeof(HDITEM));
-		hdItem.mask = HDI_FORMAT;
-
-		if(Header_GetItem(_hHeader, iCol, &hdItem))
-		{
-			hdItem.mask = HDI_FORMAT;
-			hdItem.fmt |= HDF_OWNERDRAW;
-			Header_SetItem(_hHeader, iCol, &hdItem);
-		}
-	}
+	/* set here the columns */
+	SetColumns();
 
 	_bitmap0 = ::LoadBitmap(_hInst, MAKEINTRESOURCE(IDB_HEADER_NORMXP));
 //	_bitmap1 = ::LoadBitmap(_hInst, MAKEINTRESOURCE(IDB_HEADER_SNORMXP));
@@ -152,6 +127,7 @@ void FileList::init(HINSTANCE hInst, HWND hParent, HWND hParentList, HIMAGELIST 
 }
 
 
+
 /****************************************************************************
  *	Draw header list
  */
@@ -159,6 +135,37 @@ LRESULT FileList::runListProc(HWND hwnd, UINT Message, WPARAM wParam, LPARAM lPa
 {
 	switch (Message)
 	{
+		case WM_ACTIVATE:
+		{
+#if 0
+			UINT	uCnt  = _vFolders.size() + _vFiles.size();
+
+			if (LOWORD(wParam) != WA_INACTIVE)
+			{
+				ListView_SetSelectionMark(_hSelf, _iSelMark);
+
+				for (UINT i = 0; i < uCnt; i++)
+				{
+					ListView_SetItemState(_hSelf, i, _puSelList[i], 0xFF);
+				}
+
+				if (_puSelList != NULL)
+					delete [] _puSelList;
+			}
+			else
+			{
+				_iSelMark = ListView_GetSelectionMark(_hSelf);
+				
+				_puSelList = (LPUINT)new UINT[uCnt];
+
+				for (UINT i = 0; i < uCnt; i++)
+				{
+					_puSelList[i] = ListView_GetItemState(_hSelf, i, LVIS_SELECTED);
+				}
+			}
+#endif
+			break;
+		}
 		case WM_DRAWITEM:
 		{
 			if (((DRAWITEMSTRUCT *)lParam)->hwndItem == _hHeader)
@@ -180,13 +187,13 @@ LRESULT FileList::runListProc(HWND hwnd, UINT Message, WPARAM wParam, LPARAM lPa
 			UINT	selRow		= ListView_GetSelectionMark(_hSelf);
 
 			/* get low typed character */
-			char	typedChar	= makeStrLC((char*)&wParam)[0];
+			TCHAR	typedChar	= makeStrLC((LPSTR)&wParam)[0];
 
-			/* get positions of typed char */
+			/* get positions of typed TCHAR */
 			vector<UINT>	posOfTypedChar;
 
 			/* create data array of name */
-			if (_iPos == 0)
+			if (_pExProp->iSortPos == 0)
 			{
 				for (i = 0; i < maxData; i++)
 				{
@@ -214,7 +221,7 @@ LRESULT FileList::runListProc(HWND hwnd, UINT Message, WPARAM wParam, LPARAM lPa
 
 			if (posOfTypedChar.size() != 0)
 			{
-				int		newSelRow	= -1;
+				INT		newSelRow	= -1;
 
 				/* search for current position */
 				for (i = 0; i < posOfTypedChar.size(); i++)
@@ -249,26 +256,44 @@ LRESULT FileList::runListProc(HWND hwnd, UINT Message, WPARAM wParam, LPARAM lPa
 
 			if ((hittest.flags != 1) && ((_iItem != hittest.iItem) || (_iSubItem != hittest.iSubItem)))
 			{
-				_pToolTip.destroy();
+				if (_pToolTip.isVisible())
+					_pToolTip.destroy();
 
 				/* show text */
 				if (ListView_GetSubItemRect(_hSelf, hittest.iItem, hittest.iSubItem, LVIR_LABEL, &rcLabel))
 				{
 					RECT		rc				= {0};
-					char*		pszItemText		= (char*)new char[MAX_PATH];
+					LPSTR		pszItemText		= (LPSTR)new TCHAR[MAX_PATH];
 					UINT		width			= 0;
 
 					::GetClientRect(_hSelf, &rc);
 					ListView_GetItemText(_hSelf, hittest.iItem, hittest.iSubItem, pszItemText, MAX_PATH);
 					width = ListView_GetStringWidth(_hSelf, pszItemText);
 
+					/* open tooltip only when it's content is too small */
 					if ((((rcLabel.right - rcLabel.left) - (hittest.iSubItem == 0 ? 10 : 13)) < width) ||
 						(((rc.right - rcLabel.left) - (hittest.iSubItem == 0 ? 10 : 5)) < width))
 					{
 						_pToolTip.init(_hInst, _hSelf);
 						rcLabel.left += (hittest.iSubItem == 0 ? -1 : 3);
 						ClientToScreen(_hSelf, &rcLabel);
-						_pToolTip.Show(rcLabel, pszItemText);
+
+						if ((_pExProp->bAddExtToName == FALSE) && (hittest.iSubItem == 0))
+						{
+							LPSTR pszItemTextExt = (LPSTR)new TCHAR[MAX_PATH];
+							ListView_GetItemText(_hSelf, hittest.iItem, 1, pszItemTextExt, MAX_PATH);
+							if (pszItemTextExt[0] != '\0')
+							{
+								strcat(pszItemText, ".");
+								strcat(pszItemText, pszItemTextExt);
+							}
+							_pToolTip.Show(rcLabel, pszItemText);
+							delete [] pszItemTextExt;
+						}
+						else
+						{
+							_pToolTip.Show(rcLabel, pszItemText);
+						}
 					}
 
 					delete [] pszItemText;
@@ -284,17 +309,17 @@ LRESULT FileList::runListProc(HWND hwnd, UINT Message, WPARAM wParam, LPARAM lPa
 			UINT			uListCnt	= uFolders + _vFiles.size();
 			LVHITTESTINFO	hittest		= *((LVHITTESTINFO*)lParam);
 
-			/* for all select the current item */
-			for (UINT uList = 0; uList < uListCnt; uList++)
-			{
-				ListView_SetItemState(_hSelf, uList, (hittest.iItem == uList ? LVIS_SELECTED : 0), 0xFF);
-			}
-			ListView_SetSelectionMark(_hSelf, hittest.iItem);
-
 			switch (wParam)
 			{
 				case WM_LBUTTONDBLCLK:
 				{
+					/* select only one item */
+					for (UINT uList = 0; uList < uListCnt; uList++)
+					{
+						ListView_SetItemState(_hSelf, uList, (hittest.iItem == uList ? LVIS_SELECTED : 0), 0xFF);
+					}
+					ListView_SetSelectionMark(_hSelf, hittest.iItem);
+
 					/* hide tooltip */
 					if (hittest.iItem < uFolders)
 						_pToolTip.destroy();
@@ -304,15 +329,59 @@ LRESULT FileList::runListProc(HWND hwnd, UINT Message, WPARAM wParam, LPARAM lPa
 				}
     			case WM_LBUTTONDOWN:
 				{
-					/* nothing to do, item is selected */
+					/* hide tooltip */
+					if (0x80 & ::GetKeyState(VK_SHIFT))
+					{
+						INT lastSel = ListView_GetSelectionMark(_hSelf);
+
+						if (lastSel < hittest.iItem)
+						{
+							for (INT uList = lastSel; uList <= hittest.iItem; uList++)
+							{
+								ListView_SetItemState(_hSelf, uList, LVIS_SELECTED, 0xFF);
+							}
+						}
+						else
+						{
+							for (INT uList = lastSel; uList >= hittest.iItem; uList--)
+							{
+								ListView_SetItemState(_hSelf, uList, LVIS_SELECTED, 0xFF);
+							}
+						}
+					}
+					else if (0x80 & ::GetKeyState(VK_CONTROL)) 
+					{
+						bool	isSel = (ListView_GetItemState(_hSelf, hittest.iItem, LVIS_SELECTED) == LVIS_SELECTED);
+
+						ListView_SetItemState(_hSelf, hittest.iItem, isSel ? 0 : LVIS_SELECTED, 0xFF);
+					}
+					else
+					{
+						/* select only one item */
+						for (UINT uList = 0; uList < uListCnt; uList++)
+						{
+							ListView_SetItemState(_hSelf, uList, (hittest.iItem == uList ? LVIS_SELECTED : 0), 0xFF);
+						}
+					}
+					ListView_SetSelectionMark(_hSelf, hittest.iItem);
+
+					::SetFocus(_hSelf);
 					break;
 				}
     			case WM_RBUTTONDOWN:
 				{
+					/* select only one item */
+					for (UINT uList = 0; uList < uListCnt; uList++)
+					{
+						ListView_SetItemState(_hSelf, uList, (hittest.iItem == uList ? LVIS_SELECTED : 0), 0xFF);
+					}
+					ListView_SetSelectionMark(_hSelf, hittest.iItem);
+
 					/* hide tooltip */
 					_pToolTip.destroy();
 
 					onRMouseBtn();
+					::SetFocus(_hSelf);
 					break;
 				}
 			}
@@ -382,9 +451,9 @@ void FileList::drawHeaderItem(DRAWITEMSTRUCT *pDrawItemStruct)
 	LOGFONT		lf		= {0};
 	SIZE		size	= {0};
 
-	memset(&lf, 0, sizeof(LOGFONT));
+	ZeroMemory(&lf, sizeof(LOGFONT));
 	lf.lfHeight = 14;
-	strcpy(lf.lfFaceName, "MS Sans Serif");
+	strcpy(lf.lfFaceName, "MS Shell Dlg");
 	hFont = ::CreateFontIndirect(&lf);
 
 	/* inflate item rect for text */
@@ -408,21 +477,21 @@ void FileList::drawHeaderItem(DRAWITEMSTRUCT *pDrawItemStruct)
 	::SelectObject(hMemDc, hDefFont);
 	::DeleteObject(hFont);
 
-	if (_iPos == pDrawItemStruct->itemID)
+	if (_pExProp->iSortPos == pDrawItemStruct->itemID)
 	{
 		//draw the sort arrow
 		HBITMAP	hOldBitmap = NULL; //::SelectObject(hBitmapDc, bitmap2);
 
 		if (_iMouseOver == pDrawItemStruct->itemID)
 		{
-			if (_isUp == TRUE)
+			if (_pExProp->bAscending == TRUE)
 				hOldBitmap = (HBITMAP)::SelectObject(hBitmapDc, _bitmap7);
 			else
 				hOldBitmap = (HBITMAP)::SelectObject(hBitmapDc, _bitmap9);
 		}
 		else
 		{
-			if (_isUp == TRUE)
+			if (_pExProp->bAscending == TRUE)
 				hOldBitmap = (HBITMAP)::SelectObject(hBitmapDc, _bitmap6);
 			else
 				hOldBitmap = (HBITMAP)::SelectObject(hBitmapDc, _bitmap8);
@@ -459,19 +528,39 @@ LRESULT FileList::runHeaderProc(HWND hwnd, UINT Message, WPARAM wParam, LPARAM l
 			_isLeftButtonDown = FALSE;
 			::RedrawWindow(hwnd, NULL, NULL, TRUE);
 
-			*_piColumnPos = ListView_GetColumnWidth(_hSelf, 0);
+			/* update here the header column width */
+			if (_pExProp->bAddExtToName == FALSE)
+			{
+				_pExProp->iColumnPosName = ListView_GetColumnWidth(_hSelf, 0);
+				_pExProp->iColumnPosExt  = ListView_GetColumnWidth(_hSelf, 1);
+				if (_pExProp->bViewLong == TRUE)
+				{
+					_pExProp->iColumnPosSize = ListView_GetColumnWidth(_hSelf, 2);
+					_pExProp->iColumnPosDate = ListView_GetColumnWidth(_hSelf, 3);
+				}
+			}
+			else
+			{
+				INT	width = ListView_GetColumnWidth(_hSelf, 0) - _pExProp->iColumnPosExt;
+				_pExProp->iColumnPosName = width < 0 ? 0 : width;
+				if (_pExProp->bViewLong == TRUE)
+				{
+					_pExProp->iColumnPosSize = ListView_GetColumnWidth(_hSelf, 1);
+					_pExProp->iColumnPosDate = ListView_GetColumnWidth(_hSelf, 2);
+				}
+			}
 			break;
 		}
 		case WM_MOUSEMOVE:
 		{
 			RECT			rc				= {0};
 			LVHITTESTINFO	hittest			= {0};
-			int				iMouseOverOld	= _iMouseOver;
+			INT				iMouseOverOld	= _iMouseOver;
 
 			/* reset mouse over position */
 			_iMouseOver = -1;
 
-			for (UINT nSubItem = 0; nSubItem < 2; nSubItem++)
+			for (UINT nSubItem = 0; nSubItem < 4; nSubItem++)
 			{
 
 				ListView_GetSubItemRect(_hSelf, 0, nSubItem, LVIR_LABEL, &rc);
@@ -538,10 +627,11 @@ void FileList::notify(WPARAM wParam, LPARAM lParam)
 		{
 			LV_ITEM &lvItem = reinterpret_cast<LV_DISPINFO*>((LV_DISPINFO FAR *)lParam)->item;
 
+
 			if (lvItem.mask & LVIF_TEXT)
 			{
 				/* must be a cont array */
-				char	str[MAX_PATH];
+				static TCHAR	str[MAX_PATH];
 
 				ReadArrayToList(str, lvItem.iItem ,lvItem.iSubItem);
 				lvItem.pszText		= str;
@@ -550,7 +640,7 @@ void FileList::notify(WPARAM wParam, LPARAM lParam)
 
 			if (lvItem.mask & LVIF_IMAGE)
 			{
-				int	iOverlayed;
+				INT	iOverlayed;
 				ReadIconToList(lvItem.iItem, &lvItem.iImage, &iOverlayed);
 
 				if (iOverlayed != 0)
@@ -564,12 +654,12 @@ void FileList::notify(WPARAM wParam, LPARAM lParam)
 		}
 		case LVN_COLUMNCLICK:
 		{
-			int iPos  = ((LPNMLISTVIEW)lParam)->iSubItem;
+			INT iPos  = ((LPNMLISTVIEW)lParam)->iSubItem;
 
-			if (iPos != _iPos)
-				_iPos = iPos;
+			if (iPos != _pExProp->iSortPos)
+				_pExProp->iSortPos = iPos;
 			else
-				_isUp ^= TRUE;
+				_pExProp->bAscending ^= TRUE;
 
 			UpdateList();
 			break;
@@ -675,11 +765,11 @@ void FileList::notify(WPARAM wParam, LPARAM lParam)
 					pDrop->fWide	= FALSE;
 
 					INT nItem=-1;
-					int Offset = sizeof(DROPFILES);
+					INT Offset = sizeof(DROPFILES);
 
 					for (UINT i = 0; i < data.size(); i++)
 					{
-						int len = data[i].length() + 1;
+						INT len = data[i].length() + 1;
 						memcpy(reinterpret_cast<BYTE*>(hgDrop) + Offset, data[i].c_str(), len);
 						Offset += len;
 					}
@@ -730,7 +820,7 @@ void FileList::notify(WPARAM wParam, LPARAM lParam)
 			UINT			uFolders		= _vFolders.size();
 			UINT			uListCnt		= uFolders + _vFiles.size();
 			UINT			uBuffSize		= 0;
-			char*			pszBuff			= 0;
+			LPSTR			pszBuff			= 0;
 
 			FORMATETC		etc				= { CF_HDROP, NULL, DVASPECT_CONTENT, -1, TYMED_HGLOBAL };
 			STGMEDIUM		stgmed			= { TYMED_HGLOBAL, { 0 }, 0 };
@@ -751,11 +841,11 @@ void FileList::notify(WPARAM wParam, LPARAM lParam)
 					pDrop->fWide	= FALSE;
 
 					INT nItem=-1;
-					int Offset = sizeof(DROPFILES);
+					INT Offset = sizeof(DROPFILES);
 
 					for (UINT i = 0; i < data.size(); i++)
 					{
-						int len = data[i].length() + 1;
+						INT len = data[i].length() + 1;
 						memcpy(reinterpret_cast<BYTE*>(hgDrop) + Offset, data[i].c_str(), len);
 						Offset += len;
 					}
@@ -773,9 +863,9 @@ void FileList::notify(WPARAM wParam, LPARAM lParam)
 	}
 }
 
-void FileList::ReadIconToList(int iItem, int* piIcon, int* piOverlayed)
+void FileList::ReadIconToList(INT iItem, LPINT piIcon, LPINT piOverlayed)
 {
-	int		maxFolders		= _vFolders.size();
+	INT		maxFolders		= _vFolders.size();
 
 	if (iItem < maxFolders)
 	{
@@ -789,36 +879,74 @@ void FileList::ReadIconToList(int iItem, int* piIcon, int* piOverlayed)
 	}
 }
 
-void FileList::ReadArrayToList(char* szItem, int iItem ,int iSubItem)
+void FileList::ReadArrayToList(LPSTR szItem, INT iItem ,INT iSubItem)
 {
-	int		maxFolders	= _vFolders.size();
+	INT		maxFolders	= _vFolders.size();
 
 	if (iItem < maxFolders)
 	{
 		/* copy into temp */
 		if (iSubItem == 0)
-			sprintf(szItem, "[%s]", _vFolders[iItem].strName.c_str());
-		else
-			strcpy(szItem, _vFolders[iItem].strExt.c_str());
+		{
+			if (_pExProp->bViewBraces == TRUE)
+				sprintf(szItem, "[%s]", _vFolders[iItem].strName.c_str());
+			else
+				sprintf(szItem, "%s", _vFolders[iItem].strName.c_str());
+		}
+		else if (iSubItem == 1)
+		{
+			if (_pExProp->bAddExtToName == FALSE)
+				strcpy(szItem, _vFolders[iItem].strExt.c_str());
+			else
+				strcpy(szItem, _vFolders[iItem].strSize.c_str());
+		}
+		else if (iSubItem == 2)
+		{
+			if (_pExProp->bAddExtToName == FALSE)
+				strcpy(szItem, _vFolders[iItem].strSize.c_str());
+			else
+				strcpy(szItem, _vFolders[iItem].strDate.c_str());
+		}
+		else /* iSubItem == 3 */
+		{
+			strcpy(szItem, _vFolders[iItem].strDate.c_str());
+		}
 	}
 	else
 	{
-		/* copy into temp */
 		if (iSubItem == 0)
+		{
 			strcpy(szItem, _vFiles[iItem-maxFolders].strName.c_str());
-		else
-			strcpy(szItem, _vFiles[iItem-maxFolders].strExt.c_str());
+		}
+		else if (iSubItem == 1)
+		{
+			if (_pExProp->bAddExtToName == FALSE)
+				strcpy(szItem, _vFiles[iItem-maxFolders].strExt.c_str());
+			else
+				strcpy(szItem, _vFiles[iItem-maxFolders].strSize.c_str());
+		}
+		else if (iSubItem == 2)
+		{
+			if (_pExProp->bAddExtToName == FALSE)
+				strcpy(szItem, _vFiles[iItem-maxFolders].strSize.c_str());
+			else
+				strcpy(szItem, _vFiles[iItem-maxFolders].strDate.c_str());
+		}
+		else /* iSubItem == 3 */
+		{
+			strcpy(szItem, _vFiles[iItem-maxFolders].strDate.c_str());
+		}
 	}
 }
 
-void FileList::viewPath(const char* currentPath, BOOL redraw)
+void FileList::viewPath(LPCSTR currentPath, BOOL redraw)
 {
-	char*					TEMP			= (char*)new char[MAX_PATH+1];
-	char*					szFilter		= (char*)new char[MAX_PATH+1];
-	char*					szFilterPath	= (char*)new char[MAX_PATH+1];
+	LPSTR					TEMP			= (LPSTR)new TCHAR[MAX_PATH+1];
+	LPSTR					szFilter		= (LPSTR)new TCHAR[MAX_PATH+1];
+	LPSTR					szFilterPath	= (LPSTR)new TCHAR[MAX_PATH+1];
 	WIN32_FIND_DATA			Find			= {0};
 	HANDLE					hFind			= NULL;
-	int						iIconSelected	= 0;
+	INT						iIconSelected	= 0;
 	tFileListData			tempData;
 
 	/* add backslash if necessary */
@@ -842,23 +970,43 @@ void FileList::viewPath(const char* currentPath, BOOL redraw)
 		{
 			if (IsValidFolder(Find) == TRUE)
 			{
-				/* get folders */
+				/* get data in order of list elements */
+				ExtractIcons(currentPath, Find.cFileName, true, &tempData.iIcon, &iIconSelected, &tempData.iOverlayed);
+
 				tempData.strName	= Find.cFileName;
 				tempData.strNameLC	= makeStrLC(Find.cFileName);
-				tempData.strExt		= "<DIR>";
-				tempData.strExtLC	= "<dir>";
-				ExtractIcons(currentPath, Find.cFileName, true, &tempData.iIcon, &iIconSelected, &tempData.iOverlayed);
+				tempData.strExt		= "";
+				tempData.strExtLC	= "";
+
+				if (_pExProp->bViewLong == TRUE)
+				{
+					tempData.strSize	= "<DIR>";
+					tempData.i64Size	= 0;
+					GetDate(Find.ftLastWriteTime, tempData.strDate);
+					tempData.i64Date	= 0;
+				}
+
 				_vFolders.push_back(tempData);
 			}
 			else if (IsValidParentFolder(Find) == TRUE)
 			{
 				/* if 'Find' is not a folder but a parent one */
-				tempData.strName	= Find.cFileName;
-				tempData.strNameLC	= Find.cFileName;
-				tempData.strExt		= "<DIR>";
-				tempData.strExtLC	= "<dir>";
 				tempData.iIcon		= _iImageList;
 				tempData.iOverlayed	= 0;
+
+				tempData.strName	= Find.cFileName;
+				tempData.strNameLC	= Find.cFileName;
+				tempData.strExt		= "";
+				tempData.strExtLC	= "";
+
+				if (_pExProp->bViewLong == TRUE)
+				{
+					tempData.strSize	= "<DIR>";
+					tempData.i64Size	= 0;
+					GetDate(Find.ftLastWriteTime, tempData.strDate);
+					tempData.i64Date	= 0;
+				}
+
 				_vFolders.push_back(tempData);
 			}
 		} while (FindNextFile(hFind, &Find));
@@ -869,7 +1017,7 @@ void FileList::viewPath(const char* currentPath, BOOL redraw)
 
 
 		/* get first filter */
-		char*	ptr	= NULL;
+		LPSTR	ptr	= NULL;
 
 		strncpy(szFilter, _szFileFilter, MAX_PATH);
 		ptr = strtok(szFilter, ";");
@@ -896,12 +1044,15 @@ void FileList::viewPath(const char* currentPath, BOOL redraw)
 						ExtractIcons(currentPath, Find.cFileName, false, &tempData.iIcon, &iIconSelected, &tempData.iOverlayed);
 
 						/* extract name and extension */
-						char*	extBeg = strrchr(Find.cFileName, '.');
+						LPSTR	extBeg = strrchr(&Find.cFileName[1], '.');
 
 						if (extBeg != NULL)
 						{
 							*extBeg = '\0';
-							tempData.strExt		= &extBeg[1];
+							if (_pExProp->bAddExtToName == FALSE)
+							{
+								tempData.strExt	= &extBeg[1];
+							}
 							tempData.strExtLC	= makeStrLC(&extBeg[1]);
 						}
 						else
@@ -909,7 +1060,21 @@ void FileList::viewPath(const char* currentPath, BOOL redraw)
 							tempData.strExt		= "";
 							tempData.strExtLC	= "";
 						}
-						tempData.strName		= Find.cFileName;
+
+						if ((_pExProp->bAddExtToName == TRUE) && (extBeg != NULL))
+						{
+							*extBeg = '.';
+						}
+						tempData.strName	= Find.cFileName;
+
+
+						if (_pExProp->bViewLong == TRUE)
+						{
+							tempData.i64Size = (((__int64)Find.nFileSizeHigh) << 32) + Find.nFileSizeLow;
+							GetSize(tempData.i64Size, tempData.strSize);
+							tempData.i64Date = (((__int64)Find.ftLastWriteTime.dwHighDateTime) << 32) + Find.ftLastWriteTime.dwLowDateTime;
+							GetDate(Find.ftLastWriteTime, tempData.strDate);
+						}
 
 						_vFiles.push_back(tempData);
 					}
@@ -944,9 +1109,9 @@ void FileList::viewPath(const char* currentPath, BOOL redraw)
 	PushDir(currentPath);
 }
 
-void FileList::filterFiles(char* currentFilter)
+void FileList::filterFiles(LPSTR currentFilter)
 {
-	char*	ptr = NULL;
+	LPSTR	ptr = NULL;
 
 	/* delete current filter */
 	_szFileFilter[0] = '\0';
@@ -965,7 +1130,7 @@ void FileList::filterFiles(char* currentFilter)
 	viewPath(str.c_str(), TRUE);
 }
 
-void FileList::SelectFolder(char* selFile)
+void FileList::SelectFolder(LPSTR selFile)
 {
 	for (UINT uFolder = 0; uFolder < _vFolders.size(); uFolder++)
 	{
@@ -979,10 +1144,109 @@ void FileList::SelectFolder(char* selFile)
 
 void FileList::UpdateList(void)
 {
+	INT	iSortPos = _pExProp->iSortPos;
+
+	if (_pExProp->bAddExtToName == TRUE)
+	{
+		iSortPos++;
+	}
+
 	QuickSortRecursiveCol(&_vFolders, 1, _vFolders.size()-1, 0, TRUE);
-	QuickSortRecursiveColEx(&_vFiles, 0, _vFiles.size()-1, _iPos, _isUp);
+	QuickSortRecursiveColEx(&_vFiles, 0, _vFiles.size()-1, iSortPos, _pExProp->bAscending);
 	ListView_SetItemCountEx(_hSelf, _vFiles.size() + _vFolders.size(), LVSICF_NOSCROLL);
 	::RedrawWindow(_hSelf, NULL, NULL, TRUE);
+}
+
+void FileList::SetColumns(void)
+{
+	LVCOLUMN	ColSetup			= {0};
+
+	ListView_DeleteColumn(_hSelf, 3);
+	ListView_DeleteColumn(_hSelf, 2);
+	ListView_DeleteColumn(_hSelf, 1);
+	ListView_DeleteColumn(_hSelf, 0);
+
+	if ((_bOldAddExtToName != _pExProp->bAddExtToName) && (_pExProp->iSortPos > 0))
+	{
+		if (_pExProp->bAddExtToName == FALSE)
+			_pExProp->iSortPos++;
+		else
+			_pExProp->iSortPos--;
+
+		_bOldAddExtToName = _pExProp->bAddExtToName;
+	}
+	if (_bOldViewLong != _pExProp->bViewLong)
+	{
+		if ((_pExProp->bViewLong == FALSE) &&
+			(((_pExProp->iSortPos > 0) && (_pExProp->bAddExtToName == TRUE)) ||
+			 ((_pExProp->iSortPos > 1) && (_pExProp->bAddExtToName == FALSE))))
+			_pExProp->iSortPos = 0;
+		_bOldViewLong = _pExProp->bViewLong;
+	}
+
+	if (_pExProp->bAddExtToName == FALSE)
+	{
+		ColSetup.mask		= LVCF_TEXT | LVCF_FMT | LVCF_WIDTH;
+		ColSetup.fmt		= LVCFMT_LEFT;
+		ColSetup.pszText	= "Name";
+		ColSetup.cchTextMax	= 4;
+		ColSetup.cx			= _pExProp->iColumnPosName;
+		ListView_InsertColumn(_hSelf, 0, &ColSetup);
+		ColSetup.fmt		= LVCFMT_LEFT;
+		ColSetup.pszText	= "Ext.";
+		ColSetup.cx			= _pExProp->iColumnPosExt;
+		ListView_InsertColumn(_hSelf, 1, &ColSetup);
+
+		if (_pExProp->bViewLong)
+		{
+			ColSetup.fmt		= LVCFMT_RIGHT;
+			ColSetup.pszText	= "Size";
+			ColSetup.cx			= _pExProp->iColumnPosSize;
+			ListView_InsertColumn(_hSelf, 2, &ColSetup);
+			ColSetup.fmt		= LVCFMT_LEFT;
+			ColSetup.pszText	= "Date";
+			ColSetup.cx			= _pExProp->iColumnPosDate;
+			ListView_InsertColumn(_hSelf, 3, &ColSetup);
+		}
+	}
+	else
+	{
+		ColSetup.mask		= LVCF_TEXT | LVCF_FMT | LVCF_WIDTH;
+		ColSetup.fmt		= LVCFMT_LEFT;
+		ColSetup.pszText	= "Name";
+		ColSetup.cchTextMax	= 4;
+		ColSetup.cx			= _pExProp->iColumnPosName + _pExProp->iColumnPosExt;
+		ListView_InsertColumn(_hSelf, 0, &ColSetup);
+		if (_pExProp->bViewLong)
+		{
+			ColSetup.mask		= LVCF_TEXT | LVCF_FMT | LVCF_WIDTH;
+			ColSetup.fmt		= LVCFMT_RIGHT;
+			ColSetup.pszText	= "Size";
+			ColSetup.cchTextMax	= 4;
+			ColSetup.cx			= _pExProp->iColumnPosSize;
+			ListView_InsertColumn(_hSelf, 1, &ColSetup);
+			ColSetup.fmt		= LVCFMT_LEFT;
+			ColSetup.pszText	= "Date";
+			ColSetup.cx			= _pExProp->iColumnPosDate;
+			ListView_InsertColumn(_hSelf, 2, &ColSetup);
+		}
+	}
+
+	/* set owner draw for each item */
+	for(INT iCol = 0; iCol < 4; iCol++)
+	{
+		HDITEM hdItem;
+
+		ZeroMemory(&hdItem, sizeof(HDITEM));
+		hdItem.mask = HDI_FORMAT;
+
+		if(Header_GetItem(_hHeader, iCol, &hdItem))
+		{
+			hdItem.mask = HDI_FORMAT;
+			hdItem.fmt |= HDF_OWNERDRAW;
+			Header_SetItem(_hHeader, iCol, &hdItem);
+		}
+	}
 }
 
 void FileList::onRMouseBtn(void)
@@ -1053,11 +1317,12 @@ void FileList::onLMouseBtnDbl(void)
 /******************************************************************************************
  *	 fast recursive Quicksort of vList; bAscending TRUE == down 
  */
-void FileList::QuickSortRecursiveCol(vector<tFileListData>* vList, int d, int h, int column, BOOL bAscending)
+void FileList::QuickSortRecursiveCol(vector<tFileListData>* vList, INT d, INT h, INT column, BOOL bAscending)
 {
-	int		i	= 0;
-	int		j	= 0;
-	string	str = "";
+	INT		i		= 0;
+	INT		j		= 0;
+	string	str		= "";
+	__int64	i64Data	= 0;
 
 	/* return on empty list */
 	if (d > h || d < 0)
@@ -1066,61 +1331,98 @@ void FileList::QuickSortRecursiveCol(vector<tFileListData>* vList, int d, int h,
 	i = h;
 	j = d;
 
-	if (column == 0)
+	switch (column)
 	{
-		str = (*vList)[((int) ((d+h) / 2))].strNameLC;
-		do
+		case 0:
 		{
-			if (bAscending == TRUE)
+			str = (*vList)[((INT) ((d+h) / 2))].strNameLC;
+			do
 			{
-				while ((*vList)[j].strNameLC < str) j++;
-				while ((*vList)[i].strNameLC > str) i--;
-			}
-			else
-			{
-				while ((*vList)[j].strNameLC > str) j++;
-				while ((*vList)[i].strNameLC < str) i--;
-			}
-			if ( i >= j )
-			{
-				if ( i != j )
+				if (bAscending == TRUE)
 				{
-					tFileListData buf = (*vList)[i];
-					(*vList)[i] = (*vList)[j];
-					(*vList)[j] = buf;
+					while ((*vList)[j].strNameLC < str) j++;
+					while ((*vList)[i].strNameLC > str) i--;
 				}
-				i--;
-				j++;
-			}
-		} while (j <= i);
-	}
-	else
-	{
-		str = (*vList)[((int) ((d+h) / 2))].strExtLC;
-		do
+				else
+				{
+					while ((*vList)[j].strNameLC > str) j++;
+					while ((*vList)[i].strNameLC < str) i--;
+				}
+				if ( i >= j )
+				{
+					if ( i != j )
+					{
+						tFileListData buf = (*vList)[i];
+						(*vList)[i] = (*vList)[j];
+						(*vList)[j] = buf;
+					}
+					i--;
+					j++;
+				}
+			} while (j <= i);
+			break;
+		}
+		case 1:
 		{
-			if (bAscending == TRUE)
+			str = (*vList)[((INT) ((d+h) / 2))].strExtLC;
+			do
 			{
-				while ((*vList)[j].strExtLC < str) j++;
-				while ((*vList)[i].strExtLC > str) i--;
-			}
-			else
-			{
-				while ((*vList)[j].strExtLC > str) j++;
-				while ((*vList)[i].strExtLC < str) i--;
-			}
-			if ( i >= j )
-			{
-				if ( i != j )
+				if (bAscending == TRUE)
 				{
-					tFileListData buf = (*vList)[i];
-					(*vList)[i] = (*vList)[j];
-					(*vList)[j] = buf;
+					while ((*vList)[j].strExtLC < str) j++;
+					while ((*vList)[i].strExtLC > str) i--;
 				}
-				i--;
-				j++;
-			}
-		} while (j <= i);
+				else
+				{
+					while ((*vList)[j].strExtLC > str) j++;
+					while ((*vList)[i].strExtLC < str) i--;
+				}
+				if ( i >= j )
+				{
+					if ( i != j )
+					{
+						tFileListData buf = (*vList)[i];
+						(*vList)[i] = (*vList)[j];
+						(*vList)[j] = buf;
+					}
+					i--;
+					j++;
+				}
+			} while (j <= i);
+			break;
+		}
+		case 2:
+		case 3:
+		{
+			i64Data = (column==2?(*vList)[((INT) ((d+h) / 2))].i64Size:(*vList)[((INT) ((d+h) / 2))].i64Date);
+			do
+			{
+				if (bAscending == TRUE)
+				{
+					while ((column==2?(*vList)[j].i64Size:(*vList)[j].i64Date) < i64Data) j++;
+					while ((column==2?(*vList)[i].i64Size:(*vList)[i].i64Date) > i64Data) i--;
+				}
+				else
+				{
+					while ((column==2?(*vList)[j].i64Size:(*vList)[j].i64Date) > i64Data) j++;
+					while ((column==2?(*vList)[i].i64Size:(*vList)[i].i64Date) < i64Data) i--;
+				}
+				if ( i >= j )
+				{
+					if ( i != j )
+					{
+						tFileListData buf = (*vList)[i];
+						(*vList)[i] = (*vList)[j];
+						(*vList)[j] = buf;
+					}
+					i--;
+					j++;
+				}
+			} while (j <= i);
+			break;
+		}
+		default:
+			break;
 	}
 
 	if (d < i) QuickSortRecursiveCol(vList,d,i, column, bAscending);
@@ -1131,38 +1433,68 @@ void FileList::QuickSortRecursiveCol(vector<tFileListData>* vList, int d, int h,
  *	extended sort for Quicksort of vList, sort any column and if there are equal content 
  *	sort additional over first column(s)
  */
-void FileList::QuickSortRecursiveColEx(vector<tFileListData>* vList, int d, int h, int column, BOOL bAscending)
+void FileList::QuickSortRecursiveColEx(vector<tFileListData>* vList, INT d, INT h, INT column, BOOL bAscending)
 {
 	QuickSortRecursiveCol(vList, d, h, column, bAscending);
 
-	if (column != 0)
+	switch (column)
 	{
-		string		str = "";
-
-		for (int i = d; i < h ;)
+		case 1:
 		{
-			int iOld = i;
+			string		str = "";
 
-			str = (column == 0)? (*vList)[i].strNameLC:(*vList)[i].strExtLC;
-
-			for (bool b = true; b;)
+			for (INT i = d; i < h ;)
 			{
-				if (str == ((column == 0)? (*vList)[i].strNameLC:(*vList)[i].strExtLC))
-					i++;
-				else
-					b = false;
-				if (i > h)
-					b = false;
+				INT iOld = i;
+
+				str = (*vList)[i].strExtLC;
+
+				for (bool b = true; b;)
+				{
+					if (str == (*vList)[i].strExtLC)
+						i++;
+					else
+						b = false;
+					if (i > h)
+						b = false;
+				}
+				QuickSortRecursiveCol(vList, iOld, i-1, 0, TRUE);
 			}
-			QuickSortRecursiveCol(vList, iOld, i-1, 0, TRUE);
+			break;
 		}
+		case 2:
+		case 3:
+		{
+			__int64	i64Data	= 0;
+
+			for (INT i = d; i < h ;)
+			{
+				INT iOld = i;
+
+				i64Data = (column==2?(*vList)[i].i64Size:(*vList)[i].i64Date);
+
+				for (bool b = true; b;)
+				{
+					if (i64Data == (column==2?(*vList)[i].i64Size:(*vList)[i].i64Date))
+						i++;
+					else
+						b = false;
+					if (i > h)
+						b = false;
+				}
+				QuickSortRecursiveCol(vList, iOld, i-1, 0, TRUE);
+			}
+			break;
+		}
+		default:
+			break;
 	}
 }
 
-string FileList::makeStrLC(char* sz)
+string FileList::makeStrLC(LPSTR sz)
 {
 	string	str = "";
-	char*	ptr	= sz;
+	LPSTR	ptr	= sz;
 
 	while (*ptr != 0)
 	{
@@ -1174,6 +1506,139 @@ string FileList::makeStrLC(char* sz)
 }
 
 
+void FileList::GetSize(__int64 size, string & str)
+{
+	LPTSTR	TEMP	= (LPTSTR)new TCHAR[MAX_PATH];
+
+	switch (_pExProp->fmtSize)
+	{
+		case SFMT_BYTES:
+		{
+			sprintf(TEMP, "%03I64d", size % 1000);
+			size /= 1000;
+			str = TEMP;
+
+			while (size)
+			{
+				sprintf(TEMP, "%03I64d.", size % 1000);
+				size /= 1000;
+				str = TEMP + str;
+			}
+
+			break;
+		}
+		case SFMT_KBYTE:
+		{
+			size /= 1024;
+			sprintf(TEMP, "%03I64d", size % 1000);
+			size /= 1000;
+			str = TEMP;
+
+			while (size)
+			{
+				sprintf(TEMP, "%03I64d.", size % 1000);
+				size /= 1000;
+				str = TEMP + str;
+			}
+
+			str = str + " kB";
+
+			break;
+		}
+		case SFMT_DYNAMIC:
+		{
+			INT i	= 0;
+
+			str	= "000";
+
+			for (i = 0; (i < 3) && (size != 0); i++)
+			{
+				sprintf(TEMP, "%03I64d", size % 1024);
+				size /= 1024;
+				str = TEMP;
+			}
+
+			while (size)
+			{
+				sprintf(TEMP, "%03I64d.", size % 1000);
+				size /= 1000;
+				str = TEMP + str;
+			}
+
+			switch (i)
+			{
+				case 0:
+				case 1: str = str + " b"; break;
+				case 2: str = str + " k"; break;
+				default: str = str + " M"; break;
+			}
+			break;
+		}
+		case SFMT_DYNAMIC_EX:
+		{
+			INT		i		= 0;
+			__int64 komma	= 0;
+
+			str = "000";
+
+			for (i = 0; (i < 3) && (size != 0); i++)
+			{
+				if (i < 1)
+					sprintf(TEMP, "%03I64d", size);
+				else
+					sprintf(TEMP, "%03I64d,%I64d", size % 1024, komma);
+				komma = (size % 1024) / 100;
+				size /= 1024;
+				str = TEMP;
+			}
+
+			while (size)
+			{
+				sprintf(TEMP, "%03I64d.", size % 1000);
+				size /= 1000;
+				str = TEMP + str;
+			}
+
+			switch (i)
+			{
+				case 0:
+				case 1: str = str + " b"; break;
+				case 2: str = str + " k"; break;
+				default: str = str + " M"; break;
+			}
+			break;
+		}
+		default:
+			break;
+	}
+
+	for (INT i = 0; i < 2; i++)
+	{
+		if (str[i] == '0')
+			str[i] = ' ';
+		else
+			break;
+	}
+
+	delete [] TEMP;
+}
+
+void FileList::GetDate(FILETIME ftLastWriteTime, string & str)
+{
+	SYSTEMTIME		sysTime;
+	LPSTR			TEMP	= (LPSTR)new TCHAR[MAX_PATH];
+
+	FileTimeToSystemTime(&ftLastWriteTime, &sysTime);
+
+	if (_pExProp->fmtDate == DFMT_ENG)
+		sprintf(TEMP, "%02d/%02d/%02d %02d:%02d", sysTime.wYear % 100, sysTime.wMonth, sysTime.wDay, sysTime.wHour, sysTime.wMinute);
+	else
+		sprintf(TEMP, "%02d.%02d.%04d %02d:%02d", sysTime.wDay, sysTime.wMonth, sysTime.wYear, sysTime.wHour, sysTime.wMinute);
+
+	str = TEMP;
+
+	delete [] TEMP;
+}
 
 
 /**************************************************************************************
@@ -1199,7 +1664,7 @@ void FileList::ToggleStackRec(void)
 	_isStackRec ^= TRUE;
 }
 
-void FileList::PushDir(const char* pszPath)
+void FileList::PushDir(LPCSTR pszPath)
 {
 	if (_isStackRec == TRUE)
 	{
@@ -1223,7 +1688,7 @@ void FileList::PushDir(const char* pszPath)
 	UpdateToolBarElements();
 }
 
-bool FileList::GetPrevDir(char* pszPath)
+bool FileList::GetPrevDir(LPSTR pszPath)
 {
 	if (_vDirStack.size() > 1)
 	{
@@ -1237,7 +1702,7 @@ bool FileList::GetPrevDir(char* pszPath)
 	return false;
 }
 
-bool FileList::GetNextDir(char* pszPath)
+bool FileList::GetNextDir(LPSTR pszPath)
 {
 	if (_vDirStack.size() > 1)
 	{

@@ -1,19 +1,22 @@
-//this file is part of Explorer Plugin for Notepad++
-//Copyright (C)2005 Jens Lorenz <jens.plugin.npp@gmx.de>
-//
-//This program is free software; you can redistribute it and/or
-//modify it under the terms of the GNU General Public License
-//as published by the Free Software Foundation; either
-//version 2 of the License, or (at your option) any later version.
-//
-//This program is distributed in the hope that it will be useful,
-//but WITHOUT ANY WARRANTY; without even the implied warranty of
-//MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-//GNU General Public License for more details.
-//
-//You should have received a copy of the GNU General Public License
-//along with this program; if not, write to the Free Software
-//Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+/*
+This file is part of Explorer Plugin for Notepad++
+Copyright (C)2006 Jens Lorenz <jens.plugin.npp@gmx.de>
+
+This program is free software; you can redistribute it and/or
+modify it under the terms of the GNU General Public License
+as published by the Free Software Foundation; either version 2
+of the License, or (at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program; if not, write to the Free Software
+Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+*/
+
 
 #ifndef FILELIST_DEFINE_H
 #define FILELIST_DEFINE_H
@@ -32,13 +35,17 @@ using namespace std;
 
 
 typedef struct {
-	INT		iIcon;
-	INT		iOverlayed;
-	string	strName;
-	string	strExt;
+	INT			iIcon;
+	INT			iOverlayed;
+	string		strName;
+	string		strExt;
+	string		strSize;
+	string		strDate;
 	/* not visible, only for sorting */
-	string	strNameLC;
-	string	strExtLC;
+	string		strNameLC;
+	string		strExtLC;
+	__int64		i64Size;
+	__int64		i64Date;
 } tFileListData;
 
 
@@ -48,20 +55,25 @@ public:
 	FileList(void);
 	~FileList(void);
 	
-	void init(HINSTANCE hInst, HWND hParent, HWND hParentList, HIMAGELIST hImageList, INT* piColumnPos);
+	void init(HINSTANCE hInst, HWND hParent, HWND hParentList, HIMAGELIST hImageList, tExProp* prop);
 
-	void viewPath(const char* currentPath, BOOL redraw = FALSE);
+	void viewPath(LPCSTR currentPath, BOOL redraw = FALSE);
 
 	void notify(WPARAM wParam, LPARAM lParam);
 
-	void filterFiles(char* currentFilter);
-	void SelectFolder(char* selFolder);
+	void filterFiles(LPSTR currentFilter);
+	void SelectFolder(LPSTR selFolder);
 
 	void ToggleStackRec(void);			// enables/disable trace of viewed directories
 	void ResetDirStack(void);			// resets the stack
 	void SetToolBarInfo(ToolBar *ToolBar, UINT idRedo, UINT idUndo);	// set dependency to a toolbar element
-	bool GetPrevDir(char* pszPath);		// get previous directory
-	bool GetNextDir(char* pszPath);		// get next directory
+	bool GetPrevDir(LPSTR pszPath);		// get previous directory
+	bool GetNextDir(LPSTR pszPath);		// get next directory
+
+	virtual void redraw(void) {
+		SetColumns();
+		Window::redraw();
+	};
 
 	virtual void destroy() {};
 
@@ -81,27 +93,28 @@ protected:
 
 	void drawHeaderItem(DRAWITEMSTRUCT *pDrawItemStruct);
 
-	void ReadIconToList(int iItem, int* iIcon, int* iOverlayed);
-	void ReadArrayToList(char* szItem, int iItem ,int iSubItem);
+	void ReadIconToList(INT iItem, LPINT iIcon, LPINT iOverlayed);
+	void ReadArrayToList(LPSTR szItem, INT iItem ,INT iSubItem);
 
 	void UpdateList(void);
+	void SetColumns(void);
 
-	void QuickSortRecursiveCol(vector<tFileListData>* vList, int d, int h, int column, BOOL bAscending);
-	void QuickSortRecursiveColEx(vector<tFileListData>* vList, int d, int h, int column, BOOL bAscending);
-	string makeStrLC(char* str);
+	void QuickSortRecursiveCol(vector<tFileListData>* vList, INT d, INT h, INT column, BOOL bAscending);
+	void QuickSortRecursiveColEx(vector<tFileListData>* vList, INT d, INT h, INT column, BOOL bAscending);
+	string makeStrLC(LPSTR str);
 
 	void onRMouseBtn();
 	void onLMouseBtnDbl();
 
-	void PushDir(const char* str);
+	void PushDir(LPCSTR str);
 	void UpdateToolBarElements(void);
 
-	void SetFocusItem(int item) {
+	void SetFocusItem(INT item) {
 		/* select first entry */
-		int	dataSize	= _vFolders.size() + _vFiles.size();
+		INT	dataSize	= _vFolders.size() + _vFiles.size();
 
 		/* at first unselect all */
-		for (int iItem = 0; iItem < dataSize; iItem++)
+		for (INT iItem = 0; iItem < dataSize; iItem++)
 			ListView_SetItemState(_hSelf, iItem, 0, 0xFF);
 
 		ListView_SetItemState(_hSelf, item, LVIS_SELECTED|LVIS_FOCUSED, 0xFF);
@@ -109,19 +122,20 @@ protected:
 		ListView_SetSelectionMark(_hSelf, item);
 	};
 
+	void GetSize(__int64 size, string & str);
+	void GetDate(FILETIME ftLastWriteTime, string & str);
+
 private:
 	HWND						_hHeader;
 	WNDPROC						_hDefaultListProc;
 	WNDPROC						_hDefaultHeaderProc;
 
-	INT*						_piColumnPos;
+	tExProp*					_pExProp;
 
 	/* header control */
 	BOOL						_isMouseOver;
 	BOOL						_isLeftButtonDown;
-	BOOL						_isUp;
-	int							_iPos;
-	int							_iMouseOver;
+	INT							_iMouseOver;
 
 	UINT						_iImageList;
 
@@ -129,13 +143,16 @@ private:
 	UINT						_iItem;
 	UINT						_iSubItem;
 
+	INT							_iSelMark;
+	LPUINT						_puSelList;
+
 	/* stores the path here for sorting		*/
 	/* Note: _vFolder will not be sorted    */
 	vector<tFileListData>		_vFolders;
 	vector<tFileListData>		_vFiles;
 
 	string						_strCurrentPath;
-	char						_szFileFilter[MAX_PATH];
+	TCHAR						_szFileFilter[MAX_PATH];
 
 	HBITMAP						_bitmap0;
 	HBITMAP						_bitmap1;
@@ -147,6 +164,9 @@ private:
 	HBITMAP						_bitmap7;
 	HBITMAP						_bitmap8;
 	HBITMAP						_bitmap9;
+
+	BOOL						_bOldAddExtToName;
+	BOOL						_bOldViewLong;
 
 	/* stack for prev and next dir */
 	BOOL						_isStackRec;

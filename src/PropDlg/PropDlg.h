@@ -1,19 +1,22 @@
-//this file is part of Explorer Plugin for Notepad++
-//Copyright (C)2006 Jens Lorenz <jens.plugin.npp@gmx.de>
-//
-//This program is free software; you can redistribute it and/or
-//modify it under the terms of the GNU General Public License
-//as published by the Free Software Foundation; either
-//version 2 of the License, or (at your option) any later version.
-//
-//This program is distributed in the hope that it will be useful,
-//but WITHOUT ANY WARRANTY; without even the implied warranty of
-//MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-//GNU General Public License for more details.
-//
-//You should have received a copy of the GNU General Public License
-//along with this program; if not, write to the Free Software
-//Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+/*
+This file is part of Explorer Plugin for Notepad++
+Copyright (C)2006 Jens Lorenz <jens.plugin.npp@gmx.de>
+
+This program is free software; you can redistribute it and/or
+modify it under the terms of the GNU General Public License
+as published by the Free Software Foundation; either version 2
+of the License, or (at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program; if not, write to the Free Software
+Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+*/
+
 
 #ifndef PROP_DLG_DEFINE_H
 #define PROP_DLG_DEFINE_H
@@ -53,10 +56,10 @@ public:
     virtual void destroy() {};
 
 	void setTreeElements(ELEM_ITR itr, HIMAGELIST hImageList, INT iUserImagePos, BOOL bWithLink = FALSE);
-	const char* getGroopName(void);
+	const char* getGroupName(void);
 
 protected :
-	BOOL CALLBACK run_dlgProc(UINT Message, WPARAM wParam, LPARAM lParam);
+	BOOL CALLBACK run_dlgProc(HWND hWnd, UINT Message, WPARAM wParam, LPARAM lParam);
 
 	void DrawChildrenOfItem(HTREEITEM hParentItem);
 
@@ -75,7 +78,7 @@ private:
 	ELEM_ITR		_elem_ret;
 	HIMAGELIST		_hImageList;
 	INT				_iUImgPos;
-	string			_strGroopName;
+	string			_strGroupName;
 };
 
 

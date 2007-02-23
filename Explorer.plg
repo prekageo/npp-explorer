@@ -6,7 +6,13 @@
 --------------------Konfiguration: Explorer - Win32 Release--------------------
 </h3>
 <h3>Befehlszeilen</h3>
-Erstellen der temporären Datei  "C:\DOKUME~1\Jens\LOKALE~1\Temp\RSP12C.tmp" mit Inhalten
+Erstellen der temporären Datei  "C:\DOKUME~1\Jens\LOKALE~1\Temp\RSPA8.tmp" mit Inhalten
+[
+/nologo /MT /W3 /GX /O2 /I ".\src\NewDlg\\" /I ".\src\PropDlg\\" /I ".\src\Toolbar\\" /I ".\src\FileDlg\\" /I ".\src\FileList\\" /I "." /I ".\src\\" /I ".\src\MISC\\" /I ".\src\HelpDlg\\" /I ".\src\OptionDlg\\" /D "WIN32" /D "NDEBUG" /D "_WINDOWS" /D "_MBCS" /D "_USRDLL" /D "EXPLORER_EXPORTS" /Fp"Release/Explorer.pch" /YX /Fo"Release/" /Fd"Release/" /FD /c 
+"D:\Visual Studio Projects\NppPlugin\Explorer\src\PluginInterface.cpp"
+]
+Creating command line "cl.exe @C:\DOKUME~1\Jens\LOKALE~1\Temp\RSPA8.tmp" 
+Erstellen der temporären Datei  "C:\DOKUME~1\Jens\LOKALE~1\Temp\RSPA9.tmp" mit Inhalten
 [
 kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib shlwapi.lib comctl32.lib /nologo /dll /incremental:no /pdb:"Release/Explorer.pdb" /machine:I386 /out:"C:/Programme/Notepad++/plugins/Explorer.dll" /implib:"Release/Explorer.lib" 
 ".\Release\ComboOrgi.obj"
@@ -18,6 +24,7 @@ kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32
 ".\Release\HelpDialog.obj"
 ".\Release\ImageListSet.obj"
 ".\Release\NewDlg.obj"
+".\Release\OptionDialog.obj"
 ".\Release\PluginInterface.obj"
 ".\Release\PropDlg.obj"
 ".\Release\StaticDialog.obj"
@@ -30,8 +37,10 @@ kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32
 ".\Release\winVersion.obj"
 ".\Release\ExplorerDialog.res"
 ]
-Erstellen der Befehlzeile "link.exe @C:\DOKUME~1\Jens\LOKALE~1\Temp\RSP12C.tmp"
+Erstellen der Befehlzeile "link.exe @C:\DOKUME~1\Jens\LOKALE~1\Temp\RSPA9.tmp"
 <h3>Ausgabefenster</h3>
+Kompilierung läuft...
+PluginInterface.cpp
 Linker-Vorgang läuft...
    Bibliothek Release/Explorer.lib und Objekt Release/Explorer.exp wird erstellt
 

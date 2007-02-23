@@ -1,25 +1,29 @@
-//this file is part of Explorer Plugin for Notepad++
-//Copyright (C)2005 Jens Lorenz <jens.plugin.npp@gmx.de>
-//
-//This program is free software; you can redistribute it and/or
-//modify it under the terms of the GNU General Public License
-//as published by the Free Software Foundation; either
-//version 2 of the License, or (at your option) any later version.
-//
-//This program is distributed in the hope that it will be useful,
-//but WITHOUT ANY WARRANTY; without even the implied warranty of
-//MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-//GNU General Public License for more details.
-//
-//You should have received a copy of the GNU General Public License
-//along with this program; if not, write to the Free Software
-//Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+/*
+This file is part of Explorer Plugin for Notepad++
+Copyright (C)2006 Jens Lorenz <jens.plugin.npp@gmx.de>
+
+This program is free software; you can redistribute it and/or
+modify it under the terms of the GNU General Public License
+as published by the Free Software Foundation; either version 2
+of the License, or (at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program; if not, write to the Free Software
+Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+*/
+
 
 /* include files */
 #include "stdafx.h"
 #include "PluginInterface.h"
 #include "ExplorerDialog.h"
 #include "FavesDialog.h"
+#include "OptionDialog.h"
 #include "HelpDialog.h"
 #include "ToolTip.h"
 #include "SysMsg.h"
@@ -36,64 +40,71 @@
 #define SHGFI_OVERLAYINDEX 0x000000040
 
 
-const int	nbFunc	= 3;
+CONST INT	nbFunc	= 6;
 
 
 
 /* information for notepad */
-const char  PLUGIN_NAME[] = "Explorer";
+CONST TCHAR  PLUGIN_NAME[] = "&Explorer";
 
-char        configPath[MAX_PATH];
-char		iniFilePath[MAX_PATH];
+TCHAR		configPath[MAX_PATH];
+TCHAR		iniFilePath[MAX_PATH];
 
 /* ini file sections */
-const char WindowData[]		= "WindowData";
-const char Explorer[]		= "Explorer";
-const char Faves[]			= "Faves";
+CONST TCHAR WindowData[]		= "WindowData";
+CONST TCHAR Explorer[]			= "Explorer";
+CONST TCHAR Faves[]				= "Faves";
+
+
 
 /* section Explorer */
-const char SplitterPos[]	= "SplitterPos";
-const char ColumnPos[]		= "ColumnPos";
-const char LastPath[]		= "LastPath";
-
-/* section Faves */
-const char LastElement[]	= "LastElement";
-
-/* for subclassing */
-WNDPROC	wndProcNotepad = NULL;
+CONST TCHAR LastPath[]			= "LastPath";
+CONST TCHAR SplitterPos[]		= "SplitterPos";
+CONST TCHAR SplitterPosHor[]	= "SplitterPosHor";
+CONST TCHAR SortAsc[]			= "SortAsc";
+CONST TCHAR SortPos[]			= "SortPos";
+CONST TCHAR ColPosName[]		= "ColPosName";
+CONST TCHAR ColPosExt[]			= "ColPosExt";
+CONST TCHAR ColPosSize[]		= "ColPosSize";
+CONST TCHAR ColPosDate[]		= "ColPosDate";
+CONST TCHAR ShowHiddenData[]	= "ShowHiddenData";
+CONST TCHAR ShowBraces[]		= "ShowBraces";
+CONST TCHAR ShowLongInfo[]		= "ShowLongInfo";
+CONST TCHAR AddExtToName[]		= "AddExtToName";
+CONST TCHAR SizeFormat[]		= "SizeFormat";
+CONST TCHAR DateFormat[]		= "DateFormat";
+CONST TCHAR FilterHistory[]		= "FilterHistory";
 
 
 /* global values */
-HMODULE			hShell32;
-NppData			nppData;
-HANDLE			g_hModule;
-HWND			g_HSource;
-FuncItem		funcItem[nbFunc];
-toolbarIcons	g_TBExplorer;
-toolbarIcons	g_TBFaves;
-
-
-/* get system information */
-BOOL	isDragFullWin = FALSE;
+HMODULE				hShell32;
+NppData				nppData;
+HANDLE				g_hModule;
+HWND				g_HSource;
+FuncItem			funcItem[nbFunc];
+toolbarIcons		g_TBExplorer;
+toolbarIcons		g_TBFaves;
 
 /* create classes */
 ExplorerDialog		explorerDlg;
 FavesDialog			favesDlg;
+OptionDlg			optionDlg;
 HelpDlg				helpDlg;
 
+/* global explorer params */
+tExProp		exProp;
 
-/* dialog params */
-RECT	rcDlg					= {0, 0, 0, 0};
-INT		iSplitterPosExplorer	= 0;
-INT		iColumnPosExplorer		= 0;
-char	szLastPath[MAX_PATH];
-INT		iSplitterPosFaves		= 0;
-INT		iColumnPosFaves			= 0;
-char	currentPath[MAX_PATH];
+/* global favorite params */
+TCHAR	szLastElement[MAX_PATH];
 
+/* get system information */
+BOOL	isNotepadCreated	= FALSE;
 
-/* recognition of changed document */
-char	szLastElement[MAX_PATH];
+/* section Faves */
+CONST TCHAR LastElement[]	= "LastElement";
+
+/* for subclassing */
+WNDPROC	wndProcNotepad		= NULL;
 
 
 
@@ -107,7 +118,7 @@ BOOL APIENTRY DllMain( HANDLE hModule,
     {
 		case DLL_PROCESS_ATTACH:
 		{
-			char	nppPath[MAX_PATH];
+			TCHAR	nppPath[MAX_PATH];
 
 			GetModuleFileName((HMODULE)hModule, nppPath, sizeof(nppPath));
             // remove the module name : get plugins directory path
@@ -135,12 +146,18 @@ BOOL APIENTRY DllMain( HANDLE hModule,
 			/* Set function pointers */
 			funcItem[0]._pFunc = toggleExplorerDialog;
 			funcItem[1]._pFunc = toggleFavesDialog;
-			funcItem[2]._pFunc = openHelpDlg;
+			funcItem[2]._pFunc = toggleFavesDialog;
+			funcItem[3]._pFunc = openOptionDlg;
+			funcItem[4]._pFunc = openOptionDlg;
+			funcItem[5]._pFunc = openHelpDlg;
 			
 			/* Fill menu names */
-			strcpy(funcItem[0]._itemName, "View Explorer");
-			strcpy(funcItem[1]._itemName, "View Favorites");
-			strcpy(funcItem[2]._itemName, "Help");
+			strcpy(funcItem[0]._itemName, "&Explorer...");
+			strcpy(funcItem[1]._itemName, "&Favorites...");
+			strcpy(funcItem[2]._itemName, "----------------");
+			strcpy(funcItem[3]._itemName, "Explorer &Options...");
+			strcpy(funcItem[4]._itemName, "----------------");
+			strcpy(funcItem[5]._itemName, "&Help...");
 
 			/* Set shortcuts */
 			funcItem[0]._pShKey = new ShortcutKey;
@@ -154,27 +171,48 @@ BOOL APIENTRY DllMain( HANDLE hModule,
 			funcItem[1]._pShKey->_isShift	= true;
 			funcItem[1]._pShKey->_key		= 0x56;
 			funcItem[2]._pShKey				= NULL;
+			funcItem[3]._pShKey				= NULL;
+			funcItem[4]._pShKey				= NULL;
+			funcItem[5]._pShKey				= NULL;
 
-			iSplitterPosExplorer = ::GetPrivateProfileInt(Explorer, SplitterPos, 120, iniFilePath);
-			iColumnPosExplorer	 = ::GetPrivateProfileInt(Explorer, ColumnPos, 200, iniFilePath);
-			::GetPrivateProfileString(Explorer, LastPath, "C:\\", szLastPath, MAX_PATH, iniFilePath);
+			::GetPrivateProfileString(Explorer, LastPath, "C:\\", exProp.szCurrentPath, MAX_PATH, iniFilePath);
+			exProp.iSplitterPos				= ::GetPrivateProfileInt(Explorer, SplitterPos, 120, iniFilePath);
+			exProp.iSplitterPosHorizontal	= ::GetPrivateProfileInt(Explorer, SplitterPosHor, 200, iniFilePath);
+			exProp.bAscending				= ::GetPrivateProfileInt(Explorer, SortAsc, TRUE, iniFilePath);
+			exProp.iSortPos					= ::GetPrivateProfileInt(Explorer, SortPos, 0, iniFilePath);
+			exProp.iColumnPosName			= ::GetPrivateProfileInt(Explorer, ColPosName, 150, iniFilePath);
+			exProp.iColumnPosExt			= ::GetPrivateProfileInt(Explorer, ColPosExt, 50, iniFilePath);
+			exProp.iColumnPosSize			= ::GetPrivateProfileInt(Explorer, ColPosSize, 70, iniFilePath);
+			exProp.iColumnPosDate			= ::GetPrivateProfileInt(Explorer, ColPosDate, 100, iniFilePath);
+			exProp.bShowHidden				= ::GetPrivateProfileInt(Explorer, ShowHiddenData, FALSE, iniFilePath);
+			exProp.bViewBraces				= ::GetPrivateProfileInt(Explorer, ShowBraces, TRUE, iniFilePath);
+			exProp.bViewLong				= ::GetPrivateProfileInt(Explorer, ShowLongInfo, FALSE, iniFilePath);
+			exProp.bAddExtToName			= ::GetPrivateProfileInt(Explorer, AddExtToName, FALSE, iniFilePath);
+			exProp.fmtSize					= (eSizeFmt)::GetPrivateProfileInt(Explorer, SizeFormat, SFMT_KBYTE, iniFilePath);
+			exProp.fmtDate					= (eDateFmt)::GetPrivateProfileInt(Explorer, DateFormat, DFMT_ENG, iniFilePath);
+
+			TCHAR	number[3];
+			LPSTR	pszTemp = new TCHAR[MAX_PATH];
+			for (INT i = 0; i < 20; i++)
+			{
+				sprintf(number, "%d", i);
+				if (::GetPrivateProfileString(FilterHistory, number, "", pszTemp, MAX_PATH, iniFilePath) != 0)
+					exProp.vStrFilterHistory.push_back(pszTemp);
+			}
+			delete [] pszTemp;
 
 			::GetPrivateProfileString(Faves, LastElement, "", szLastElement, MAX_PATH, iniFilePath);
 			break;
 		}	
 		case DLL_PROCESS_DETACH:
 		{
-			char	temp[256];
-
-			::WritePrivateProfileString(Explorer, SplitterPos, itoa(iSplitterPosExplorer, temp, 10), iniFilePath);
-			::WritePrivateProfileString(Explorer, ColumnPos, itoa(iColumnPosExplorer, temp, 10), iniFilePath);
-			::WritePrivateProfileString(Explorer, LastPath, szLastPath, iniFilePath);
-
-			::WritePrivateProfileString(Faves, LastElement, LastElement, iniFilePath);
+			TCHAR	temp[256];
 
 			/* destroy dialogs */
 			explorerDlg.destroy();
 			favesDlg.destroy();
+			optionDlg.destroy();
+			helpDlg.destroy();
 
 			/* Remove subclaasing */
 			SetWindowLong(nppData._nppHandle, GWL_WNDPROC, (LONG)wndProcNotepad);
@@ -193,6 +231,29 @@ BOOL APIENTRY DllMain( HANDLE hModule,
 				::DeleteObject(g_TBFaves.hToolbarBmp);
 			if (g_TBFaves.hToolbarIcon)
 				::DestroyIcon(g_TBFaves.hToolbarIcon);
+
+			::WritePrivateProfileString(Explorer, LastPath, exProp.szCurrentPath, iniFilePath);
+			::WritePrivateProfileString(Explorer, SplitterPos, itoa(exProp.iSplitterPos, temp, 10), iniFilePath);
+			::WritePrivateProfileString(Explorer, SplitterPosHor, itoa(exProp.iSplitterPosHorizontal, temp, 10), iniFilePath);
+			::WritePrivateProfileString(Explorer, SortAsc, itoa(exProp.bAscending, temp, 10), iniFilePath);
+			::WritePrivateProfileString(Explorer, SortPos, itoa(exProp.iSortPos, temp, 10), iniFilePath);
+			::WritePrivateProfileString(Explorer, ColPosName, itoa(exProp.iColumnPosName, temp, 10), iniFilePath);
+			::WritePrivateProfileString(Explorer, ColPosExt, itoa(exProp.iColumnPosExt, temp, 10), iniFilePath);
+			::WritePrivateProfileString(Explorer, ColPosSize, itoa(exProp.iColumnPosSize, temp, 10), iniFilePath);
+			::WritePrivateProfileString(Explorer, ColPosDate, itoa(exProp.iColumnPosDate, temp, 10), iniFilePath);
+			::WritePrivateProfileString(Explorer, ShowHiddenData, itoa(exProp.bShowHidden, temp, 10), iniFilePath);
+			::WritePrivateProfileString(Explorer, ShowBraces, itoa(exProp.bViewBraces, temp, 10), iniFilePath);
+			::WritePrivateProfileString(Explorer, ShowLongInfo, itoa(exProp.bViewLong, temp, 10), iniFilePath);
+			::WritePrivateProfileString(Explorer, AddExtToName, itoa(exProp.bAddExtToName, temp, 10), iniFilePath);
+			::WritePrivateProfileString(Explorer, SizeFormat, itoa((INT)exProp.fmtSize, temp, 10), iniFilePath);
+			::WritePrivateProfileString(Explorer, DateFormat, itoa((INT)exProp.fmtDate, temp, 10), iniFilePath);
+
+			for (INT i = exProp.vStrFilterHistory.size() - 1; i >= 0 ; i--)
+			{
+				::WritePrivateProfileString(FilterHistory, itoa(i, temp, 10), exProp.vStrFilterHistory[i].c_str(), iniFilePath); 
+			}
+
+			::WritePrivateProfileString(Faves, LastElement, LastElement, iniFilePath);
 			break;
 		}
 		case DLL_THREAD_ATTACH:
@@ -211,20 +272,21 @@ extern "C" __declspec(dllexport) void setInfo(NppData notpadPlusData)
 	nppData = notpadPlusData;
 
 	/* initial dialogs */
-	explorerDlg.init((HINSTANCE)g_hModule, nppData, szLastPath, &iSplitterPosExplorer, &iColumnPosExplorer);
+	explorerDlg.init((HINSTANCE)g_hModule, nppData, &exProp);
 	favesDlg.init((HINSTANCE)g_hModule, nppData, szLastElement);
+	optionDlg.init((HINSTANCE)g_hModule, nppData);
 	helpDlg.init((HINSTANCE)g_hModule, nppData);
 
 	/* Subclassing for Notepad */
 	wndProcNotepad = (WNDPROC)SetWindowLong(nppData._nppHandle, GWL_WNDPROC, (LPARAM)SubWndProcNotepad);
 }
 
-extern "C" __declspec(dllexport) const char * getName()
+extern "C" __declspec(dllexport) LPCSTR getName()
 {
 	return PLUGIN_NAME;
 }
 
-extern "C" __declspec(dllexport) FuncItem * getFuncsArray(int *nbF)
+extern "C" __declspec(dllexport) FuncItem * getFuncsArray(INT *nbF)
 {
 	*nbF = nbFunc;
 	return funcItem;
@@ -237,6 +299,8 @@ extern "C" __declspec(dllexport) FuncItem * getFuncsArray(int *nbF)
  */
 extern "C" __declspec(dllexport) void beNotified(SCNotification *notifyCode)
 {
+	static 
+	TCHAR	currentFile[MAX_PATH];
 	UINT	currentEdit;
 
 	if ((notifyCode->nmhdr.hwndFrom == nppData._scintillaMainHandle) ||
@@ -250,9 +314,9 @@ extern "C" __declspec(dllexport) void beNotified(SCNotification *notifyCode)
 		/* update open files */
 		::SendMessage(nppData._nppHandle, WM_GET_FULLCURRENTPATH, 0, (LPARAM)newPath);
 
-		if (strcmp(newPath, currentPath) != 0)
+		if (strcmp(newPath, currentFile) != 0)
 		{
-			strcpy(currentPath, newPath);
+			strcpy(currentFile, newPath);
 			explorerDlg.NotifyNewFile();
 			favesDlg.NotifyNewFile();
 		}
@@ -269,6 +333,7 @@ extern "C" __declspec(dllexport) void beNotified(SCNotification *notifyCode)
 		if (notifyCode->nmhdr.code == NPPN_READY)
 		{
 			explorerDlg.initFinish();
+			isNotepadCreated = TRUE;
 		}
 	}
 }
@@ -280,6 +345,10 @@ extern "C" __declspec(dllexport) void beNotified(SCNotification *notifyCode)
  */
 extern "C" __declspec(dllexport) void messageProc(UINT Message, WPARAM wParam, LPARAM lParam)
 {
+   if (Message == WM_CREATE)
+   {
+      initMenu();
+   }
 }
 
 
@@ -301,6 +370,10 @@ UINT ScintillaMsg(UINT message, WPARAM wParam, LPARAM lParam)
  */
 void initMenu(void)
 {
+	HMENU		hMenu	= ::GetMenu(nppData._nppHandle);
+
+	::ModifyMenu(hMenu, funcItem[2]._cmdID, MF_BYCOMMAND | MF_SEPARATOR, 0, 0);
+	::ModifyMenu(hMenu, funcItem[4]._cmdID, MF_BYCOMMAND | MF_SEPARATOR, 0, 0);
 }
 
 
@@ -309,7 +382,7 @@ void initMenu(void)
  *
  *	Get the handle of the current scintilla
  */
-HWND getCurrentHScintilla(int which)
+HWND getCurrentHScintilla(INT which)
 {
 	return (which == 0)?nppData._scintillaMainHandle:nppData._scintillaSecondHandle;
 }	
@@ -329,6 +402,12 @@ void toggleFavesDialog(void)
 {
 	UINT state = ::GetMenuState(::GetMenu(nppData._nppHandle), funcItem[DOCKABLE_FAVORTIES_INDEX]._cmdID, MF_BYCOMMAND);
 	favesDlg.doDialog(state & MF_CHECKED ? false : true);
+}
+
+void openOptionDlg(void)
+{
+	optionDlg.doDialog(&exProp);
+	explorerDlg.redraw();
 }
 
 void openHelpDlg(void)
@@ -375,7 +454,7 @@ LRESULT CALLBACK SubWndProcNotepad(HWND hWnd, UINT message, WPARAM wParam, LPARA
 /**************************************************************************
  *	Functions for file system
  */
-BOOL VolumeNameExists(char* rootDrive, char* volumeName)
+BOOL VolumeNameExists(LPSTR rootDrive, LPSTR volumeName)
 {
 	BOOL	bRet = FALSE;
 
@@ -388,7 +467,8 @@ BOOL VolumeNameExists(char* rootDrive, char* volumeName)
 
 bool IsValidFolder(WIN32_FIND_DATA Find)
 {
-	if ((Find.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) && !(Find.dwFileAttributes & FILE_ATTRIBUTE_HIDDEN) &&
+	if ((Find.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) && 
+		(!(Find.dwFileAttributes & FILE_ATTRIBUTE_HIDDEN) || exProp.bShowHidden) &&
 		 (strcmp(Find.cFileName, ".") != 0) && (strcmp(Find.cFileName, "..") != 0))
 		return true;
 
@@ -397,7 +477,8 @@ bool IsValidFolder(WIN32_FIND_DATA Find)
 
 bool IsValidParentFolder(WIN32_FIND_DATA Find)
 {
-	if ((Find.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) && !(Find.dwFileAttributes & FILE_ATTRIBUTE_HIDDEN) &&
+	if ((Find.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) && 
+		(!(Find.dwFileAttributes & FILE_ATTRIBUTE_HIDDEN) || exProp.bShowHidden) &&
 		 (strcmp(Find.cFileName, "..") == 0))
 		return true;
 
@@ -406,13 +487,14 @@ bool IsValidParentFolder(WIN32_FIND_DATA Find)
 
 bool IsValidFile(WIN32_FIND_DATA Find)
 {
-	if (!(Find.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) && !(Find.dwFileAttributes & FILE_ATTRIBUTE_HIDDEN))
+	if (!(Find.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) && 
+		(!(Find.dwFileAttributes & FILE_ATTRIBUTE_HIDDEN) || exProp.bShowHidden))
 		return true;
 
 	return false;
 }
 
-BOOL HaveChildren(char* parentFolderPathName)
+BOOL HaveChildren(LPSTR parentFolderPathName)
 {
 	WIN32_FIND_DATA		Find		= {0};
 	HANDLE				hFind		= NULL;
@@ -530,12 +612,12 @@ HIMAGELIST GetSystemImageList(BOOL fSmall)
 		TCHAR             szTempFile[MAX_PATH] = TEXT("");
 		TCHAR             szFile[MAX_PATH];
 		HANDLE            hFile;
-		int               i;
+		INT               i;
 		OLECHAR           szOle[MAX_PATH];
 		DWORD             dwAttributes;
 		DWORD             dwEaten;
 		IShellIconOverlay *psio = NULL;
-		int               nIndex;
+		INT               nIndex;
 
 		// Get the desktop folder.
 		hr = SHGetDesktopFolder(&psfDesktop);
@@ -651,10 +733,10 @@ exit:
     return himl;
 }
 
-void ExtractIcons(const char* currentPath, const char* volumeName, bool isDir, int* iIconNormal, int* iIconSelected, int* iIconOverlayed)
+void ExtractIcons(LPCSTR currentPath, LPCSTR volumeName, bool isDir, LPINT iIconNormal, LPINT iIconSelected, LPINT iIconOverlayed)
 {
 	SHFILEINFO		sfi	= {0};
-	char			TEMP[MAX_PATH];
+	TCHAR			TEMP[MAX_PATH];
 
 	strcpy(TEMP, currentPath);
 	if (TEMP[strlen(TEMP) - 1] == '*')

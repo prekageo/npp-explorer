@@ -22,10 +22,10 @@ typedef void (WINAPI *PGNSI)(LPSYSTEM_INFO);
 
 winVer getWindowsVersion()
 {
-	OSVERSIONINFOEXNEXT osvi;
-	SYSTEM_INFO si;
-	PGNSI pGNSI;
-	BOOL bOsVersionInfoEx;
+	OSVERSIONINFOEXNEXT	osvi;
+	SYSTEM_INFO			si;
+	PGNSI				pGNSI;
+	BOOL				bOsVersionInfoEx;
 
 	ZeroMemory(&si, sizeof(SYSTEM_INFO));
 	ZeroMemory(&osvi, sizeof(OSVERSIONINFOEXNEXT));

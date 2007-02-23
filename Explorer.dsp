@@ -43,7 +43,7 @@ RSC=rc.exe
 # PROP Ignore_Export_Lib 0
 # PROP Target_Dir ""
 # ADD BASE CPP /nologo /MT /W3 /GX /O2 /D "WIN32" /D "NDEBUG" /D "_WINDOWS" /D "_MBCS" /D "_USRDLL" /D "EXPLORER_EXPORTS" /YX /FD /c
-# ADD CPP /nologo /MT /W3 /GX /O2 /I "." /I ".\src\\" /I ".\src\MISC\\" /I ".\src\HelpDlg\\" /I ".\src\NewDlg\\" /I ".\src\PropDlg\\" /I ".\src\Toolbar\\" /I ".\src\FileDlg\\" /I ".\src\FileList\\" /D "WIN32" /D "NDEBUG" /D "_WINDOWS" /D "_MBCS" /D "_USRDLL" /D "EXPLORER_EXPORTS" /YX /FD /c
+# ADD CPP /nologo /MT /W3 /GX /O2 /I ".\src\NewDlg\\" /I ".\src\PropDlg\\" /I ".\src\Toolbar\\" /I ".\src\FileDlg\\" /I ".\src\FileList\\" /I "." /I ".\src\\" /I ".\src\MISC\\" /I ".\src\HelpDlg\\" /I ".\src\OptionDlg\\" /D "WIN32" /D "NDEBUG" /D "_WINDOWS" /D "_MBCS" /D "_USRDLL" /D "EXPLORER_EXPORTS" /YX /FD /c
 # ADD BASE MTL /nologo /D "NDEBUG" /mktyplib203 /win32
 # ADD MTL /nologo /D "NDEBUG" /mktyplib203 /win32
 # ADD BASE RSC /l 0x407 /d "NDEBUG"
@@ -69,7 +69,7 @@ LINK32=link.exe
 # PROP Ignore_Export_Lib 0
 # PROP Target_Dir ""
 # ADD BASE CPP /nologo /MTd /W3 /Gm /GX /ZI /Od /D "WIN32" /D "_DEBUG" /D "_WINDOWS" /D "_MBCS" /D "_USRDLL" /D "EXPLORER_EXPORTS" /YX /FD /GZ /c
-# ADD CPP /nologo /MTd /W3 /Gm /GX /ZI /Od /I "." /I ".\src\\" /I ".\src\MISC\\" /I ".\src\HelpDlg\\" /D "WIN32" /D "_DEBUG" /D "_WINDOWS" /D "_MBCS" /D "_USRDLL" /D "EXPLORER_EXPORTS" /YX /FD /GZ /c
+# ADD CPP /nologo /MTd /W3 /Gm /GX /ZI /Od /I "." /I ".\src\\" /I ".\src\MISC\\" /I ".\src\HelpDlg\\" /I ".\src\OptionDlg\\" /D "WIN32" /D "_DEBUG" /D "_WINDOWS" /D "_MBCS" /D "_USRDLL" /D "EXPLORER_EXPORTS" /YX /FD /GZ /c
 # ADD BASE MTL /nologo /D "_DEBUG" /mktyplib203 /win32
 # ADD MTL /nologo /D "_DEBUG" /mktyplib203 /win32
 # ADD BASE RSC /l 0x407 /d "_DEBUG"
@@ -125,6 +125,10 @@ SOURCE=.\src\Toolbar\ImageListSet.cpp
 # Begin Source File
 
 SOURCE=.\src\NewDlg\NewDlg.cpp
+# End Source File
+# Begin Source File
+
+SOURCE=.\src\OptionDlg\OptionDialog.cpp
 # End Source File
 # Begin Source File
 
@@ -220,6 +224,10 @@ SOURCE=.\src\NewDlg\NewDlg.h
 # End Source File
 # Begin Source File
 
+SOURCE=.\src\OptionDlg\OptionDialog.h
+# End Source File
+# Begin Source File
+
 SOURCE=.\src\PluginInterface.h
 # End Source File
 # Begin Source File
@@ -265,10 +273,6 @@ SOURCE=.\src\MISC\TreeHelperClass.h
 # Begin Source File
 
 SOURCE=.\src\HelpDlg\URLCtrl.h
-# End Source File
-# Begin Source File
-
-SOURCE=.\src\PureDnD\wbded.h
 # End Source File
 # Begin Source File
 
@@ -328,6 +332,10 @@ SOURCE=.\res\groopope.ico
 # End Source File
 # Begin Source File
 
+SOURCE=.\res\group.ico
+# End Source File
+# Begin Source File
+
 SOURCE=.\res\Heart.bmp
 # End Source File
 # Begin Source File
@@ -337,6 +345,14 @@ SOURCE=.\res\heart.ico
 # Begin Source File
 
 SOURCE=.\res\ico00001.ico
+# End Source File
+# Begin Source File
+
+SOURCE=.\res\leftrigh.cur
+# End Source File
+# Begin Source File
+
+SOURCE=.\res\leftright.cur
 # End Source File
 # Begin Source File
 
