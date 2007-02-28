@@ -211,7 +211,8 @@ BOOL CALLBACK PropDlg::run_dlgProc(HWND hWnd, UINT Message, WPARAM wParam, LPARA
 						FileDlg dlg(_hInst, _hParent);
 
 						dlg.setDefFileName(_pLink);
-						dlg.setExtFilter("Session file", ".session", NULL);
+						if (strstr(_pDesc, "Session") != NULL)
+							dlg.setExtFilter("Session file", ".session", NULL);
 						dlg.setExtFilter("All types", ".*", NULL);
 						
 						if (_fileMustExist == TRUE)
