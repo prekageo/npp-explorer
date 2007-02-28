@@ -47,6 +47,8 @@ typedef struct {
 	string		strExtLC;
 	__int64		i64Size;
 	__int64		i64Date;
+	/* not visible, remember state */
+	UINT		state;
 } tFileListData;
 
 

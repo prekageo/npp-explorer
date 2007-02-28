@@ -661,6 +661,22 @@ void FileList::notify(WPARAM wParam, LPARAM lParam)
 		}
 		case LVN_COLUMNCLICK:
 		{
+			UINT	uFolders	= _vFolders.size();
+			UINT	uListCnt	= uFolders + _vFiles.size();
+
+			/* store the marked items */
+			for (UINT i = 0; i < uListCnt; i++)
+			{
+				if (i < uFolders)
+				{
+					_vFolders[i].state			= ListView_GetItemState(_hSelf, i, LVIS_SELECTED);
+				}
+				else
+				{
+					_vFiles[i-uFolders].state	= ListView_GetItemState(_hSelf, i, LVIS_SELECTED);
+				}
+			}
+			
 			INT iPos  = ((LPNMLISTVIEW)lParam)->iSubItem;
 
 			if (iPos != _pExProp->iSortPos)
@@ -669,6 +685,19 @@ void FileList::notify(WPARAM wParam, LPARAM lParam)
 				_pExProp->bAscending ^= TRUE;
 
 			UpdateList();
+
+			/* mark old items */
+			for (UINT i = 0; i < uListCnt; i++)
+			{
+				if (i < uFolders)
+				{
+					ListView_SetItemState(_hSelf, i, _vFolders[i].state, 0xFF);
+				}
+				else
+				{
+					ListView_SetItemState(_hSelf, i, _vFiles[i-uFolders].state, 0xFF);
+				}
+			}
 			break;
 		}
 		case LVN_KEYDOWN:
