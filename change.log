@@ -4,6 +4,8 @@ Change-log for Explorer.dll
 ------------------------------------------------------------------------------------
 07/02/24  v1.2 :
 ------------------------------------------------------------------------------------
+	Fix: In "[Files]->New Link" the file filter ".session" is removed
+	Fix: The file session icons in Favorites display now correct
     Fix: Copying a node in Faves and directly deleting it again caused error
 	Fix: Crashing on "Close" in explorer options when plugin is not open
     Fix: File icons in list always extension-dependent
@@ -16,6 +18,7 @@ Change-log for Explorer.dll
 	Fix: Broken icons in folder  "C:\Windows\Downloaded Program Files"
 	Fix: Now short file names are supported on "Folder of Current File"
     Fix: Saving session over menu "File->Save Session..." didn't update the faves tree
+	New: Remembering marked items in file list when changing the sort criteria
 	New: Menu item on right mouse click to save current over an existing session
 	New: Show hidden files with special icons
 	New: Filter history (max. 20 items)
