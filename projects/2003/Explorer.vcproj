@@ -82,6 +82,7 @@
 				Name="VCCLCompilerTool"
 				Optimization="3"
 				InlineFunctionExpansion="1"
+				FavorSizeOrSpeed="2"
 				AdditionalIncludeDirectories="..\..\src\NewDlg\,..\..\src\PropDlg\,..\..\src\Toolbar\,..\..\src\FileDlg\,..\..\src\FileList\,.,..\..\src\,..\..\src\MISC\,..\..\src\HelpDlg\,..\..\src\OptionDlg\"
 				PreprocessorDefinitions="WIN32;_WINDOWS;_USRDLL;EXPLORER_EXPORTS"
 				StringPooling="TRUE"
