@@ -556,7 +556,7 @@ BOOL CALLBACK ExplorerDialog::run_dlgProc(HWND hWnd, UINT Message, WPARAM wParam
 				LPTSTR		szInList		= NULL;
 				LPTSTR		folderChildPath	= NULL;
 				LPTSTR		folderPathName	= (LPTSTR) new TCHAR[MAX_PATH];
-				HTREEITEM	hItem = TreeView_GetSelection(_hTreeCtrl);
+				HTREEITEM	hItem			= TreeView_GetSelection(_hTreeCtrl);
 
 				strcpy(folderPathName, (LPTSTR)lParam);
 
@@ -591,7 +591,7 @@ BOOL CALLBACK ExplorerDialog::run_dlgProc(HWND hWnd, UINT Message, WPARAM wParam
 					}
 				}
 
-				/* if last TCHAR no backslash, add one */
+				/* if last char no backslash, add one */
 				if (folderPathName[strlen(folderPathName)-1] != '\\')
 					strcat(folderPathName, "\\");
 
@@ -1011,7 +1011,7 @@ BOOL ExplorerDialog::SelectItem(LPTSTR path)
 		}
 #endif
 
-		/* trunkate item name if we are in root */
+		/* truncate item name if we are in root */
 		if (isRoot == TRUE)
 			pszItemName[2] = '\0';
 
@@ -1083,7 +1083,7 @@ void ExplorerDialog::UpdateDevices(void)
 	DWORD			driveList		= ::GetLogicalDrives();
 	BOOL			isValidDrive	= FALSE;
 
-	HTREEITEM		pCurrentItem	= TreeView_GetNextItem(_hTreeCtrl, TVI_ROOT, TVGN_CHILD);
+	HTREEITEM		hCurrentItem	= TreeView_GetNextItem(_hTreeCtrl, TVI_ROOT, TVGN_CHILD);
 
 	TCHAR			drivePathName[]	= " :\\\0\0";	// it is longer for function 'HaveChildren()'
 	LPTSTR			volumeName		= (LPTSTR)new TCHAR[MAX_PATH];
@@ -1097,7 +1097,6 @@ void ExplorerDialog::UpdateDevices(void)
 		{
 			/* create volume name */
 			isValidDrive = GetVolumeInformation(drivePathName, TEMP, MAX_PATH, &serialNr, &space, &flags, NULL, 0);
-
 			if (isValidDrive == TRUE)
 			{
 				sprintf(volumeName, "%c: [%s]", 'A' + i, TEMP);
@@ -1107,15 +1106,15 @@ void ExplorerDialog::UpdateDevices(void)
 				sprintf(volumeName, "%c:", 'A' + i);
 			}
 
-			if (pCurrentItem != NULL)
+			if (hCurrentItem != NULL)
 			{
 				/* get current volume name in list and test if name is changed */
-				GetItemText(pCurrentItem, TEMP, MAX_PATH);
+				GetItemText(hCurrentItem, TEMP, MAX_PATH);
 
 				if (strcmp(volumeName, TEMP) == 0)
 				{
 					/* if names are equal, go to next item in tree */
-					pCurrentItem = TreeView_GetNextItem(_hTreeCtrl, pCurrentItem, TVGN_NEXT);
+					hCurrentItem = TreeView_GetNextItem(_hTreeCtrl, hCurrentItem, TVGN_NEXT);
 				}
 				else if (volumeName[0] == TEMP[0])
 				{
@@ -1137,43 +1136,33 @@ void ExplorerDialog::UpdateDevices(void)
 
 					/* get icons */
 					ExtractIcons(drivePathName, NULL, true, &iIconNormal, &iIconSelected, &iIconOverlayed);
-					UpdateItem(pCurrentItem, volumeName, iIconNormal, iIconSelected, iIconOverlayed, 0, haveChildren);
-					DeleteChildren(pCurrentItem);
-					pCurrentItem = TreeView_GetNextItem(_hTreeCtrl, pCurrentItem, TVGN_NEXT);
+					UpdateItem(hCurrentItem, volumeName, iIconNormal, iIconSelected, iIconOverlayed, 0, haveChildren);
+					DeleteChildren(hCurrentItem);
+					hCurrentItem = TreeView_GetNextItem(_hTreeCtrl, hCurrentItem, TVGN_NEXT);
 				}
 				else
 				{
 					/* insert the device when new and not present before */
-					HTREEITEM	pPrevItem	= TreeView_GetNextItem(_hTreeCtrl, pCurrentItem, TVGN_PREVIOUS);
-					HTREEITEM	pItem		= InsertChildFolder(volumeName, TVI_ROOT, pPrevItem, isValidDrive);
-					if (isValidDrive == TRUE)
-					{
-						DrawChildren(pItem);
-					}
+					HTREEITEM	hItem	= TreeView_GetNextItem(_hTreeCtrl, hCurrentItem, TVGN_PREVIOUS);
+					InsertChildFolder(volumeName, TVI_ROOT, hItem, isValidDrive);
 				}
 			}
 			else
 			{
-				HTREEITEM	pItem = InsertChildFolder(volumeName, TVI_ROOT, TVI_LAST, isValidDrive);
-
-// Changed becaues of long startup times!
-//				if (isValidDrive == TRUE)
-//				{
-//					DrawChildren(pItem);
-//				}
+				InsertChildFolder(volumeName, TVI_ROOT, TVI_LAST, isValidDrive);
 			}
 		}
 		else
 		{
-			if (pCurrentItem != NULL)
+			if (hCurrentItem != NULL)
 			{
 				/* get current volume name in list and test if name is changed */
-				GetItemText(pCurrentItem, TEMP, MAX_PATH);
+				GetItemText(hCurrentItem, TEMP, MAX_PATH);
 
 				if (drivePathName[0] == TEMP[0])
 				{
-					HTREEITEM	pPrevItem	= pCurrentItem;
-					pCurrentItem = TreeView_GetNextItem(_hTreeCtrl, pCurrentItem, TVGN_NEXT);
+					HTREEITEM	pPrevItem	= hCurrentItem;
+					hCurrentItem = TreeView_GetNextItem(_hTreeCtrl, hCurrentItem, TVGN_NEXT);
 					TreeView_DeleteItem(_hTreeCtrl, pPrevItem);
 				}
 			}
@@ -1187,18 +1176,18 @@ void ExplorerDialog::UpdateDevices(void)
 void ExplorerDialog::RemoveDrive(LPTSTR drivePathName)
 {
 	LPTSTR		TEMP		 = (LPTSTR)new TCHAR[MAX_PATH];
-	HTREEITEM	pCurrentItem = TreeView_GetNextItem(_hTreeCtrl, TVI_ROOT, TVGN_CHILD);
+	HTREEITEM	hCurrentItem = TreeView_GetNextItem(_hTreeCtrl, TVI_ROOT, TVGN_CHILD);
 
-	GetItemText(pCurrentItem, TEMP, MAX_PATH);
-	while (pCurrentItem != NULL)
+	GetItemText(hCurrentItem, TEMP, MAX_PATH);
+	while (hCurrentItem != NULL)
 	{
 		if (drivePathName[0] == TEMP[0])
 		{
-			TreeView_DeleteItem(_hTreeCtrl, pCurrentItem);
+			TreeView_DeleteItem(_hTreeCtrl, hCurrentItem);
 		}
 
-		pCurrentItem = TreeView_GetNextItem(_hTreeCtrl, pCurrentItem, TVGN_NEXT);
-		GetItemText(pCurrentItem, TEMP, MAX_PATH);
+		hCurrentItem = TreeView_GetNextItem(_hTreeCtrl, hCurrentItem, TVGN_NEXT);
+		GetItemText(hCurrentItem, TEMP, MAX_PATH);
 	}
 
 	delete [] TEMP;
@@ -1208,23 +1197,23 @@ void ExplorerDialog::UpdateFolders(void)
 {
 	LPTSTR			pszPath			= (LPTSTR)new TCHAR[MAX_PATH];
 	LPTSTR			TEMP			= (LPTSTR)new TCHAR[MAX_PATH];
-	HTREEITEM		pCurrentItem	= TreeView_GetChild(_hTreeCtrl, TVI_ROOT);
+	HTREEITEM		hCurrentItem	= TreeView_GetChild(_hTreeCtrl, TVI_ROOT);
 	DWORD			serialNr		= 0;
 	DWORD			space			= 0;
 	DWORD			flags			= 0;
 
-	while (pCurrentItem != NULL)
+	while (hCurrentItem != NULL)
 	{
-		GetItemText(pCurrentItem, pszPath, MAX_PATH);
+		GetItemText(hCurrentItem, pszPath, MAX_PATH);
 		pszPath[2] = '\\';
 		pszPath[3] = '\0';
 
 		if (GetVolumeInformation(pszPath, TEMP, MAX_PATH, &serialNr, &space, &flags, NULL, 0))
 		{
 			pszPath[2] = '\0';
-			UpdateFolderRecursive(pszPath, pCurrentItem);
+			UpdateFolderRecursive(pszPath, hCurrentItem);
 		}
-		pCurrentItem = TreeView_GetNextItem(_hTreeCtrl, pCurrentItem, TVGN_NEXT);
+		hCurrentItem = TreeView_GetNextItem(_hTreeCtrl, hCurrentItem, TVGN_NEXT);
 	}
 
 	delete [] pszPath;
@@ -1240,7 +1229,7 @@ void ExplorerDialog::UpdateFolderRecursive(LPTSTR pszParentPath, HTREEITEM pPare
 	LPTSTR				pszItem			= (LPTSTR) new TCHAR[MAX_PATH];
 	LPTSTR				pszPath			= (LPTSTR) new TCHAR[MAX_PATH];
 	LPTSTR				pszSearch		= (LPTSTR) new TCHAR[MAX_PATH];
-	HTREEITEM			pCurrentItem	= TreeView_GetNextItem(_hTreeCtrl, pParentItem, TVGN_CHILD);
+	HTREEITEM			hCurrentItem	= TreeView_GetNextItem(_hTreeCtrl, pParentItem, TVGN_CHILD);
 
 	strcpy(pszSearch, pszParentPath);
 
@@ -1259,33 +1248,33 @@ void ExplorerDialog::UpdateFolderRecursive(LPTSTR pszParentPath, HTREEITEM pPare
 	{
 		if (IsValidFolder(Find) == TRUE)
 		{
-			if (GetItemText(pCurrentItem, pszItem, MAX_PATH) == TRUE)
+			if (GetItemText(hCurrentItem, pszItem, MAX_PATH) == TRUE)
 			{
 				/* compare current item and the current folder name */
-				while ((strcmp(pszItem, Find.cFileName) != 0) && (pCurrentItem != NULL))
+				while ((strcmp(pszItem, Find.cFileName) != 0) && (hCurrentItem != NULL))
 				{
 					HTREEITEM	pPrevItem = NULL;
 
 					/* if it's not equal delete or add new item */
-					if (FindFolderAfter(Find.cFileName, pCurrentItem) == TRUE)
+					if (FindFolderAfter(Find.cFileName, hCurrentItem) == TRUE)
 					{
-						pPrevItem		= pCurrentItem;
-						pCurrentItem	= TreeView_GetNextItem(_hTreeCtrl, pCurrentItem, TVGN_NEXT);
+						pPrevItem		= hCurrentItem;
+						hCurrentItem	= TreeView_GetNextItem(_hTreeCtrl, hCurrentItem, TVGN_NEXT);
 						TreeView_DeleteItem(_hTreeCtrl, pPrevItem);
 					}
 					else
 					{
-						pPrevItem = TreeView_GetNextItem(_hTreeCtrl, pCurrentItem, TVGN_PREVIOUS);
+						pPrevItem = TreeView_GetNextItem(_hTreeCtrl, hCurrentItem, TVGN_PREVIOUS);
 
-						/* Note: If pCurrentItem is the first item in the list pPrevItem is NULL */
+						/* Note: If hCurrentItem is the first item in the list pPrevItem is NULL */
 						if (pPrevItem == NULL)
-							pCurrentItem = InsertChildFolder(Find.cFileName, pParentItem, TVI_FIRST);
+							hCurrentItem = InsertChildFolder(Find.cFileName, pParentItem, TVI_FIRST);
 						else
-							pCurrentItem = InsertChildFolder(Find.cFileName, pParentItem, pPrevItem);
+							hCurrentItem = InsertChildFolder(Find.cFileName, pParentItem, pPrevItem);
 					}
 
-					if (pCurrentItem != NULL)
-						GetItemText(pCurrentItem, pszItem, MAX_PATH);
+					if (hCurrentItem != NULL)
+						GetItemText(hCurrentItem, pszItem, MAX_PATH);
 				}
 
 				/* get current path */
@@ -1297,8 +1286,6 @@ void ExplorerDialog::UpdateFolderRecursive(LPTSTR pszParentPath, HTREEITEM pPare
 				int					iIconOverlayed	= 0;
 				BOOL				haveChildren	= HaveChildren(pszPath);
 				BOOL				bHidden			= FALSE;
-				WIN32_FIND_DATA		Find			= {0};
-				HANDLE				hFind			= NULL;
 
 				/* correct by HaveChildren() modified pszPath */
 				pszPath[strlen(pszPath) - 2] = '\0';
@@ -1306,31 +1293,31 @@ void ExplorerDialog::UpdateFolderRecursive(LPTSTR pszParentPath, HTREEITEM pPare
 				/* get icons and update item */
 				ExtractIcons(pszPath, NULL, true, &iIconNormal, &iIconSelected, &iIconOverlayed);
 				bHidden = ((Find.dwFileAttributes & FILE_ATTRIBUTE_HIDDEN) != 0);
-				UpdateItem(pCurrentItem, pszItem, iIconNormal, iIconSelected, iIconOverlayed, bHidden, haveChildren);
+				UpdateItem(hCurrentItem, pszItem, iIconNormal, iIconSelected, iIconOverlayed, bHidden, haveChildren);
 
 				/* update recursive */
-				if (TreeView_GetChild(_hTreeCtrl, pCurrentItem) != NULL)
+				if (TreeView_GetChild(_hTreeCtrl, hCurrentItem) != NULL)
 				{
-					UpdateFolderRecursive(pszPath, pCurrentItem);
+					UpdateFolderRecursive(pszPath, hCurrentItem);
 				}
 
 				/* select next item */
-				pCurrentItem = TreeView_GetNextItem(_hTreeCtrl, pCurrentItem, TVGN_NEXT);
+				hCurrentItem = TreeView_GetNextItem(_hTreeCtrl, hCurrentItem, TVGN_NEXT);
 			}
 			else
 			{
-				pCurrentItem = InsertChildFolder(Find.cFileName, pParentItem);
-				pCurrentItem = TreeView_GetNextItem(_hTreeCtrl, pCurrentItem, TVGN_NEXT);
+				hCurrentItem = InsertChildFolder(Find.cFileName, pParentItem);
+				hCurrentItem = TreeView_GetNextItem(_hTreeCtrl, hCurrentItem, TVGN_NEXT);
 			}
 		}
 
 	} while (FindNextFile(hFind, &Find));
 
 	/* delete possible not existed items */
-	while (pCurrentItem != NULL)
+	while (hCurrentItem != NULL)
 	{
-		HTREEITEM	pPrevItem	= pCurrentItem;
-		pCurrentItem			= TreeView_GetNextItem(_hTreeCtrl, pCurrentItem, TVGN_NEXT);
+		HTREEITEM	pPrevItem	= hCurrentItem;
+		hCurrentItem			= TreeView_GetNextItem(_hTreeCtrl, hCurrentItem, TVGN_NEXT);
 		TreeView_DeleteItem(_hTreeCtrl, pPrevItem);
 	}
 
@@ -1345,19 +1332,19 @@ BOOL ExplorerDialog::FindFolderAfter(LPTSTR itemName, HTREEITEM pAfterItem)
 {
 	BOOL		isFound			= FALSE;
 	LPTSTR		pszItem			= (LPTSTR) new TCHAR[MAX_PATH];
-	HTREEITEM	pCurrentItem	= TreeView_GetNextItem(_hTreeCtrl, pAfterItem, TVGN_NEXT);
+	HTREEITEM	hCurrentItem	= TreeView_GetNextItem(_hTreeCtrl, pAfterItem, TVGN_NEXT);
 
-	while (pCurrentItem != NULL)
+	while (hCurrentItem != NULL)
 	{
-		GetItemText(pCurrentItem, pszItem, MAX_PATH);
+		GetItemText(hCurrentItem, pszItem, MAX_PATH);
 		if (strcmp(itemName, pszItem) == 0)
 		{
 			isFound = TRUE;
-			pCurrentItem = NULL;
+			hCurrentItem = NULL;
 		}
 		else
 		{
-			pCurrentItem = TreeView_GetNextItem(_hTreeCtrl, pCurrentItem, TVGN_NEXT);
+			hCurrentItem = TreeView_GetNextItem(_hTreeCtrl, hCurrentItem, TVGN_NEXT);
 		}
 	}
 
