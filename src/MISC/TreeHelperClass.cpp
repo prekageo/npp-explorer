@@ -64,8 +64,11 @@ void TreeHelper::DrawChildren(HTREEITEM parentItem)
 HTREEITEM TreeHelper::InsertChildFolder(LPTSTR childFolderName, HTREEITEM parentItem, HTREEITEM insertAfter, BOOL bChildrenTest)
 {
 	/* We search if it already exists */
-	LPTSTR		TEMP		 = (LPTSTR)new char[MAX_PATH];
-	HTREEITEM	pCurrentItem = TreeView_GetNextItem(_hTreeCtrl, parentItem, TVGN_CHILD);
+	LPTSTR				TEMP			= (LPTSTR)new char[MAX_PATH];
+	HTREEITEM			pCurrentItem	= TreeView_GetNextItem(_hTreeCtrl, parentItem, TVGN_CHILD);
+	BOOL				bHidden			= FALSE;
+	WIN32_FIND_DATA		Find			= {0};
+	HANDLE				hFind			= NULL;
 
 	while (pCurrentItem != NULL)
 	{
@@ -91,6 +94,13 @@ HTREEITEM TreeHelper::InsertChildFolder(LPTSTR childFolderName, HTREEITEM parent
 	{
 		parentFolderPathName[2] = '\0';
 	}
+	else
+	{
+		/* get only hidden icon when folder is not a device */
+		hFind = ::FindFirstFile(parentFolderPathName, &Find);
+		bHidden = ((Find.dwFileAttributes & FILE_ATTRIBUTE_HIDDEN) != 0);
+		::FindClose(hFind);
+	}
 
 	/* look if children test id allowed */
 	BOOL	haveChildren = FALSE;
@@ -103,15 +113,9 @@ HTREEITEM TreeHelper::InsertChildFolder(LPTSTR childFolderName, HTREEITEM parent
 	INT					iIconNormal		= 0;
 	INT					iIconSelected	= 0;
 	INT					iIconOverlayed	= 0;
-	BOOL				bHidden			= FALSE;
-	WIN32_FIND_DATA		Find			= {0};
-	HANDLE				hFind			= NULL;
 
 	/* get icons */
 	ExtractIcons(parentFolderPathName, NULL, true, &iIconNormal, &iIconSelected, &iIconOverlayed);
-	hFind = ::FindFirstFile(parentFolderPathName, &Find);
-	bHidden = ((Find.dwFileAttributes & FILE_ATTRIBUTE_HIDDEN) != 0);
-	::FindClose(hFind);
 
 	/* set item */
 	pCurrentItem = InsertItem(childFolderName, iIconNormal, iIconSelected, iIconOverlayed, bHidden, parentItem, insertAfter, haveChildren);
