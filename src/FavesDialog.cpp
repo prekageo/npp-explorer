@@ -760,7 +760,7 @@ void FavesDialog::AddSaveSession(HTREEITEM hItem, BOOL bSave)
 	while (isOk == FALSE)
 	{
 		/* open dialog */
-		if (dlgProp.doDialog(pszName, pszLink, pszDesc, MapPropDlg(root), (bSave == TRUE)) == TRUE)
+		if (dlgProp.doDialog(pszName, pszLink, pszDesc, MapPropDlg(root), bSave) == TRUE)
 		{
 			if (hItem == NULL)
 			{
@@ -1407,39 +1407,35 @@ void FavesDialog::DrawSessionChildren(HTREEITEM hItem)
 {
 	int			i				= 0;
 	int			docCnt			= 0;
-	TCHAR		**fileNames		= NULL;
+	TCHAR		**ppszFileNames	= NULL;
 	PELEM		pElem			= (PELEM)GetParam(hItem);
 
 	/* get document count and create resources */
-	docCnt		= (int)::SendMessage(_hParent, WM_NBSESSIONFILES, 0, (LPARAM)pElem->pszLink);
-	fileNames	= (TCHAR **)new LPTSTR[docCnt];
+	docCnt			= (int)::SendMessage(_hParent, WM_NBSESSIONFILES, 0, (LPARAM)pElem->pszLink);
+	ppszFileNames	= (TCHAR **)new LPTSTR[docCnt];
 
 	for (i = 0; i < docCnt; i++)
-		fileNames[i] = new TCHAR[MAX_PATH];
+		ppszFileNames[i] = new TCHAR[MAX_PATH];
 
 	/* get file names */
-	if (::SendMessage(_hParent, WM_GETSESSIONFILES, (WPARAM)fileNames, (LPARAM)pElem->pszLink) == TRUE)
+	if (::SendMessage(_hParent, WM_GETSESSIONFILES, (WPARAM)ppszFileNames, (LPARAM)pElem->pszLink) == TRUE)
 	{
 		/* when successfull add it to the tree */
 		int			iIconNormal		= 0;
 		int			iIconSelected	= 0;
 		int			iIconOverlayed	= 0;
-		LPTSTR		TEMP			= (LPTSTR)new TCHAR[MAX_PATH];
 
 		for (i = 0; i < docCnt; i++)
 		{
-			strcpy(TEMP, pElem->pszLink);
-			ExtractIcons(TEMP, NULL, true, &iIconNormal, &iIconSelected, &iIconOverlayed);
-			InsertItem(fileNames[i], iIconNormal, iIconSelected, iIconOverlayed, 0, hItem);
+			ExtractIcons(ppszFileNames[i], NULL, false, &iIconNormal, &iIconSelected, &iIconOverlayed);
+			InsertItem(ppszFileNames[i], iIconNormal, iIconNormal, iIconOverlayed, 0, hItem);
 		}
-
-		delete [] TEMP;
 	}
 
 	/* delete resources */
 	for (i = 0; i < docCnt; i++)
-		delete [] fileNames[i];
-	delete [] fileNames;
+		delete [] ppszFileNames[i];
+	delete [] ppszFileNames;
 }
 
 
