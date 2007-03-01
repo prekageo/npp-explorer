@@ -42,7 +42,7 @@ BEGIN
                     IDC_STATIC,7,59,216,18
     LTEXT           "Explorer...\t\tViews the Explorer dialog.\nFavorites...\t\tViews the Favorites dialog.\nExplorer Options...\tAllows you to personalize the\n\t\t\tsettings for explorers file list.\nHelp...\t\t\tShows this help dialog.",
                     IDC_STATIC,15,96,203,42
-    CTEXT           "Explorer Plugin for Notepad++ v4.0.2                        v1.2",
+    CTEXT           "Explorer Plugin for Notepad++ v4.0.2                        v1.2 Beta 1",
                     IDC_STATIC,7,7,216,17,SS_CENTERIMAGE,WS_EX_DLGMODALFRAME | 
                     WS_EX_TRANSPARENT
 END
