@@ -2,7 +2,7 @@
 Change-log for Explorer.dll
 
 ------------------------------------------------------------------------------------
-07/02/24  v1.2 :
+07/03/01  v1.2 :
 ------------------------------------------------------------------------------------
 	Fix: In "[Files]->New Link" the file filter ".session" is removed
 	Fix: The file session icons in Favorites display now correct
