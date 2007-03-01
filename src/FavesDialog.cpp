@@ -1867,7 +1867,7 @@ void FavesDialog::SaveElementTreeRecursive(PELEM pElem, HANDLE hFile)
 			WriteFile(hFile, "#GROUP\n", strlen("#GROUP\n"), &hasWritten, NULL);
 
 			size = strlen(pElemItr->pszName)+8;
-			temp = (LPTSTR)new TCHAR[size];
+			temp = (LPTSTR)new TCHAR[size+1];
 			sprintf(temp, "\tName=%s\n\n", pElemItr->pszName);
 			WriteFile(hFile, temp, size, &hasWritten, NULL);
 			delete [] temp;
@@ -1881,13 +1881,13 @@ void FavesDialog::SaveElementTreeRecursive(PELEM pElem, HANDLE hFile)
 			WriteFile(hFile, "#LINK\n", strlen("#LINK\n"), &hasWritten, NULL);
 
 			size = strlen(pElemItr->pszName)+7;
-			temp = (LPTSTR)new TCHAR[size];
+			temp = (LPTSTR)new TCHAR[size+1];
 			sprintf(temp, "\tName=%s\n", pElemItr->pszName);
 			WriteFile(hFile, temp, size, &hasWritten, NULL);
 			delete [] temp;
 
 			size = strlen(pElemItr->pszLink)+8;
-			temp = (LPTSTR)new TCHAR[size];
+			temp = (LPTSTR)new TCHAR[size+1];
 			sprintf(temp, "\tLink=%s\n\n", pElemItr->pszLink);
 			WriteFile(hFile, temp, size, &hasWritten, NULL);
 			delete [] temp;
