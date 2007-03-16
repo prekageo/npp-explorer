@@ -41,9 +41,6 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 using namespace std;
 
 
-static char FAVES_DATA[] = "\\Favorites.dat";
-
-
 typedef enum {
 	FM_NEWLINK = 1,
 	FM_NEWGROUP,
@@ -119,8 +116,6 @@ protected:
 
 	void SaveSettings(void);
 	void SaveElementTreeRecursive(PELEM pElem, HANDLE hFile);
-
-	void ErrorMessage(DWORD err);
 
 	eLinkDlg MapPropDlg(int root) {
 		switch (root) {

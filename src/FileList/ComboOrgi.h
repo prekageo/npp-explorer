@@ -53,8 +53,8 @@ public :
 	};
 
 	void addText(LPSTR pszText);
-	void setText(LPSTR pszText);
-	void getText(LPSTR pszText);
+	void setText(LPSTR pszText, UINT size = MAX_PATH);
+	void getText(LPSTR pszText, UINT size = MAX_PATH);
 	bool getSelText(LPSTR pszText);
 
 	void setComboList(vector<string> vStrList);

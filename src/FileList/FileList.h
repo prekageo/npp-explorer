@@ -43,8 +43,7 @@ typedef struct {
 	string		strSize;
 	string		strDate;
 	/* not visible, only for sorting */
-	string		strNameLC;
-	string		strExtLC;
+	string		strNameExt;
 	__int64		i64Size;
 	__int64		i64Date;
 	/* not visible, remember state */
@@ -102,9 +101,10 @@ protected:
 	void UpdateList(void);
 	void SetColumns(void);
 
+	BOOL FindNextItemInList(UINT maxFolder, UINT maxData, LPUINT puPos);
+
 	void QuickSortRecursiveCol(vector<tFileListData>* vList, INT d, INT h, INT column, BOOL bAscending);
 	void QuickSortRecursiveColEx(vector<tFileListData>* vList, INT d, INT h, INT column, BOOL bAscending);
-	string makeStrLC(LPSTR str);
 
 	void onRMouseBtn();
 	void onLMouseBtnDbl();
@@ -156,6 +156,10 @@ private:
 
 	string						_strCurrentPath;
 	TCHAR						_szFileFilter[MAX_PATH];
+
+	/* search in list by typing of characters */
+	BOOL						_bSearchFile;
+	char						_strSearchFile[MAX_PATH];
 
 	HBITMAP						_bitmap0;
 	HBITMAP						_bitmap1;

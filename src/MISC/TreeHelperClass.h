@@ -23,7 +23,10 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 #include <windows.h>
 #include <commctrl.h>
+#include <vector>
+#include <string>
 
+using namespace std;
 
 
 class TreeHelper
@@ -39,7 +42,14 @@ public:
 	BOOL GetItemText(HTREEITEM hItem, LPTSTR szBuf, INT bufSize);
 	LPARAM GetParam(HTREEITEM hItem);
 
+	typedef struct tItemList {
+		string	strName;
+		DWORD	dwAttributes;
+	};
+	void QuickSortItems(vector<tItemList>* vList, INT d, INT h);
+
 protected:
+	
 	virtual void GetFolderPathName(HTREEITEM currentItem, LPTSTR folderPathName) = 0;
 
 protected:

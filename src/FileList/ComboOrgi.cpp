@@ -108,14 +108,14 @@ void ComboOrgi::addText(LPSTR pszText)
 }
 
 
-void ComboOrgi::setText(LPSTR pszText)
+void ComboOrgi::setText(LPSTR pszText, UINT size)
 {
-	::SendMessage(_hCombo, WM_SETTEXT, MAX_PATH, (LPARAM)pszText);
+	::SendMessage(_hCombo, WM_SETTEXT, size, (LPARAM)pszText);
 }
 
-void ComboOrgi::getText(LPSTR pszText)
+void ComboOrgi::getText(LPSTR pszText, UINT size)
 {
-	::SendMessage(_hCombo, WM_GETTEXT, MAX_PATH, (LPARAM)pszText);
+	::SendMessage(_hCombo, WM_GETTEXT, size, (LPARAM)pszText);
 }
 
 bool ComboOrgi::getSelText(LPSTR pszText)

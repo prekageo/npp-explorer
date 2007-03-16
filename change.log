@@ -2,68 +2,79 @@
 Change-log for Explorer.dll
 
 ------------------------------------------------------------------------------------
-07/03/01  v1.2 :
+07/03/16  v1.2 :
 ------------------------------------------------------------------------------------
-	Fix: In "[Files]->New Link" the file filter ".session" is removed
-	Fix: The file session icons in Favorites display now correct
+    Fix: Update of tree when switching between apps doesn't freeze Notepad anymore
+    Fix: Folders and Files are now sorted correctly on W2k machines
+    Fix: Create of new files or folders with characters "\/:*?"<>" now denied
+    Fix: UTF8 named folder displayed as "????????" now hidden
+    Fix: Layout behaviour of right docked explorer
+    New: Remebering of last selected filter
+    New: File search in file list by typing the name
+    Change: Configuration of explorer stored now in user application folder
+
+------------------------------------------------------------------------------------
+07/03/01  v1.2 Beta 1 :
+------------------------------------------------------------------------------------
+    Fix: In "[Files]->New Link" the file filter ".session" is removed
+    Fix: The file session icons in Favorites display now correct
     Fix: Copying a node in Faves and directly deleting it again caused error
-	Fix: Crashing on "Close" in explorer options when plugin is not open
+    Fix: Crashing on "Close" in explorer options when plugin is not open
     Fix: File icons in list always extension-dependent
     Fix: Splitter now stored correctly in all cases
     Fix: All dialogs now use standard font
-	Fix: Cancel button in dialog "New Group" works now correct
+    Fix: Cancel button in dialog "New Group" works now correct
     Fix: Changing Links in Favorites is now possible
-    Fix: Folders are now sorted correctly on W2k machines
-	Fix: Crashing on right mouse click in  "C:\Windows\Downloaded Program Files"
-	Fix: Broken icons in folder  "C:\Windows\Downloaded Program Files"
-	Fix: Now short file names are supported on "Folder of Current File"
+    Fix: Crashing on right mouse click in  "C:\Windows\Downloaded Program Files"
+    Fix: Broken icons in folder  "C:\Windows\Downloaded Program Files"
+    Fix: Now short file names are supported on "Folder of Current File"
     Fix: Saving session over menu "File->Save Session..." didn't update the faves tree
-	New: Remembering marked items in file list when changing the sort criteria
-	New: Menu item on right mouse click to save current over an existing session
-	New: Show hidden files with special icons
-	New: Filter history (max. 20 items)
-	New: Icon for User Folder
+    New: Remembering marked items in file list when changing the sort criteria
+    New: Menu item on right mouse click to save current over an existing session
+    New: Show hidden files with special icons
+    New: Filter history (max. 20 items)
+    New: Icon for User Folder
     Typo: "Groop" changed to "Group"
-	Typo: MessageBox "Node exist..." corrected
- 	
+    Typo: MessageBox "Node exist..." corrected
+     
 ------------------------------------------------------------------------------------
 07/02/04  v1.1 RC :
 ------------------------------------------------------------------------------------
-	Fix: Opening of favorite folders in Explorer works always
-	New: Different layouts on top/buttom and left/right
-	New: Option dialog to do user settings as follows:
+    Fix: Opening of favorite folders in Explorer works always
+    New: Different layouts on top/buttom and left/right
+    New: Option dialog to do user settings as follows:
          - Different formats for displaying date and time (LONG)
-	     - Extension now addable to file name
-	     - Disable braces in folder
-	     - Show hidden files
-	Change: Icon list layout
-	
+         - Extension now addable to file name
+         - Disable braces in folder
+         - Show hidden files
+    Change: Icon list layout
+    
 ------------------------------------------------------------------------------------
 07/01/07  v1.0 :
 ------------------------------------------------------------------------------------
-	New Project Development:
-	Explorer Features
-	- Iconbar (forward, backward, new file/folder, find in files) 
-	- Go to current file in explorer 
-	- Seperate folder and file view 
-	- Folder update in explorer and faves 
-	- Sortable file view as List View (clumns: name, ext) 
-	- Extension filter 
-	- Create/delete/move/rename and copy of files/dirs 
-	- Multiselection for open 
-	- Context menu with 
-	- New file... 
-	- Find in files... 
-	- Open 
-	- Open in new instance 
-	- Selected files names and include as text 
-	Feature list for Favorites: 
-	- Iconbar 
-	- Seperate roots for folders, files and maybe internet links 
-	- Naming and renaming for each item 
-	- Grouping of items 
-	- Session managment 
-	- Open session (additional with add to current opened files) 
-	- Create new session 
-	- Renaming of sessions 
-	- Using of Session Manager on menu selection "File->Save Session..." 
+    New Project Development:
+    Explorer Features
+    - Iconbar (forward, backward, new file/folder, find in files) 
+    - Go to current file in explorer 
+    - Seperate folder and file view 
+    - Folder update in explorer and faves 
+    - Sortable file view as List View (clumns: name, ext) 
+    - Extension filter 
+    - Create/delete/move/rename and copy of files/dirs 
+    - Multiselection for open 
+    - Context menu with 
+    - New file... 
+    - Find in files... 
+    - Open 
+    - Open in new instance 
+    - Selected files names and include as text 
+    Feature list for Favorites: 
+    - Iconbar 
+    - Seperate roots for folders, files and maybe internet links 
+    - Naming and renaming for each item 
+    - Grouping of items 
+    - Session managment 
+    - Open session (additional with add to current opened files) 
+    - Create new session 
+    - Renaming of sessions 
+    - Using of Session Manager on menu selection "File->Save Session..." 

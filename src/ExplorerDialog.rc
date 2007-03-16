@@ -29,22 +29,25 @@ LANGUAGE LANG_GERMAN, SUBLANG_GERMAN
 // Dialog
 //
 
-IDD_HELP_DLG DIALOGEX 0, 0, 230, 167
+IDD_HELP_DLG DIALOGEX 0, 0, 230, 179
 STYLE DS_SETFONT | DS_FIXEDSYS | WS_POPUP | WS_BORDER | WS_SYSMENU
 FONT 8, "MS Shell Dlg", 0, 0, 0x1
 BEGIN
-    DEFPUSHBUTTON   "&Ok",IDOK,89,146,50,14
+    DEFPUSHBUTTON   "&Ok",IDOK,89,158,50,14
     LTEXT           "jens.plugin.npp@gmx.de",IDC_EMAIL_LINK,65,41,80,8
     LTEXT           "Author:\t\tJens Lorenz",IDC_STATIC,12,31,183,9
-    GROUPBOX        "Menu entries",IDC_STATIC,7,84,216,56
+    GROUPBOX        "Menu entries",IDC_STATIC,7,96,216,56
     LTEXT           "eMail:",IDC_STATIC,12,41,21,8
     CTEXT           "At first, I would like to thank Don for his great program and his support to create this plugin.",
-                    IDC_STATIC,7,59,216,18
+                    IDC_STATIC,7,71,216,18
     LTEXT           "Explorer...\t\tViews the Explorer dialog.\nFavorites...\t\tViews the Favorites dialog.\nExplorer Options...\tAllows you to personalize the\n\t\t\tsettings for explorers file list.\nHelp...\t\t\tShows this help dialog.",
-                    IDC_STATIC,15,96,203,42
-    CTEXT           "Explorer Plugin for Notepad++ v4.0.2                        v1.2 Beta 1",
+                    IDC_STATIC,15,108,203,42
+    CTEXT           "Explorer Plugin for Notepad++ v4.0.2                             v1.2",
                     IDC_STATIC,7,7,216,17,SS_CENTERIMAGE,WS_EX_DLGMODALFRAME | 
                     WS_EX_TRANSPARENT
+    LTEXT           "http://sourceforge.net/projects/npp-plugins/",
+                    IDC_NPP_PLUGINS_URL,65,52,158,8
+    LTEXT           "URL:",IDC_STATIC,12,52,21,8
 END
 
 IDD_EXPLORER_DLG DIALOGEX 64536, 0, 164, 267
@@ -170,7 +173,7 @@ BEGIN
         LEFTMARGIN, 7
         RIGHTMARGIN, 223
         TOPMARGIN, 7
-        BOTTOMMARGIN, 160
+        BOTTOMMARGIN, 172
     END
 
     IDD_EXPLORER_DLG, DIALOG

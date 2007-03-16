@@ -18,7 +18,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 */
 
 
-// #define		_DEBUG_
+#define		_DEBUG_
 
 
 #ifndef PLUGININTERFACE_H
@@ -88,6 +88,14 @@ typedef struct TItemElement {
 } tItemElement, *PELEM;
 
 typedef vector<TItemElement>::iterator		ELEM_ITR;
+
+
+static TCHAR FAVES_DATA[]		= _T("\\Favorites.dat");
+static TCHAR EXPLORER_INI[]		= _T("\\Explorer.ini");
+static TCHAR CONFIG_PATH[]		= _T("\\plugins\\Config");
+static TCHAR NPP[]				= _T("\\Notepad++");
+static TCHAR NPP_LOCAL_XML[]	= _T("\\doLocalConf.xml");
+
 
 /********************************************************/
 
@@ -301,6 +309,7 @@ typedef struct {
 	eSizeFmt		fmtSize;
 	eDateFmt		fmtDate;
 	vector<string>	vStrFilterHistory;
+	string			strLastFilter;
 } tExProp;
 
 
@@ -320,11 +329,12 @@ LRESULT CALLBACK SubWndProcNotepad(HWND hWnd, UINT message, WPARAM wParam, LPARA
 
 #define	ALLOW_PARENT_SEL	1
 
-BOOL VolumeNameExists(LPSTR rootDrive, LPSTR volumeName);
+BOOL VolumeNameExists(LPTSTR rootDrive, LPTSTR volumeName);
+bool IsValidFileName(LPTSTR pszFileName);
 bool IsValidFolder(WIN32_FIND_DATA Find);
 bool IsValidParentFolder(WIN32_FIND_DATA Find);
 bool IsValidFile(WIN32_FIND_DATA Find);
-BOOL HaveChildren(LPSTR parentFolderPathName);
+BOOL HaveChildren(LPTSTR parentFolderPathName);
 
 HIMAGELIST GetSystemImageList(BOOL fSmall);
 void ExtractIcons(LPCSTR currentPath, LPCSTR fileName, bool isDir, LPINT iIconNormal, LPINT iIconSelected, LPINT iIconOverlayed);
@@ -332,6 +342,7 @@ void ExtractIcons(LPCSTR currentPath, LPCSTR fileName, bool isDir, LPINT iIconNo
 /* Extended Window Funcions */
 void ClientToScreen(HWND hWnd, RECT* rect);
 void ScreenToClient(HWND hWnd, RECT* rect);
+void ErrorMessage(DWORD err);
 
 
 // 4 mandatory functions for a plugins

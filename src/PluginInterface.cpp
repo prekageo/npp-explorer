@@ -74,6 +74,7 @@ CONST TCHAR AddExtToName[]		= "AddExtToName";
 CONST TCHAR SizeFormat[]		= "SizeFormat";
 CONST TCHAR DateFormat[]		= "DateFormat";
 CONST TCHAR FilterHistory[]		= "FilterHistory";
+CONST TCHAR LastFilter[]		= "LastFilter";
 
 
 /* global values */
@@ -126,18 +127,53 @@ BOOL APIENTRY DllMain( HANDLE hModule,
  
 			// cd .. : get npp executable path
 			PathRemoveFileSpec(nppPath);
-
-			/* make ini file path if not exist */
-			strcpy(configPath, nppPath);
-			strcat(configPath, "\\plugins\\Config");
-			
-			if (PathFileExists(configPath) == FALSE)
+ 
+			// Make localConf.xml path
+			TCHAR	localConfPath[MAX_PATH];
+			_tcscpy(localConfPath, nppPath);
+			PathAppend(localConfPath, NPP_LOCAL_XML);
+ 
+			// Test if localConf.xml exist
+			if (PathFileExists(localConfPath) == TRUE)
 			{
-				::CreateDirectory(configPath, NULL);
+				/* make ini file path if not exist */
+				_tcscpy(configPath, nppPath);
+				_tcscat(configPath, CONFIG_PATH);
+				if (PathFileExists(configPath) == FALSE)
+				{
+					::CreateDirectory(configPath, NULL);
+				}
+			}
+			else
+			{
+				ITEMIDLIST *pidl;
+				SHGetSpecialFolderLocation(NULL, CSIDL_APPDATA, &pidl);
+				SHGetPathFromIDList(pidl, configPath);
+ 
+				PathAppend(configPath, NPP);
+
+				/* move old version files to new directory, if they exist */
+				TCHAR	configFileOld[MAX_PATH];
+				PathRemoveFileSpec(localConfPath);
+				strcpy(configFileOld, localConfPath);
+				PathAppend(configFileOld, CONFIG_PATH);
+				PathAppend(configFileOld, EXPLORER_INI);
+				if (PathFileExists(configFileOld) == TRUE)
+				{
+					TCHAR	configFileNew[MAX_PATH];
+					strcpy(configFileNew, configPath);
+					PathAppend(configFileNew, EXPLORER_INI);
+					::MoveFile(configFileOld, configFileNew);
+					PathRemoveFileSpec(configFileOld);
+					PathRemoveFileSpec(configFileNew);
+					PathAppend(configFileOld, FAVES_DATA);
+					PathAppend(configFileNew, FAVES_DATA);
+					::MoveFile(configFileOld, configFileNew);
+				}
 			}
 
-			strcpy(iniFilePath, configPath);
-			strcat(iniFilePath, "\\Explorer.ini");
+			_tcscpy(iniFilePath, configPath);
+			_tcscat(iniFilePath, EXPLORER_INI);
 			if (PathFileExists(iniFilePath) == FALSE)
 			{
 				::CloseHandle(::CreateFile(iniFilePath, GENERIC_READ | GENERIC_WRITE, FILE_SHARE_READ | FILE_SHARE_WRITE, NULL, OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL));
@@ -192,13 +228,15 @@ BOOL APIENTRY DllMain( HANDLE hModule,
 			exProp.fmtDate					= (eDateFmt)::GetPrivateProfileInt(Explorer, DateFormat, DFMT_ENG, iniFilePath);
 
 			TCHAR	number[3];
-			LPSTR	pszTemp = new TCHAR[MAX_PATH];
+			LPTSTR	pszTemp = new TCHAR[MAX_PATH];
 			for (INT i = 0; i < 20; i++)
 			{
 				sprintf(number, "%d", i);
 				if (::GetPrivateProfileString(FilterHistory, number, "", pszTemp, MAX_PATH, iniFilePath) != 0)
 					exProp.vStrFilterHistory.push_back(pszTemp);
 			}
+			::GetPrivateProfileString(Explorer, LastFilter, "*.*", pszTemp, MAX_PATH, iniFilePath);
+			exProp.strLastFilter = pszTemp;
 			delete [] pszTemp;
 
 			::GetPrivateProfileString(Faves, LastElement, "", szLastElement, MAX_PATH, iniFilePath);
@@ -247,13 +285,14 @@ BOOL APIENTRY DllMain( HANDLE hModule,
 			::WritePrivateProfileString(Explorer, AddExtToName, itoa(exProp.bAddExtToName, temp, 10), iniFilePath);
 			::WritePrivateProfileString(Explorer, SizeFormat, itoa((INT)exProp.fmtSize, temp, 10), iniFilePath);
 			::WritePrivateProfileString(Explorer, DateFormat, itoa((INT)exProp.fmtDate, temp, 10), iniFilePath);
+			::WritePrivateProfileString(Explorer, DateFormat, itoa((INT)exProp.fmtDate, temp, 10), iniFilePath);
 
 			for (INT i = exProp.vStrFilterHistory.size() - 1; i >= 0 ; i--)
 			{
 				::WritePrivateProfileString(FilterHistory, itoa(i, temp, 10), exProp.vStrFilterHistory[i].c_str(), iniFilePath); 
 			}
+			::WritePrivateProfileString(Explorer, LastFilter, exProp.strLastFilter.c_str(), iniFilePath); 
 
-			::WritePrivateProfileString(Faves, LastElement, LastElement, iniFilePath);
 			break;
 		}
 		case DLL_THREAD_ATTACH:
@@ -464,7 +503,7 @@ LRESULT CALLBACK SubWndProcNotepad(HWND hWnd, UINT message, WPARAM wParam, LPARA
 /**************************************************************************
  *	Functions for file system
  */
-BOOL VolumeNameExists(LPSTR rootDrive, LPSTR volumeName)
+BOOL VolumeNameExists(LPTSTR rootDrive, LPTSTR volumeName)
 {
 	BOOL	bRet = FALSE;
 
@@ -475,11 +514,22 @@ BOOL VolumeNameExists(LPSTR rootDrive, LPSTR volumeName)
 	return bRet;
 }
 
+bool IsValidFileName(LPTSTR pszFileName)
+{
+	if (strpbrk(pszFileName, "\\/:*?\"<>") == NULL)
+		return true;
+
+	::MessageBox(NULL, "Filename does not contain any of this characters:\n       \\ / : * ? \" < >", "Error", MB_OK);
+	return false;
+}
+
 bool IsValidFolder(WIN32_FIND_DATA Find)
 {
 	if ((Find.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) && 
 		(!(Find.dwFileAttributes & FILE_ATTRIBUTE_HIDDEN) || exProp.bShowHidden) &&
-		 (strcmp(Find.cFileName, ".") != 0) && (strcmp(Find.cFileName, "..") != 0))
+		 (strcmp(Find.cFileName, ".") != 0) && 
+		 (strcmp(Find.cFileName, "..") != 0) &&
+		 (Find.cFileName[0] != '?'))
 		return true;
 
 	return false;
@@ -489,7 +539,8 @@ bool IsValidParentFolder(WIN32_FIND_DATA Find)
 {
 	if ((Find.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) && 
 		(!(Find.dwFileAttributes & FILE_ATTRIBUTE_HIDDEN) || exProp.bShowHidden) &&
-		 (strcmp(Find.cFileName, "..") == 0))
+		 (strcmp(Find.cFileName, ".") != 0) &&
+		 (Find.cFileName[0] != '?'))
 		return true;
 
 	return false;
@@ -504,7 +555,7 @@ bool IsValidFile(WIN32_FIND_DATA Find)
 	return false;
 }
 
-BOOL HaveChildren(LPSTR parentFolderPathName)
+BOOL HaveChildren(LPTSTR parentFolderPathName)
 {
 	WIN32_FIND_DATA		Find		= {0};
 	HANDLE				hFind		= NULL;
@@ -831,5 +882,16 @@ void ScreenToClient(HWND hWnd, RECT* rect)
 	rect->right  = pt.x;
 	rect->bottom = pt.y;
 }
+
+void ErrorMessage(DWORD err)
+{
+	LPVOID	lpMsgBuf;
+
+	FormatMessage(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS, NULL, err, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), (LPTSTR) & lpMsgBuf, 0, NULL);	// Process any inserts in lpMsgBuf.
+	::MessageBox(NULL, (LPCTSTR) lpMsgBuf, "Error", MB_OK | MB_ICONINFORMATION);
+
+	LocalFree(lpMsgBuf);
+}
+
 
 

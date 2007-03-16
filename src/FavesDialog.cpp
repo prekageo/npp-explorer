@@ -1645,7 +1645,7 @@ void FavesDialog::SortElementsRecursive(vector<tItemElement>* vElement, int d, i
 void FavesDialog::ReadSettings(void)
 {
 	tItemElement	list;
-	extern TCHAR		configPath[MAX_PATH];
+	extern TCHAR	configPath[MAX_PATH];
 	LPTSTR			readFilePath			= (LPTSTR)new TCHAR[MAX_PATH];
 	DWORD			hasRead					= 0;
 	HANDLE			hFile					= NULL;
@@ -1677,7 +1677,7 @@ void FavesDialog::ReadSettings(void)
 		if (size != -1)
 		{
 			LPTSTR			ptr		= NULL;
-			LPTSTR			data	= (LPTSTR)new TCHAR[size];
+			LPTSTR			data	= (LPTSTR)new TCHAR[size+1];
 
 			/* read data from file */
 			::ReadFile(hFile, data, size, &hasRead, NULL);
@@ -1775,6 +1775,7 @@ void FavesDialog::ReadElementTreeRecursive(ELEM_ITR elem_itr, LPTSTR* ptr)
 			else
 				::MessageBox(_hSelf, "Error in file 'Favorites.dat'\nName in GROUP not correct!", "Error", MB_OK);
 
+			element.pszLink = NULL;
 			element.uParam	= FAVES_PARAM_GROUP | root;
 			element.vElements.clear();
 
@@ -1809,7 +1810,7 @@ void FavesDialog::SaveSettings(void)
 	TCHAR			temp[32];
 	PELEM			pElem			= NULL;
 
-	extern TCHAR		configPath[MAX_PATH];
+	extern TCHAR	configPath[MAX_PATH];
 	LPTSTR			saveFilePath	= (LPTSTR)new TCHAR[MAX_PATH];
 	DWORD			hasWritten		= 0;
 	HANDLE			hFile			= NULL;
@@ -1894,23 +1895,4 @@ void FavesDialog::SaveElementTreeRecursive(PELEM pElem, HANDLE hFile)
 		}
 	}
 }
-
-
-void FavesDialog::ErrorMessage(DWORD err)
-{
-	LPVOID	lpMsgBuf;
-	///////////////
-
-	FormatMessage(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS, NULL, err, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), // Default language
-	(LPTSTR) & lpMsgBuf, 0, NULL);	// Process any inserts in lpMsgBuf.
-
-	// ...// Display the string.
-
-	::MessageBox(_hSelf, (LPCTSTR) lpMsgBuf, "Error", MB_OK | MB_ICONINFORMATION);
-
-	// Free the buffer.
-
-	LocalFree(lpMsgBuf);
-}
-
 

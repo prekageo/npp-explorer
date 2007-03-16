@@ -120,6 +120,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 #define    IDD_HELP_DLG	     30700
     #define IDC_EMAIL_LINK                  (IDD_HELP_DLG + 1)
+	#define IDC_NPP_PLUGINS_URL				(IDD_HELP_DLG + 2)
 
 
 /* Explorer messages */
@@ -130,12 +131,14 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 	#define EXM_OPENFILE					(EXX_MESSAGES + 3)
 	#define EXM_RIGHTCLICK					(EXX_MESSAGES + 4)
 	#define EXM_TOOLTIP						(EXX_MESSAGES + 5)
+	#define EXM_UPDATE_PATH					(EXX_MESSAGES + 6)
 
 #define	   EXX_TIMERS		 30820
 	#define EXT_UPDATEDEVICE				(EXX_TIMERS + 1)
 	#define EXT_UPDATEPATH					(EXX_TIMERS + 2)
 	#define	EXT_OPENLINK					(EXX_TIMERS + 3)
 	#define EXT_UPDATE						(EXX_TIMERS + 4)
+	#define EXT_SEARCHFILE					(EXX_TIMERS + 5)
 
 
 #ifndef IDC_STATIC

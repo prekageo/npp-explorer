@@ -63,6 +63,8 @@ FileList::FileList(void)
 	_bOldViewLong		= FALSE;
 	_iSelMark			= 0;
 	_puSelList			= NULL;
+	_bSearchFile		= FALSE;
+	strcpy(_strSearchFile, "");
 	strcpy(_szFileFilter, "*.*");
 }
 
@@ -135,37 +137,6 @@ LRESULT FileList::runListProc(HWND hwnd, UINT Message, WPARAM wParam, LPARAM lPa
 {
 	switch (Message)
 	{
-		case WM_ACTIVATE:
-		{
-#if 0
-			UINT	uCnt  = _vFolders.size() + _vFiles.size();
-
-			if (LOWORD(wParam) != WA_INACTIVE)
-			{
-				ListView_SetSelectionMark(_hSelf, _iSelMark);
-
-				for (UINT i = 0; i < uCnt; i++)
-				{
-					ListView_SetItemState(_hSelf, i, _puSelList[i], 0xFF);
-				}
-
-				if (_puSelList != NULL)
-					delete [] _puSelList;
-			}
-			else
-			{
-				_iSelMark = ListView_GetSelectionMark(_hSelf);
-				
-				_puSelList = (LPUINT)new UINT[uCnt];
-
-				for (UINT i = 0; i < uCnt; i++)
-				{
-					_puSelList[i] = ListView_GetItemState(_hSelf, i, LVIS_SELECTED);
-				}
-			}
-#endif
-			break;
-		}
 		case WM_DRAWITEM:
 		{
 			if (((DRAWITEMSTRUCT *)lParam)->hwndItem == _hHeader)
@@ -181,67 +152,47 @@ LRESULT FileList::runListProc(HWND hwnd, UINT Message, WPARAM wParam, LPARAM lPa
 		}
 		case WM_CHAR:
 		{
-			UINT	i			= 0;
 			UINT	maxFolders	= _vFolders.size();
 			UINT	maxData		= maxFolders + _vFiles.size();
 			UINT	selRow		= ListView_GetSelectionMark(_hSelf);
 
-			/* get low typed character */
-			TCHAR	typedChar	= makeStrLC((LPSTR)&wParam)[0];
+			/* restart timer */
+			::KillTimer(_hSelf, EXT_SEARCHFILE);
+			::SetTimer(_hSelf, EXT_SEARCHFILE, 1000, NULL);
 
-			/* get positions of typed TCHAR */
-			vector<UINT>	posOfTypedChar;
+			/* initilize again if error previous occured */
+			if (selRow < 0) selRow = 0;
 
-			/* create data array of name */
-			if (_pExProp->iSortPos == 0)
+			/* add character to string */
+			strncat(_strSearchFile, (LPTSTR)tolower((INT)&wParam), 1);
+
+			/* on first call start searching on next element */
+			if (_bSearchFile == FALSE)
+				selRow++;
+
+			UINT startPos	= selRow;
+			BOOL bRet		= FindNextItemInList(maxFolders, maxData, &selRow);
+			if ((bRet == FALSE) && (_bSearchFile == TRUE))
 			{
-				for (i = 0; i < maxData; i++)
-				{
-					if (i < maxFolders)
-					{
-						if (typedChar == _vFolders[i].strNameLC[0])
-							posOfTypedChar.push_back(i);
-					}
-					else
-					{
-						if (typedChar == _vFiles[i-maxFolders].strNameLC[0])
-							posOfTypedChar.push_back(i);
-					}
-				}
-			}
-			/* create data of array of ext */
-			else
-			{
-				for (i = maxFolders; i < maxData; i++)
-				{
-					if (typedChar == _vFiles[i-maxFolders].strExtLC[0])
-						posOfTypedChar.push_back(i);
-				}
+				_strSearchFile[strlen(_strSearchFile)-1] = '\0';
+				selRow++;
+				bRet = FindNextItemInList(maxFolders, maxData, &selRow);
 			}
 
-			if (posOfTypedChar.size() != 0)
+			if (bRet == TRUE)
 			{
-				INT		newSelRow	= -1;
-
-				/* search for current position */
-				for (i = 0; i < posOfTypedChar.size(); i++)
+				/* select only one item */
+				for (UINT i = 0; i < maxData; i++)
 				{
-					if (selRow < posOfTypedChar[i])
-					{
-						newSelRow = posOfTypedChar[i];
-						break;
-					}
+					ListView_SetItemState(_hSelf, i, (selRow == i ? LVIS_SELECTED : 0), 0xFF);
 				}
-			
-				/* reset current item state */
-				if (newSelRow == -1)
-					newSelRow = posOfTypedChar[0];
-
-				ListView_SetItemState(_hSelf, selRow, 0, 0xFF);
-				ListView_SetItemState(_hSelf, newSelRow, LVIS_SELECTED|LVIS_FOCUSED, 0xFF);
-				ListView_SetSelectionMark(_hSelf, newSelRow);
-				ListView_EnsureVisible(_hSelf, newSelRow, TRUE);
+				ListView_SetSelectionMark(_hSelf, selRow);
+				ListView_EnsureVisible(_hSelf, selRow, TRUE);
 			}
+
+			/* mark that we starting with searching */
+			_bSearchFile = TRUE;
+
 			return TRUE;
 		}
 		case WM_MOUSEMOVE:
@@ -301,6 +252,13 @@ LRESULT FileList::runListProc(HWND hwnd, UINT Message, WPARAM wParam, LPARAM lPa
 			}
 			_iItem		= hittest.iItem;
 			_iSubItem	= hittest.iSubItem;
+			break;
+		}
+		case WM_TIMER:
+		{
+			::KillTimer(_hSelf, EXT_SEARCHFILE);
+			_bSearchFile = FALSE;
+			strcpy(_strSearchFile, "");
 			break;
 		}
 		case EXM_TOOLTIP:
@@ -717,13 +675,7 @@ void FileList::notify(WPARAM wParam, LPARAM lParam)
 						}
 						else
 						{
-							string	str = _vFiles[selRow-maxFolders].strName;
-
-							if (!_vFiles[selRow-maxFolders].strExt.empty())
-							{
-								str += "." + _vFiles[selRow-maxFolders].strExt;
-							}
-							::SendMessage(_hParent, EXM_OPENFILE, 0, (LPARAM)str.c_str());
+							::SendMessage(_hParent, EXM_OPENFILE, 0, (LPARAM)_vFiles[selRow-maxFolders].strNameExt.c_str());
 						}
 					}
 					break;
@@ -782,7 +734,7 @@ void FileList::notify(WPARAM wParam, LPARAM lParam)
 					}
 					else
 					{
-						data.push_back(_strCurrentPath + _vFiles[uList-uFolders].strName + "." + _vFiles[uList-uFolders].strExt);
+						data.push_back(_strCurrentPath + _vFiles[uList-uFolders].strNameExt);
 					}
 				}
 			}
@@ -1013,9 +965,8 @@ void FileList::viewPath(LPCSTR currentPath, BOOL redraw)
 				tempData.bHidden = ((Find.dwFileAttributes & FILE_ATTRIBUTE_HIDDEN) != 0);
 
 				tempData.strName	= Find.cFileName;
-				tempData.strNameLC	= makeStrLC(Find.cFileName);
+				tempData.strNameExt	= Find.cFileName;
 				tempData.strExt		= "";
-				tempData.strExtLC	= "";
 
 				if (_pExProp->bViewLong == TRUE)
 				{
@@ -1035,9 +986,8 @@ void FileList::viewPath(LPCSTR currentPath, BOOL redraw)
 				tempData.bHidden	= FALSE;
 
 				tempData.strName	= Find.cFileName;
-				tempData.strNameLC	= Find.cFileName;
+				tempData.strNameExt	= Find.cFileName;
 				tempData.strExt		= "";
-				tempData.strExtLC	= "";
 
 				if (_pExProp->bViewLong == TRUE)
 				{
@@ -1077,8 +1027,8 @@ void FileList::viewPath(LPCSTR currentPath, BOOL redraw)
 					/* extract file data */
 					if (IsValidFile(Find) == TRUE)
 					{
-						/* store LC with exension for correct sort  */
-						tempData.strNameLC		= makeStrLC(Find.cFileName);
+						/* store for correct sorting the complete name (with extension) */
+						tempData.strNameExt	= Find.cFileName;
 
 						/* get icons */
 						ExtractIcons(currentPath, Find.cFileName, false, &tempData.iIcon, &iIconSelected, &tempData.iOverlayed);
@@ -1094,12 +1044,10 @@ void FileList::viewPath(LPCSTR currentPath, BOOL redraw)
 							{
 								tempData.strExt	= &extBeg[1];
 							}
-							tempData.strExtLC	= makeStrLC(&extBeg[1]);
 						}
 						else
 						{
 							tempData.strExt		= "";
-							tempData.strExtLC	= "";
 						}
 
 						if ((_pExProp->bAddExtToName == TRUE) && (extBeg != NULL))
@@ -1134,6 +1082,12 @@ void FileList::viewPath(LPCSTR currentPath, BOOL redraw)
 	delete [] szFilter;
 	delete [] szFilterPath;
 
+	/* save current path */
+	_strCurrentPath = currentPath;
+
+	/* add current dir to stack */
+	PushDir(currentPath);
+
 	/* update list content */
 	UpdateList();
 
@@ -1142,12 +1096,6 @@ void FileList::viewPath(LPCSTR currentPath, BOOL redraw)
 	{
 		SetFocusItem(0);
 	}
-
-	/* save current path */
-	_strCurrentPath = currentPath;
-
-	/* add current dir to stack */
-	PushDir(currentPath);
 }
 
 void FileList::filterFiles(LPSTR currentFilter)
@@ -1192,7 +1140,7 @@ void FileList::UpdateList(void)
 		iSortPos++;
 	}
 
-	QuickSortRecursiveCol(&_vFolders, 1, _vFolders.size()-1, 0, TRUE);
+	QuickSortRecursiveCol(&_vFolders, (_strCurrentPath.size() != 3), _vFolders.size()-1, 0, TRUE);
 	QuickSortRecursiveColEx(&_vFiles, 0, _vFiles.size()-1, iSortPos, _pExProp->bAscending);
 	ListView_SetItemCountEx(_hSelf, _vFiles.size() + _vFolders.size(), LVSICF_NOSCROLL);
 	::RedrawWindow(_hSelf, NULL, NULL, TRUE);
@@ -1318,7 +1266,7 @@ void FileList::onRMouseBtn(void)
 			}
 			else
 			{
-				data.push_back(_strCurrentPath + _vFiles[uList-uFolders].strName + "." + _vFiles[uList-uFolders].strExt);
+				data.push_back(_strCurrentPath + _vFiles[uList-uFolders].strNameExt);
 			}
 		}
 	}
@@ -1342,15 +1290,53 @@ void FileList::onLMouseBtnDbl(void)
 		}
 		else
 		{
-			string	str = _vFiles[selRow-maxFolders].strName;
-
-			if (!_vFiles[selRow-maxFolders].strExt.empty())
-			{
-				str += "." + _vFiles[selRow-maxFolders].strExt;
-			}
-			::SendMessage(_hParent, EXM_OPENFILE, 0, (LPARAM)str.c_str());
+			::SendMessage(_hParent, EXM_OPENFILE, 0, (LPARAM)_vFiles[selRow-maxFolders].strNameExt.c_str());
 		}
 	}
+}
+
+
+BOOL FileList::FindNextItemInList(UINT maxFolder, UINT maxData, LPUINT puPos)
+{
+	BOOL	bRet		= FALSE;
+	INT		iStartPos	= *puPos;
+	LPTSTR	pszFileName	= new TCHAR[MAX_PATH];
+
+	/* search in list */
+	for (INT i = iStartPos; i != (iStartPos-1); i++)
+	{
+		/* if max data is reached, set iterator to zero */
+		if (i == maxData)
+		{
+			if (iStartPos <= 1)
+				break;
+			else
+				i = 0;
+		}
+
+		if (i < maxFolder)
+		{
+			strcpy(pszFileName, _vFolders[i].strName.c_str());
+		}
+		else
+		{
+			strcpy(pszFileName, _vFiles[i-maxFolder].strName.c_str());
+		}
+
+		/* trancate the compare length */
+		pszFileName[strlen(_strSearchFile)] = '\0';
+
+		if (stricmp(pszFileName, _strSearchFile) == 0)
+		{
+			/* string found in any following case */
+			bRet	= TRUE;
+			*puPos	= i;
+			break;
+		}
+	}
+
+	delete [] pszFileName;
+	return bRet;
 }
 
 
@@ -1376,18 +1362,18 @@ void FileList::QuickSortRecursiveCol(vector<tFileListData>* vList, INT d, INT h,
 	{
 		case 0:
 		{
-			str = (*vList)[((INT) ((d+h) / 2))].strNameLC;
+			str = (*vList)[((INT) ((d+h) / 2))].strNameExt;
 			do
 			{
 				if (bAscending == TRUE)
 				{
-					while ((*vList)[j].strNameLC < str) j++;
-					while ((*vList)[i].strNameLC > str) i--;
+					while (stricmp((*vList)[j].strNameExt.c_str(), str.c_str()) < 0) j++;
+					while (stricmp((*vList)[i].strNameExt.c_str(), str.c_str()) > 0) i--;
 				}
 				else
 				{
-					while ((*vList)[j].strNameLC > str) j++;
-					while ((*vList)[i].strNameLC < str) i--;
+					while (stricmp((*vList)[j].strNameExt.c_str(), str.c_str()) > 0) j++;
+					while (stricmp((*vList)[i].strNameExt.c_str(), str.c_str()) < 0) i--;
 				}
 				if ( i >= j )
 				{
@@ -1405,18 +1391,18 @@ void FileList::QuickSortRecursiveCol(vector<tFileListData>* vList, INT d, INT h,
 		}
 		case 1:
 		{
-			str = (*vList)[((INT) ((d+h) / 2))].strExtLC;
+			str = (*vList)[((INT) ((d+h) / 2))].strExt;
 			do
 			{
 				if (bAscending == TRUE)
 				{
-					while ((*vList)[j].strExtLC < str) j++;
-					while ((*vList)[i].strExtLC > str) i--;
+					while (stricmp((*vList)[j].strExt.c_str(), str.c_str()) < 0) j++;
+					while (stricmp((*vList)[i].strExt.c_str(), str.c_str()) > 0) i--;
 				}
 				else
 				{
-					while ((*vList)[j].strExtLC > str) j++;
-					while ((*vList)[i].strExtLC < str) i--;
+					while (stricmp((*vList)[j].strExt.c_str(), str.c_str()) > 0) j++;
+					while (stricmp((*vList)[i].strExt.c_str(), str.c_str()) < 0) i--;
 				}
 				if ( i >= j )
 				{
@@ -1488,11 +1474,11 @@ void FileList::QuickSortRecursiveColEx(vector<tFileListData>* vList, INT d, INT 
 			{
 				INT iOld = i;
 
-				str = (*vList)[i].strExtLC;
+				str = (*vList)[i].strExt;
 
 				for (bool b = true; b;)
 				{
-					if (str == (*vList)[i].strExtLC)
+					if (str == (*vList)[i].strExt)
 						i++;
 					else
 						b = false;
@@ -1531,21 +1517,6 @@ void FileList::QuickSortRecursiveColEx(vector<tFileListData>* vList, INT d, INT 
 			break;
 	}
 }
-
-string FileList::makeStrLC(LPSTR sz)
-{
-	string	str = "";
-	LPSTR	ptr	= sz;
-
-	while (*ptr != 0)
-	{
-		str += tolower(*ptr);
-		ptr++;
-	}
-
-	return str;
-}
-
 
 void FileList::GetSize(__int64 size, string & str)
 {

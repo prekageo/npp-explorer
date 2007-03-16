@@ -55,8 +55,7 @@ ContextMenu::~ContextMenu()
 	FreePIDLArray(_pidlArray);
 	_pidlArray = NULL;
 
-	if (_hMenu)
-		delete _hMenu;
+	::DestroyMenu(_hMenu);
 }
 
 
@@ -134,7 +133,8 @@ LRESULT CALLBACK ContextMenu::HookWndProc(HWND hWnd, UINT message, WPARAM wParam
 UINT ContextMenu::ShowContextMenu(HWND hWndNpp, HWND hWndParent, POINT pt, bool normal)
 {
 	/* store notepad handle */
-	_hWndNpp = hWndNpp;
+	_hWndNpp	= hWndNpp;
+	_hWndParent = hWndParent;
 
 	// to know which version of IContextMenu is supported
 	int iMenuType = 0;
@@ -629,42 +629,62 @@ void ContextMenu::Rename(void)
 
 void ContextMenu::newFile(void)
 {
-	NewDlg				dlg;
-	extern	HANDLE		g_hModule;
-	char*				szFileName	= (char*)new char[MAX_PATH];
+	NewDlg		dlg;
+	extern		HANDLE			g_hModule;
+	BOOL		bLeave		= FALSE;
+	LPTSTR		szFileName	= (LPTSTR)new TCHAR[MAX_PATH];
 
-	/* delete content */
-	szFileName[0] = 0;
+	szFileName[0] = '\0';
 
 	dlg.init((HINSTANCE)g_hModule, _hWndNpp);
-	if (dlg.doDialog(szFileName, "New file") == TRUE)
+	while (bLeave == FALSE)
 	{
-		string		newFile	= _strFirstElement + szFileName;
-		
-		::CloseHandle(::CreateFile(newFile.c_str(), GENERIC_READ | GENERIC_WRITE, FILE_SHARE_READ | FILE_SHARE_WRITE, NULL, OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL));
-		::SendMessage(_hWndNpp, WM_DOOPEN, 0, (LPARAM)newFile.c_str());
+		if (dlg.doDialog(szFileName, "New file") == TRUE)
+		{
+			/* test if is correct */
+			if (IsValidFileName(szFileName))
+			{
+				string		newFile	= _strFirstElement + szFileName;
+				
+				::CloseHandle(::CreateFile(newFile.c_str(), GENERIC_READ | GENERIC_WRITE, FILE_SHARE_READ | FILE_SHARE_WRITE, NULL, OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL));
+				::SendMessage(_hWndNpp, WM_DOOPEN, 0, (LPARAM)newFile.c_str());
+				bLeave = TRUE;
+			}
+		}
+		else
+			bLeave = TRUE;
 	}
 	delete [] szFileName;
 }
 
 void ContextMenu::newFolder(void)
 {
-	NewDlg				dlg;
-	extern	HANDLE		g_hModule;
-	char*				szFolderName	= (char*)new char[MAX_PATH];
+	NewDlg		dlg;
+	extern		HANDLE			g_hModule;
+	BOOL		bLeave			= FALSE;
+	LPTSTR		szFolderName	= (LPTSTR)new TCHAR[MAX_PATH];
 
-	/* delete content */
-	szFolderName[0] = 0;
+	szFolderName[0] = '\0';
 
 	dlg.init((HINSTANCE)g_hModule, _hWndNpp);
-	if (dlg.doDialog(szFolderName, "New folder") == TRUE)
+	while (bLeave == FALSE)
 	{
-		string		newFolder = _strFirstElement + szFolderName;
-		if (::CreateDirectory(newFolder.c_str(), NULL) == FALSE)
+		if (dlg.doDialog(szFolderName, "New folder") == TRUE)
 		{
-			::MessageBox(_hWndNpp, "Folder couldn't be created.", "Error", MB_OK);
+			/* test if is correct */
+			if (IsValidFileName(szFolderName))
+			{
+				string		newFolder = _strFirstElement + szFolderName;
+				if (::CreateDirectory(newFolder.c_str(), NULL) == FALSE)
+				{
+					::MessageBox(_hWndNpp, "Folder couldn't be created.", "Error", MB_OK);
+				}
+				bLeave = TRUE;
+			}
 		}
-	}	
+		else
+			bLeave = TRUE;
+	}
 	delete [] szFolderName;
 }
 
@@ -740,7 +760,7 @@ void ContextMenu::addFullPaths(void)
 	ScintillaMsg(SCI_BEGINUNDOACTION);
 	for (UINT i = 0; i < _strArray.size(); i++)
 	{
-		string temp = _strArray[i] + "\n";
+		string temp = (i > 0 ? "\n" : "") + _strArray[i];
 		ScintillaMsg(SCI_REPLACESEL, 0, (LPARAM)temp.c_str());
 	}
 	ScintillaMsg(SCI_ENDUNDOACTION);
@@ -756,8 +776,8 @@ void ContextMenu::addFileNames(void)
 
 		if (pos != -1)
 		{
-			string	temp	= _strArray[i] + "\n";
-			temp.erase(0, pos + 1);	
+			_strArray[i].erase(0, pos + 1);
+			string	temp = (i > 0 ? "\n" : "") + _strArray[i];
 			ScintillaMsg(SCI_REPLACESEL, 0, (LPARAM)temp.c_str());
 		}
 	}

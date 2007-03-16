@@ -20,7 +20,7 @@
 
 #include <windows.h>
 #include <commdlg.h>
-
+#include <TCHAR.H>
 
 #include <vector>
 #include <string>
@@ -36,25 +36,25 @@ class FileDlg
 {
 public:
 	FileDlg(HINSTANCE hInst, HWND hwnd);
-	void setExtFilter(const char *, const char *, ...);
-	void setDefFileName(const char *fn){strcpy(_fileName, fn);}
+	void setExtFilter(LPCTSTR, LPCTSTR, ...);
+	void setDefFileName(LPCTSTR fn){_tcscpy(_fileName, fn);}
 
-	char * doSaveDlg();
+	LPTSTR doSaveDlg();
 	stringVector * doOpenMultiFilesDlg();
-	char * doOpenSingleFileDlg();
+	LPTSTR doOpenSingleFileDlg();
 	bool isReadOnly() {return _ofn.Flags & OFN_READONLY;};
 
 private:
-	char _fileName[MAX_PATH*8];
+	TCHAR _fileName[MAX_PATH*8];
 
-	char _fileExt[MAX_PATH*2];
+	TCHAR _fileExt[MAX_PATH*2];
 	int _nbCharFileExt;
 	//bool _isMultiSel;
 
 	stringVector _fileNames;
 	OPENFILENAME _ofn;
 
-    char _extArray[nbExtMax][extLenMax];
+    TCHAR _extArray[nbExtMax][extLenMax];
     int _nbExt;
 
     static FileDlg *staticThis;

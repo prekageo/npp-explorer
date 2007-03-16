@@ -37,6 +37,13 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 using namespace std;
 
 
+typedef enum {
+	EID_INIT = 0,
+	EID_UPDATE_USER,
+	EID_UPDATE_DEVICE,
+	EID_THREAD_END,
+	EID_MAX
+} eEventID;
 
 
 class ExplorerDialog : public DockingDlgInterface, public TreeHelper
@@ -48,9 +55,13 @@ public:
     void init(HINSTANCE hInst, NppData nppData, tExProp *prop);
 
 	virtual void redraw(void) {
+
 		/* be sure to update the window first */
 		_FileList.redraw();
-		SelectItem(_pExProp->szCurrentPath);
+
+		/* and only when dialog is visible, select item again */
+		if (isVisible() == true)
+			SelectItem(_pExProp->szCurrentPath);
 	};
 
 	void destroy(void) {};
@@ -63,6 +74,8 @@ public:
 		_bStartupFinish = TRUE;
 		::SendMessage(_hSelf, WM_SIZE, 0, 0);
 	};
+
+	void NotifyEvent(DWORD event);
 
 protected:
 
@@ -87,8 +100,6 @@ protected:
 
 	void SelectItem(POINT pt);
 	BOOL SelectItem(LPTSTR path);
-
-	void RemoveDrive(LPTSTR drivePathName);
 
 	void tb_cmd(UINT message);
 
@@ -129,6 +140,9 @@ private:
 	HCURSOR					_hSplitterCursorUpDown;
 	HCURSOR					_hSplitterCursorLeftRight;
 	tExProp*				_pExProp;
+
+	/* thread variable */
+	HCURSOR					_hCurWait;
 };
 
 

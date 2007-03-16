@@ -97,6 +97,7 @@ private:
 
 private:
 	HWND					_hWndNpp;
+	HWND					_hWndParent;
 
 	int						_nItems;
 	BOOL					_bDelete;

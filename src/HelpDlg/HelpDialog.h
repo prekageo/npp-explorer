@@ -45,6 +45,7 @@ public:
 
     virtual void destroy() {
         _emailLink.destroy();
+		_urlNppPlugins.destroy();
     };
 
 
@@ -58,6 +59,7 @@ private:
 	
 	/* for eMail */
     URLCtrl			_emailLink;
+	URLCtrl			_urlNppPlugins;
 };
 
 

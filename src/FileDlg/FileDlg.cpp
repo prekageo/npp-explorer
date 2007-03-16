@@ -57,11 +57,11 @@ FileDlg::FileDlg(HINSTANCE hInst, HWND hwnd)
 // example : 
 // FileDlg.setExtFilter("c/c++ src file", ".c", ".cpp", ".cxx", ".h", NULL);
 // FileDlg.setExtFilter("Makeile", "makefile", "GNUmakefile", NULL);
-void FileDlg::setExtFilter(const char *extText, const char *ext, ...)
+void FileDlg::setExtFilter(LPCTSTR extText, LPCTSTR ext, ...)
 {
     // fill out the ext array for save as file dialog
     if (_nbExt < nbExtMax)
-        strcpy(_extArray[_nbExt++], ext);
+        _tcscpy(_extArray[_nbExt++], ext);
     // 
     std::string extFilter = extText;
    
@@ -75,9 +75,9 @@ void FileDlg::setExtFilter(const char *extText, const char *ext, ...)
     exts += ext;
     exts += ";";
 
-    const char *ext2Concat;
+    LPCTSTR ext2Concat;
 
-    while ((ext2Concat = va_arg(pArg, const char *)))
+    while ((ext2Concat = va_arg(pArg, LPCTSTR)))
 	{
         if (ext2Concat[0] == '.')
             exts += "*";
@@ -92,7 +92,7 @@ void FileDlg::setExtFilter(const char *extText, const char *ext, ...)
     extFilter += " (";
     extFilter += exts + ")";
     
-    char *pFileExt = _fileExt + _nbCharFileExt;
+    LPTSTR pFileExt = _fileExt + _nbCharFileExt;
     memcpy(pFileExt, extFilter.c_str(), extFilter.length() + 1);
     _nbCharFileExt += extFilter.length() + 1;
     
@@ -101,27 +101,27 @@ void FileDlg::setExtFilter(const char *extText, const char *ext, ...)
     _nbCharFileExt += exts.length() + 1;
 }
 
-char * FileDlg::doOpenSingleFileDlg() 
+LPTSTR FileDlg::doOpenSingleFileDlg() 
 {
-	char dir[260];
+	TCHAR dir[MAX_PATH];
 	::GetCurrentDirectory(sizeof(dir), dir);
 	_ofn.lpstrInitialDir = dir;
 
 	_ofn.Flags |= OFN_FILEMUSTEXIST;
 
-	char *fn = NULL;
+	LPTSTR fn = NULL;
 	try {
 		fn = ::GetOpenFileName(&_ofn)?_fileName:NULL;
 	}
 	catch(...) {
-		::MessageBox(NULL, "GetSaveFileName crashes!!!", "", MB_OK);
+		::MessageBox(NULL, TEXT("GetSaveFileName crashes!!!"), TEXT(""), MB_OK);
 	}
 	return (fn);
 }
 
 stringVector * FileDlg::doOpenMultiFilesDlg()
 {
-	char dir[260];
+	TCHAR dir[MAX_PATH];
 	::GetCurrentDirectory(sizeof(dir), dir);
 	_ofn.lpstrInitialDir = dir;
 
@@ -132,24 +132,24 @@ stringVector * FileDlg::doOpenMultiFilesDlg()
 		//if (isReadOnly())
 			//::MessageBox(NULL, "read only", "", MB_OK);
 
-		char fn[MAX_PATH];
-		char *pFn = _fileName + strlen(_fileName) + 1;
+		TCHAR fn[MAX_PATH];
+		LPTSTR pFn = _fileName + _tcslen(_fileName) + 1;
 		if (!(*pFn))
 			_fileNames.push_back(std::string(_fileName));
 		else
 		{
-			strcpy(fn, _fileName);
-			if (fn[strlen(fn)-1] != '\\')
-				strcat(fn, "\\");
+			_tcscpy(fn, _fileName);
+			if (fn[_tcslen(fn)-1] != '\\')
+				_tcscat(fn, TEXT("\\"));
 		}
-		int term = int(strlen(fn));
+		int term = int(_tcslen(fn));
 
 		while (*pFn)
 		{
 			fn[term] = '\0';
-			strcat(fn, pFn);
+			_tcscat(fn, pFn);
 			_fileNames.push_back(std::string(fn));
-			pFn += strlen(pFn) + 1;
+			pFn += _tcslen(pFn) + 1;
 		}
 
 		return &_fileNames;
@@ -158,20 +158,20 @@ stringVector * FileDlg::doOpenMultiFilesDlg()
 		return NULL;
 }
 
-char * FileDlg::doSaveDlg() 
+LPTSTR FileDlg::doSaveDlg() 
 {
-	char dir[260];
+	TCHAR dir[MAX_PATH];
 	::GetCurrentDirectory(sizeof(dir), dir);
 	_ofn.lpstrInitialDir = dir;
 
 	_ofn.Flags |= OFN_OVERWRITEPROMPT | OFN_HIDEREADONLY;
 
-	char *fn = NULL;
+	LPTSTR fn = NULL;
 	try {
 		fn = ::GetSaveFileName(&_ofn)?_fileName:NULL;
 	}
 	catch(...) {
-		::MessageBox(NULL, "GetSaveFileName crashes!!!", "", MB_OK);
+		::MessageBox(NULL, TEXT("GetSaveFileName crashes!!!"), TEXT(""), MB_OK);
 	}
 	return (fn);
 }

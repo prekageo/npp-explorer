@@ -27,6 +27,9 @@ void TreeHelper::DrawChildren(HTREEITEM parentItem)
 	WIN32_FIND_DATA		Find	= {0};
 	HANDLE				hFind	= NULL;
 
+	vector<tItemList>	vFolderList;
+	tItemList			listElement;
+
 	LPTSTR	parentFolderPathName = (LPTSTR) new char[MAX_PATH];
 
 	GetFolderPathName(parentItem, parentFolderPathName);
@@ -39,26 +42,68 @@ void TreeHelper::DrawChildren(HTREEITEM parentItem)
 	/* add wildcard */
 	strcat(parentFolderPathName, "*");
 
-	if ((hFind = ::FindFirstFile(parentFolderPathName, &Find)) == INVALID_HANDLE_VALUE)
-	{
-		delete [] parentFolderPathName;
+	/* find first file */
+	hFind = ::FindFirstFile(parentFolderPathName, &Find);
+	delete [] parentFolderPathName;
+
+	/* if not found -> exit */
+	if (hFind == INVALID_HANDLE_VALUE)
 		return;
-	}
 
 	do
 	{
 		if (IsValidFolder(Find) == TRUE)
 		{
-			InsertChildFolder(Find.cFileName, parentItem);
+			listElement.strName	= Find.cFileName;
+			vFolderList.push_back(listElement);
 		}
-
 	} while (FindNextFile(hFind, &Find));
 
 	::FindClose(hFind);
 
-	TreeView_SortChildren(_hTreeCtrl, parentItem, TRUE);
+	/* sort data */
+	QuickSortItems(&vFolderList, 0, vFolderList.size()-1);
 
-	delete [] parentFolderPathName;
+	for (size_t i = 0; i < vFolderList.size(); i++)
+	{
+		InsertChildFolder((LPTSTR)vFolderList[i].strName.c_str(), parentItem);
+	}
+}
+
+void TreeHelper::QuickSortItems(vector<tItemList>* vList, INT d, INT h)
+{
+	INT		i		= 0;
+	INT		j		= 0;
+	string	str		= "";
+
+	/* return on empty list */
+	if (d > h || d < 0)
+		return;
+
+	i = h;
+	j = d;
+
+	str = (*vList)[((INT) ((d+h) / 2))].strName;
+	do
+	{
+		while (stricmp((*vList)[j].strName.c_str(), str.c_str()) < 0) j++;
+		while (stricmp((*vList)[i].strName.c_str(), str.c_str()) > 0) i--;
+
+		if ( i >= j )
+		{
+			if ( i != j )
+			{
+				tItemList buf = (*vList)[i];
+				(*vList)[i] = (*vList)[j];
+				(*vList)[j] = buf;
+			}
+			i--;
+			j++;
+		}
+	} while (j <= i);
+
+	if (d < i) QuickSortItems(vList, d, i);
+	if (j < h) QuickSortItems(vList, j, h);
 }
 
 HTREEITEM TreeHelper::InsertChildFolder(LPTSTR childFolderName, HTREEITEM parentItem, HTREEITEM insertAfter, BOOL bChildrenTest)
