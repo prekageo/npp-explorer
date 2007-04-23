@@ -180,7 +180,7 @@ BOOL CALLBACK PropDlg::run_dlgProc(HWND hWnd, UINT Message, WPARAM wParam, LPARA
 							info.pidlRoot			= NULL;
 							info.pszDisplayName		= (LPTSTR)new TCHAR[MAX_PATH];
 							info.lpszTitle			= "Select a folder:";
-							info.ulFlags			= 0;
+							info.ulFlags			= BIF_RETURNONLYFSDIRS;
 							info.lpfn				= BrowseCallbackProc;
 							info.lParam				= (LPARAM)_pLink;
 
