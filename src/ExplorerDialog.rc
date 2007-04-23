@@ -42,7 +42,7 @@ BEGIN
                     IDC_STATIC,7,71,216,18
     LTEXT           "Explorer...\t\tViews the Explorer dialog.\nFavorites...\t\tViews the Favorites dialog.\nExplorer Options...\tAllows you to personalize the\n\t\t\tsettings for explorers file list.\nHelp...\t\t\tShows this help dialog.",
                     IDC_STATIC,15,108,203,42
-    CTEXT           "Explorer Plugin for Notepad++ v4.0.2                             v1.2",
+    CTEXT           "Explorer Plugin for Notepad++ v4.1                                v1.3",
                     IDC_STATIC,7,7,216,17,SS_CENTERIMAGE,WS_EX_DLGMODALFRAME | 
                     WS_EX_TRANSPARENT
     LTEXT           "http://sourceforge.net/projects/npp-plugins/",
@@ -275,8 +275,8 @@ IDC_LEFTRIGHT           CURSOR                  "..\\res\\leftright.cur"
 //
 
 VS_VERSION_INFO VERSIONINFO
- FILEVERSION 1,2,0,0
- PRODUCTVERSION 1,2,0,0
+ FILEVERSION 1,3,0,0
+ PRODUCTVERSION 1,3,0,0
  FILEFLAGSMASK 0x3fL
 #ifdef _DEBUG
  FILEFLAGS 0x1L
@@ -294,12 +294,12 @@ BEGIN
             VALUE "Comments", "Visit https://sourceforge.net/projects/npp-plugins"
             VALUE "CompanyName", "Jens Lorenz"
             VALUE "FileDescription", "Notepad++ Explorer Plugin : a free (GNU) source code file explorer"
-            VALUE "FileVersion", "1, 2, 0, 0"
+            VALUE "FileVersion", "1, 3, 0, 0"
             VALUE "InternalName", "Explorer"
             VALUE "LegalCopyright", "Copyright © 2006-2007"
             VALUE "OriginalFilename", "Explorer.dll"
             VALUE "ProductName", "Jens Lorenz Explorer"
-            VALUE "ProductVersion", "1, 2, 0, 0"
+            VALUE "ProductVersion", "1, 3, 0, 0"
         END
     END
     BLOCK "VarFileInfo"
