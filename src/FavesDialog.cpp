@@ -342,6 +342,10 @@ BOOL CALLBACK FavesDialog::run_dlgProc(HWND hWnd, UINT Message, WPARAM wParam, L
 		{
 			SaveSettings();
 			::DestroyIcon(_data.hIconTab);
+
+			/* destroy duplicated handle when we are on W2k machine */
+			if (getWindowsVersion() == WV_W2K)
+				ImageList_Destroy(_hImageListSmall);
 			break;
 		}
 		case WM_TIMER:
