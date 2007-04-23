@@ -2,6 +2,15 @@
 Change-log for Explorer.dll
 
 ------------------------------------------------------------------------------------
+07/04/24  v1.3 :
+------------------------------------------------------------------------------------
+    Fix: Update of tree is now faster 
+         - disconnected Network drives are not updated only on startup
+         - only visible trees are updated
+    Fix: Icons on W2k machines are better (not final)
+    Fix: Splitter now stored correctly in all cases for next Npp version 4.1
+
+------------------------------------------------------------------------------------
 07/03/16  v1.2 :
 ------------------------------------------------------------------------------------
     Fix: Update of tree when switching between apps doesn't freeze Notepad anymore
@@ -9,7 +18,7 @@ Change-log for Explorer.dll
     Fix: Create of new files or folders with characters "\/:*?"<>" now denied
     Fix: UTF8 named folder displayed as "????????" now hidden
     Fix: Layout behaviour of right docked explorer
-    New: Remebering of last selected filter
+    New: Remembering of last selected filter
     New: File search in file list by typing the name
     Change: Configuration of explorer stored now in user application folder
 
@@ -19,7 +28,7 @@ Change-log for Explorer.dll
     Fix: In "[Files]->New Link" the file filter ".session" is removed
     Fix: The file session icons in Favorites display now correct
     Fix: Copying a node in Faves and directly deleting it again caused error
-    Fix: Crashing on "Close" in explorer options when plugin is not open
+    Fix: Crashing on "Close" in explorer options when plug in is not open
     Fix: File icons in list always extension-dependent
     Fix: Splitter now stored correctly in all cases
     Fix: All dialogs now use standard font
@@ -36,32 +45,32 @@ Change-log for Explorer.dll
     New: Icon for User Folder
     Typo: "Groop" changed to "Group"
     Typo: MessageBox "Node exist..." corrected
-     
+
 ------------------------------------------------------------------------------------
 07/02/04  v1.1 RC :
 ------------------------------------------------------------------------------------
     Fix: Opening of favorite folders in Explorer works always
-    New: Different layouts on top/buttom and left/right
+    New: Different layouts on top/bottom and left/right
     New: Option dialog to do user settings as follows:
          - Different formats for displaying date and time (LONG)
          - Extension now addable to file name
          - Disable braces in folder
          - Show hidden files
     Change: Icon list layout
-    
+
 ------------------------------------------------------------------------------------
 07/01/07  v1.0 :
 ------------------------------------------------------------------------------------
     New Project Development:
     Explorer Features
-    - Iconbar (forward, backward, new file/folder, find in files) 
+    - Icon bar (forward, backward, new file/folder, find in files) 
     - Go to current file in explorer 
-    - Seperate folder and file view 
+    - Separate folder and file view 
     - Folder update in explorer and faves 
-    - Sortable file view as List View (clumns: name, ext) 
+    - Sortable file view as List View (columns: name, ext) 
     - Extension filter 
     - Create/delete/move/rename and copy of files/dirs 
-    - Multiselection for open 
+    - Multi-selection for open 
     - Context menu with 
     - New file... 
     - Find in files... 
@@ -69,11 +78,11 @@ Change-log for Explorer.dll
     - Open in new instance 
     - Selected files names and include as text 
     Feature list for Favorites: 
-    - Iconbar 
-    - Seperate roots for folders, files and maybe internet links 
+    - Icon bar 
+    - Separate roots for folders, files and maybe Internet links 
     - Naming and renaming for each item 
     - Grouping of items 
-    - Session managment 
+    - Session management 
     - Open session (additional with add to current opened files) 
     - Create new session 
     - Renaming of sessions 
