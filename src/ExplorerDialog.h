@@ -41,6 +41,7 @@ typedef enum {
 	EID_INIT = 0,
 	EID_UPDATE_USER,
 	EID_UPDATE_DEVICE,
+	EID_UPDATE_ACTIVATE,
 	EID_THREAD_END,
 	EID_MAX
 } eEventID;
@@ -111,6 +112,7 @@ private:
 	HIMAGELIST				_hImageListSmall;
 	tTbData					_data;
 	BOOL					_bStartupFinish;
+	BOOL					_bInitFinish;
 
 	/* splitter control process */
 	WNDPROC					_hDefaultSplitterProc;

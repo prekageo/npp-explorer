@@ -153,6 +153,7 @@ ExplorerDialog::ExplorerDialog(void) : DockingDlgInterface(IDD_EXPLORER_DLG)
 	_bStartupFinish			= FALSE;
 	_hFilterButton			= NULL;
 	_bOldRectInitilized		= FALSE;
+	_bInitFinish			= FALSE;
 
 }
 
@@ -296,6 +297,15 @@ BOOL CALLBACK ExplorerDialog::run_dlgProc(HWND hWnd, UINT Message, WPARAM wParam
 							{
 								DrawChildren(hItem);
 							}
+							else
+							{
+								LPTSTR	strPathName	= (LPTSTR)new TCHAR[MAX_PATH];
+
+								GetFolderPathName(hItem, strPathName);
+								strPathName[strlen(strPathName)-1] = '\0';
+								UpdateFolderRecursive(strPathName, hItem);
+								delete [] strPathName;
+							}
 						}
 						break;
 					}
@@ -312,7 +322,7 @@ BOOL CALLBACK ExplorerDialog::run_dlgProc(HWND hWnd, UINT Message, WPARAM wParam
 						break;
 				}
 			}
-			else if (nmhdr->hwndFrom == _hListCtrl)
+			else if ((nmhdr->hwndFrom == _hListCtrl) && (_bInitFinish == TRUE))
 			{
 				_FileList.notify(wParam, lParam);
 				return TRUE;
@@ -341,25 +351,33 @@ BOOL CALLBACK ExplorerDialog::run_dlgProc(HWND hWnd, UINT Message, WPARAM wParam
 		case WM_SIZE:
 		case WM_MOVE:
 		{
+			if (_bStartupFinish == FALSE)
+				return TRUE;
+
 			HWND	hWnd		= NULL;
 			RECT	rc			= {0};
 			RECT	rcWnd		= {0};
 			RECT	rcBuff		= {0};
 
-			if ((_bCreated == true) && (_bOldRectInitilized == FALSE))
+			if (_bOldRectInitilized == 0)
 			{
 				getClientRect(_rcOldSize);
 				getClientRect(_rcOldSizeHorizontal);
-				_bOldRectInitilized = TRUE;
+				_bOldRectInitilized = 1;
 			}
 			if ((_iDockedPos == CONT_LEFT) || (_iDockedPos == CONT_RIGHT))
 			{
 				INT		splitterPos	= _pExProp->iSplitterPos;
 
 				/* set splitter position (%) */
-				if ((_bCreated == true) && (_bStartupFinish == TRUE))
+				if (_bOldRectInitilized)
 				{
 					getClientRect(rc);
+					if ((_rcOldSize.bottom != rc.bottom) && (_bOldRectInitilized == 1))
+					{
+						getClientRect(_rcOldSize);
+						_bOldRectInitilized = 2;
+					}
 					_pExProp->iSplitterPos -= ((_rcOldSize.bottom - rc.bottom) / 2);
 					splitterPos	= _pExProp->iSplitterPos;
 				}
@@ -437,7 +455,7 @@ BOOL CALLBACK ExplorerDialog::run_dlgProc(HWND hWnd, UINT Message, WPARAM wParam
 				INT		splitterPos	= _pExProp->iSplitterPosHorizontal;
 
 				/* triggered by notification NPPN_READY */
-				if ((_bCreated == true) && (_bStartupFinish == TRUE))
+				if (_bOldRectInitilized)
 				{
 					getClientRect(rc);
 					splitterPos	= _pExProp->iSplitterPosHorizontal;
@@ -552,6 +570,9 @@ BOOL CALLBACK ExplorerDialog::run_dlgProc(HWND hWnd, UINT Message, WPARAM wParam
 			/* destroy thread */
 			::CloseHandle(hThread);
 
+			/* destroy duplicated handle when we are on W2k machine */
+			if (getWindowsVersion() == WV_W2K)
+				ImageList_Destroy(_hImageListSmall);
 			break;
 		}
 		case EXM_CHANGECOMBO:
@@ -687,7 +708,7 @@ BOOL CALLBACK ExplorerDialog::run_dlgProc(HWND hWnd, UINT Message, WPARAM wParam
 			else if (wParam == EXT_UPDATE)
 			{
 				::KillTimer(_hSelf, EXT_UPDATE);
-				::SetEvent(hEvent[EID_UPDATE_USER]);
+				::SetEvent(hEvent[EID_UPDATE_ACTIVATE]);
 			}
 			else if (wParam == EXT_UPDATEPATH)
 			{
@@ -821,14 +842,19 @@ void ExplorerDialog::tb_cmd(UINT message)
 	{
 		case IDM_EX_UNDO:
 		{
-			bool	dirValid	= TRUE;
+			BOOL	dirValid	= TRUE;
+			BOOL	selected	= TRUE;
 			LPTSTR	pszPath		= (LPTSTR)new TCHAR[MAX_PATH];
 
 			_FileList.ToggleStackRec();
 
 			do {
-				dirValid = _FileList.GetPrevDir(pszPath);
-			} while (dirValid && (SelectItem(pszPath) == FALSE));
+				if (dirValid = _FileList.GetPrevDir(pszPath))
+					selected = SelectItem(pszPath);
+			} while (dirValid && (selected == FALSE));
+
+			if (selected == FALSE)
+				_FileList.GetNextDir(pszPath);
 
 			_FileList.ToggleStackRec();
 
@@ -837,14 +863,19 @@ void ExplorerDialog::tb_cmd(UINT message)
 		}
 		case IDM_EX_REDO:
 		{
-			bool	dirValid	= TRUE;
+			BOOL	dirValid	= TRUE;
+			BOOL	selected	= TRUE;
 			LPTSTR	pszPath		= (LPTSTR)new TCHAR[MAX_PATH];
 
 			_FileList.ToggleStackRec();
 
 			do {
-				dirValid = _FileList.GetNextDir(pszPath);
-			} while (dirValid && (SelectItem(pszPath) == FALSE));
+				if (dirValid = _FileList.GetNextDir(pszPath))
+					selected = SelectItem(pszPath);
+			} while (dirValid && (selected == FALSE));
+
+			if (selected == FALSE)
+				_FileList.GetPrevDir(pszPath);
 
 			_FileList.ToggleStackRec();
 
@@ -996,8 +1027,8 @@ void ExplorerDialog::NotifyEvent(DWORD event)
 			/* Update "Go to Folder" icon */
 			NotifyNewFile();
 
-			/* resize to remove splitter problems */
-			::SendMessage(_hSelf, WM_SIZE, 0, 0);
+			/* finish with init */
+			_bInitFinish = TRUE;
 			break;
 		}
 		case EID_UPDATE_DEVICE :
@@ -1007,7 +1038,11 @@ void ExplorerDialog::NotifyEvent(DWORD event)
 		}
 		case EID_UPDATE_USER :
 		{
+			/* No break!! */
 			UpdateDevices();
+		}
+		case EID_UPDATE_ACTIVATE :
+		{
 			UpdateFolders();
 			::SendMessage(_hSelf, EXM_UPDATE_PATH, 0, 0);
 			break;
@@ -1152,13 +1187,17 @@ BOOL ExplorerDialog::SelectItem(LPTSTR path)
 		}
 	} while (hItem != NULL);
 
-	/* select last selected item */
-	TreeView_SelectItem(_hTreeCtrl, hItemSel);
-
 	/* view path */
-	_FileList.viewPath(pszCurrPath, TRUE);
-	SetCaption(pszCurrPath);
-	folderExists = TRUE;
+	if (pszCurrPath[0] != '\0')
+	{
+		/* select last selected item */
+		TreeView_SelectItem(_hTreeCtrl, hItemSel);
+		TreeView_EnsureVisible(_hTreeCtrl, hItemSel);
+
+		_FileList.viewPath(pszCurrPath, TRUE);
+		SetCaption(pszCurrPath);
+		folderExists = TRUE;
+	}
 
 	delete [] TEMP;
 	delete [] pszItemName;
@@ -1167,8 +1206,6 @@ BOOL ExplorerDialog::SelectItem(LPTSTR path)
 
 	/* enable detection of TVN_SELCHANGED notification */
 	_isSelNotifyEnable = TRUE;
-
-	TreeView_EnsureVisible(_hTreeCtrl, hItemSel);
 
 	return folderExists;
 }
@@ -1280,18 +1317,12 @@ void ExplorerDialog::UpdateFolders(void)
 {
 	LPTSTR			pszPath			= (LPTSTR)new TCHAR[MAX_PATH];
 	HTREEITEM		hCurrentItem	= TreeView_GetChild(_hTreeCtrl, TVI_ROOT);
-	DWORD			serialNr		= 0;
-	DWORD			space			= 0;
-	DWORD			flags			= 0;
 
 	while (hCurrentItem != NULL)
 	{
-		GetItemText(hCurrentItem, pszPath, MAX_PATH);
-		pszPath[2] = '\\';
-		pszPath[3] = '\0';
-
-		if (GetVolumeInformation(pszPath, NULL, 0, &serialNr, &space, &flags, NULL, 0))
+		if (TreeView_GetItemState(_hTreeCtrl, hCurrentItem, TVIS_EXPANDED) & TVIS_EXPANDED)
 		{
+			GetItemText(hCurrentItem, pszPath, MAX_PATH);
 			pszPath[2] = '\0';
 			UpdateFolderRecursive(pszPath, hCurrentItem);
 		}
@@ -1394,7 +1425,7 @@ void ExplorerDialog::UpdateFolderRecursive(LPTSTR pszParentPath, HTREEITEM hPare
 			UpdateItem(hCurrentItem, pszItem, iIconNormal, iIconSelected, iIconOverlayed, bHidden, haveChildren);
 
 			/* update recursive */
-			if (TreeView_GetChild(_hTreeCtrl, hCurrentItem) != NULL)
+			if (TreeView_GetItemState(_hTreeCtrl, hCurrentItem, TVIS_EXPANDED) & TVIS_EXPANDED)
 			{
 				UpdateFolderRecursive(pszPath, hCurrentItem);
 			}
@@ -1496,6 +1527,5 @@ void ExplorerDialog::NotifyNewFile(void)
 		delete [] TEMP;
 	}
 }
-
 
 
