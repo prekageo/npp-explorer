@@ -592,207 +592,22 @@ BOOL HaveChildren(LPTSTR parentFolderPathName)
 /**************************************************************************
  *	Get system images
  */
-
-#pragma comment(lib, "comctl32.lib")
-
-//
-//	Typedefs for SHELL APIs
-//
-typedef BOOL (WINAPI * SHGIL_PROC)	(HIMAGELIST *phLarge, HIMAGELIST *phSmall);
-typedef BOOL (WINAPI * FII_PROC)	(BOOL fFullInit);
-
-
-// code from: http://support.microsoft.com/kb/192055/en-us
 HIMAGELIST GetSystemImageList(BOOL fSmall)
 {
-	HIMAGELIST	himlLarge;
-	HIMAGELIST	himlSmall;
-    HIMAGELIST  himl;
+	HIMAGELIST		himl	= NULL;
+	SHFILEINFO		sfi		= {0};
 
-	SHFILEINFO		sfi	= {0};
-
-	if (getWindowsVersion() > WV_NT)
-	{
-		if (fSmall)
-			himl = (HIMAGELIST)SHGetFileInfo("C:\\", 0, &sfi, sizeof(SHFILEINFO), SHGFI_SYSICONINDEX | SHGFI_SMALLICON);
-		else
-			himl = (HIMAGELIST)SHGetFileInfo("C:\\", 0, &sfi, sizeof(SHFILEINFO), SHGFI_SYSICONINDEX);
-	}
+	if (fSmall)
+		himl = (HIMAGELIST)SHGetFileInfo("C:\\", 0, &sfi, sizeof(SHFILEINFO), SHGFI_SYSICONINDEX | SHGFI_SMALLICON);
 	else
-	{
-		SHGIL_PROC	Shell_GetImageLists;
-		FII_PROC	FileIconInit;
+		himl = (HIMAGELIST)SHGetFileInfo("C:\\", 0, &sfi, sizeof(SHFILEINFO), SHGFI_SYSICONINDEX);
 
-		// Don't free until we terminate - otherwise, the image-lists will be destroyed
-		if(hShell32 == 0)
-			hShell32 = LoadLibrary("shell32.dll");
-
-		if(hShell32 == 0)
-			return NULL;
-
-		// Get Undocumented APIs from Shell32.dll: 
-		// Shell_GetImageLists and FileIconInit
-		//
-		Shell_GetImageLists  = (SHGIL_PROC)  GetProcAddress(hShell32, (LPCSTR)71);
-		FileIconInit		 = (FII_PROC)    GetProcAddress(hShell32, (LPCSTR)660);
-
-		// FreeIconList@8 = ord 227
-
-		if(Shell_GetImageLists == 0)
-		{
-			FreeLibrary(hShell32);
-			return NULL;
-		}
-
-		// Initialize imagelist for this process - function not present on win95/98
-		if(FileIconInit != 0)
-			FileIconInit(TRUE);
-
-		// Get handles to the large+small system image lists!
-		Shell_GetImageLists(&himlLarge, &himlSmall);
-
-		if (fSmall = FALSE)
-			himl = himlLarge;
-		else
-			himl = himlSmall;
-
-		/*
-		 *  You need to create a temporary, empty .lnk file that you can use to
-		 *  pass to IShellIconOverlay::GetOverlayIndex. You could just enumerate
-		 *  down from the Start Menu folder to find an existing .lnk file, but
-		 *  there is a very remote chance that you will not find one. By creating
-		 *  your own, you know this code will always work.
-		 */ 
-		HRESULT           hr;
-		IShellFolder      *psfDesktop = NULL;
-		IShellFolder      *psfTempDir = NULL;
-		IMalloc           *pMalloc = NULL;
-		LPITEMIDLIST      pidlTempDir = NULL;
-		LPITEMIDLIST      pidlTempFile = NULL;
-		TCHAR             szTempDir[MAX_PATH];
-		TCHAR             szTempFile[MAX_PATH] = TEXT("");
-		TCHAR             szFile[MAX_PATH];
-		HANDLE            hFile;
-		INT               i;
-		OLECHAR           szOle[MAX_PATH];
-		DWORD             dwAttributes;
-		DWORD             dwEaten;
-		IShellIconOverlay *psio = NULL;
-		INT               nIndex;
-
-		// Get the desktop folder.
-		hr = SHGetDesktopFolder(&psfDesktop);
-		if(FAILED(hr))
-		{
-			goto exit;
-		}
-
-		// Get the shell's allocator.
-		hr = SHGetMalloc(&pMalloc);
-		if(FAILED(hr))
-		{
-			goto exit;
-		}
-
-		// Get the TEMP directory.
-		if(!GetTempPath(MAX_PATH, szTempDir))
-		{
-			/*
-			 *  There might not be a TEMP directory. If this is the case, use the
-			 *  Windows directory.
-			*/ 
-			if(!GetWindowsDirectory(szTempDir, MAX_PATH))
-			{
-				hr = E_FAIL;
-				goto exit;
-			}
-		}
-
-		// Create a temporary .lnk file.
-		if(szTempDir[lstrlen(szTempDir) - 1] != '\\')
-		{
-			lstrcat(szTempDir, TEXT("\\"));
-		}
-		for(i = 0, hFile = INVALID_HANDLE_VALUE; INVALID_HANDLE_VALUE == hFile; i++)
-		{
-			lstrcpy(szTempFile, szTempDir);
-			wsprintf(szFile, TEXT("temp%d.lnk"), i);
-			lstrcat(szTempFile, szFile);
-
-			hFile = CreateFile(szTempFile, GENERIC_WRITE, 0, NULL, CREATE_NEW, FILE_ATTRIBUTE_NORMAL, NULL);
-
-			// Do not try this more than 100 times.
-			if(i > 100)
-			{
-				hr = E_FAIL;
-				goto exit;
-			}
-		}
-
-		// Close the file you just created.
-		CloseHandle(hFile);
-		hFile = INVALID_HANDLE_VALUE;
-
-		// Get the PIDL for the directory.
-		::MultiByteToWideChar(CP_UTF8, 0, szTempDir, -1, szOle, MAX_PATH);
-		hr = psfDesktop->ParseDisplayName(NULL, NULL, szOle, &dwEaten, &pidlTempDir, &dwAttributes);
-		if(FAILED(hr))
-		{
-			goto exit;
-		}
-
-		// Get the IShellFolder for the TEMP directory.
-		hr = psfDesktop->BindToObject(pidlTempDir, NULL, IID_IShellFolder, (LPVOID*)&psfTempDir);
-		if(FAILED(hr))
-		{
-			goto exit;
-		}
-
-		/*
-		 *  Get the IShellIconOverlay interface for this folder. If this fails,
-		 *  it could indicate that you are running on a pre-Internet Explorer 4.0
-		 *  shell, which doesn't support this interface. If this is the case, the
-		 *  overlay icons are already in the system image list.
-		 */ 
-		hr = psfTempDir->QueryInterface(IID_IShellIconOverlay, (LPVOID*)&psio);
-		if(FAILED(hr))
-		{
-			goto exit;
-		}
-
-		// Get the PIDL for the temporary .lnk file.
-		::MultiByteToWideChar(CP_UTF8, 0, szFile, -1, szOle, MAX_PATH);
-		hr = psfTempDir->ParseDisplayName(NULL, NULL, szOle, &dwEaten, &pidlTempFile, &dwAttributes);
-		if(FAILED(hr))
-		{
-			goto exit;
-		}
-
-		/*
-		 *  Get the overlay icon for the .lnk file. This causes the shell
-		 *  to put all of the standard overlay icons into your copy of the system
-		 *  image list.
-		 */ 
-		hr = psio->GetOverlayIndex(pidlTempFile, &nIndex);
-
-exit:
-		// Delete the temporary file.
-		DeleteFile(szTempFile);
-
-		if(psio) psio->Release();
-		if(INVALID_HANDLE_VALUE != hFile) CloseHandle(hFile);
-		if(psfTempDir) psfTempDir->Release();
-		if(pMalloc)
-		{
-			if(pidlTempFile) pMalloc->Free(pidlTempFile);
-			if(pidlTempDir)  pMalloc->Free(pidlTempDir);
-			pMalloc->Release();
-		}
-		if(psfDesktop) psfDesktop->Release();
-	}
-
-    return himl;
+	if (getWindowsVersion() == WV_W2K)
+		return ImageList_Duplicate(himl);
+	else
+		return himl;
 }
+
 
 void ExtractIcons(LPCSTR currentPath, LPCSTR volumeName, bool isDir, LPINT iIconNormal, LPINT iIconSelected, LPINT iIconOverlayed)
 {
