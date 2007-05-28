@@ -124,6 +124,7 @@ void FavesDialog::doDialog(bool willBeShown)
 
 		/* Update "Add current..." icons */
 		NotifyNewFile();
+		ExpandElementsRecursive(TVI_ROOT);
 	}
 
     display(willBeShown);
@@ -244,11 +245,14 @@ BOOL CALLBACK FavesDialog::run_dlgProc(HWND hWnd, UINT Message, WPARAM wParam, L
 
 						if (hItem != NULL)
 						{
+							/* get element information */
+							PELEM	pElem = (PELEM)GetParam(hItem);
+
+							/* update expand state */
+							pElem->uParam ^= FAVES_PARAM_EXPAND;
+
 							if (!TreeView_GetChild(_hTreeCtrl, hItem))
 							{
-								/* get element information */
-								PELEM	pElem = (PELEM)GetParam(hItem);
-
 								if (pElem == NULL)
 								{
 									/* nothing to do */
@@ -1348,7 +1352,7 @@ void FavesDialog::UpdateLink(HTREEITEM	hParentItem)
 					{
 						/* get icons and update item */
 						strcpy(TEMP, pElem->pszLink);
-						ExtractIcons(TEMP, NULL, true, &iIconNormal, &iIconSelected, &iIconOverlayed);
+						ExtractIcons(TEMP, NULL, DEVT_DIRECTORY, &iIconNormal, &iIconSelected, &iIconOverlayed);
 						iIconSelected = iIconNormal;
 						break;
 					}
@@ -1356,7 +1360,7 @@ void FavesDialog::UpdateLink(HTREEITEM	hParentItem)
 					{
 						/* get icons and update item */
 						strcpy(TEMP, pElem->pszLink);
-						ExtractIcons(TEMP, NULL, true, &iIconNormal, &iIconSelected, &iIconOverlayed);
+						ExtractIcons(TEMP, NULL, DEVT_DIRECTORY, &iIconNormal, &iIconSelected, &iIconOverlayed);
 						break;
 					}
 					case FAVES_SESSIONS:
@@ -1431,7 +1435,7 @@ void FavesDialog::DrawSessionChildren(HTREEITEM hItem)
 
 		for (i = 0; i < docCnt; i++)
 		{
-			ExtractIcons(ppszFileNames[i], NULL, false, &iIconNormal, &iIconSelected, &iIconOverlayed);
+			ExtractIcons(ppszFileNames[i], NULL, DEVT_FILE, &iIconNormal, &iIconSelected, &iIconOverlayed);
 			InsertItem(ppszFileNames[i], iIconNormal, iIconNormal, iIconOverlayed, 0, hItem);
 		}
 	}
@@ -1646,6 +1650,26 @@ void FavesDialog::SortElementsRecursive(vector<tItemElement>* vElement, int d, i
 }
 
 
+void FavesDialog::ExpandElementsRecursive(HTREEITEM hItem)
+{
+	HTREEITEM	hCurrentItem	= TreeView_GetNextItem(_hTreeCtrl, hItem, TVGN_CHILD);
+
+	while (hCurrentItem)
+	{
+		PELEM	pElem = (PELEM)GetParam(hCurrentItem);
+
+		if (pElem->uParam & FAVES_PARAM_EXPAND)
+		{
+			UpdateLink(hCurrentItem);
+			TreeView_Expand(_hTreeCtrl, hCurrentItem, TVM_EXPAND);
+			ExpandElementsRecursive(hCurrentItem);
+		}
+
+		hCurrentItem = TreeView_GetNextItem(_hTreeCtrl, hCurrentItem, TVGN_NEXT);
+	}
+}
+
+
 void FavesDialog::ReadSettings(void)
 {
 	tItemElement	list;
@@ -1700,6 +1724,12 @@ void FavesDialog::ReadSettings(void)
 				if (strcmp(cFavesItemNames[i], ptr) == 0)
 				{
 					ptr = strtok(NULL, "\n");
+					if (strstr(ptr, "Expand=") == ptr)
+					{
+						if (ptr[7] == '1')
+							_vDB[i].uParam |= FAVES_PARAM_EXPAND;
+						ptr = strtok(NULL, "\n");
+					}
 				}
 				else
 				{
@@ -1726,6 +1756,7 @@ void FavesDialog::ReadElementTreeRecursive(ELEM_ITR elem_itr, LPTSTR* ptr)
 	tItemElement	element;
 	LPTSTR			pszPos			= NULL;
 	UINT			root			= elem_itr->uParam & FAVES_PARAM;
+	UINT			param			= 0;
 
 	while (1)
 	{
@@ -1744,16 +1775,17 @@ void FavesDialog::ReadElementTreeRecursive(ELEM_ITR elem_itr, LPTSTR* ptr)
 			{
 				element.pszName	= (LPTSTR)new TCHAR[strlen(*ptr)-5];
 				strcpy(element.pszName, &(*ptr)[6]);
+				*ptr = strtok(NULL, "\n");
 			}
 			else
 				::MessageBox(_hSelf, "Error in file 'Favorites.dat'\nName in LINK not correct!", "Error", MB_OK);
 
 			/* get next element link */
-			*ptr = strtok(NULL, "\n");
 			if (strstr(*ptr, "\tLink=") == *ptr)
 			{
 				element.pszLink	= (LPTSTR)new TCHAR[strlen(*ptr)-5];
 				strcpy(element.pszLink, &(*ptr)[6]);
+				*ptr = strtok(NULL, "\n");
 			}
 			else
 				::MessageBox(_hSelf, "Error in file 'Favorites.dat'\nLink in LINK not correct!", "Error", MB_OK);
@@ -1762,8 +1794,6 @@ void FavesDialog::ReadElementTreeRecursive(ELEM_ITR elem_itr, LPTSTR* ptr)
 			element.vElements.clear();
 			
 			elem_itr->vElements.push_back(element);
-
-			*ptr = strtok(NULL, "\n");
 		}
 		else if ((strcmp(*ptr, "#GROUP") == 0) || (strcmp(*ptr, "#GROOP") == 0))
 		{
@@ -1775,17 +1805,23 @@ void FavesDialog::ReadElementTreeRecursive(ELEM_ITR elem_itr, LPTSTR* ptr)
 			{
 				element.pszName	= (LPTSTR)new TCHAR[strlen(*ptr)-5];
 				strcpy(element.pszName, &(*ptr)[6]);
+				*ptr = strtok(NULL, "\n");
 			}
 			else
 				::MessageBox(_hSelf, "Error in file 'Favorites.dat'\nName in GROUP not correct!", "Error", MB_OK);
 
+			if (strstr(*ptr, "\tExpand=") == *ptr)
+			{
+				if ((*ptr)[8] == '1')
+					param = FAVES_PARAM_EXPAND;
+				*ptr = strtok(NULL, "\n");
+			}
+
 			element.pszLink = NULL;
-			element.uParam	= FAVES_PARAM_GROUP | root;
+			element.uParam	= param | FAVES_PARAM_GROUP | root;
 			element.vElements.clear();
 
 			elem_itr->vElements.push_back(element);
-
-			*ptr = strtok(NULL, "\n");
 
 			ReadElementTreeRecursive(elem_itr->vElements.end()-1, ptr);
 		}
@@ -1811,7 +1847,7 @@ void FavesDialog::ReadElementTreeRecursive(ELEM_ITR elem_itr, LPTSTR* ptr)
 
 void FavesDialog::SaveSettings(void)
 {
-	TCHAR			temp[32];
+	TCHAR			temp[64];
 	PELEM			pElem			= NULL;
 
 	extern TCHAR	configPath[MAX_PATH];
@@ -1834,7 +1870,7 @@ void FavesDialog::SaveSettings(void)
 			pElem = (PELEM)GetParam(hItem);
 
 			/* store tree */
-			sprintf(temp, "%s\n", cFavesItemNames[i]);
+			sprintf(temp, "%s\nExpand=%i\n\n", cFavesItemNames[i], (bool)(_vDB[i].uParam & FAVES_PARAM_EXPAND));
 			WriteFile(hFile, temp, strlen(temp), &hasWritten, NULL);
 			SaveElementTreeRecursive(pElem, hFile);
 
@@ -1871,9 +1907,15 @@ void FavesDialog::SaveElementTreeRecursive(PELEM pElem, HANDLE hFile)
 		{
 			WriteFile(hFile, "#GROUP\n", strlen("#GROUP\n"), &hasWritten, NULL);
 
-			size = strlen(pElemItr->pszName)+8;
+			size = strlen(pElemItr->pszName)+7;
 			temp = (LPTSTR)new TCHAR[size+1];
-			sprintf(temp, "\tName=%s\n\n", pElemItr->pszName);
+			sprintf(temp, "\tName=%s\n", pElemItr->pszName);
+			WriteFile(hFile, temp, size, &hasWritten, NULL);
+			delete [] temp;
+
+			size = strlen("\tExpand=0\n\n");
+			temp = (LPTSTR)new TCHAR[size+1];
+			sprintf(temp, "\tExpand=%i\n\n", (bool)(pElemItr->uParam & FAVES_PARAM_EXPAND));
 			WriteFile(hFile, temp, size, &hasWritten, NULL);
 			delete [] temp;
 

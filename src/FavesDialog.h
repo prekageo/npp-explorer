@@ -117,6 +117,8 @@ protected:
 	void SaveSettings(void);
 	void SaveElementTreeRecursive(PELEM pElem, HANDLE hFile);
 
+	void ExpandElementsRecursive(HTREEITEM hItem);
+
 	eLinkDlg MapPropDlg(int root) {
 		switch (root) {
 			case FAVES_FOLDERS:		return LINK_DLG_FOLDER;
