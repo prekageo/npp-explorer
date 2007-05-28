@@ -48,6 +48,7 @@ BOOL CALLBACK OptionDlg::run_dlgProc(HWND hwnd, UINT Message, WPARAM wParam, LPA
 			{
 				::SendDlgItemMessage(_hSelf, IDC_COMBO_DATE_FORMAT, CB_ADDSTRING, 0, (LPARAM)pszDateFmt[i]);
 			}
+			::SendDlgItemMessage(_hSelf, IDC_EDIT_TIMEOUT, EM_LIMITTEXT, 5, 0);
 			
 			SetParams();
 			LongUpdate();
@@ -115,6 +116,10 @@ void OptionDlg::SetParams(void)
 
 	::SendDlgItemMessage(_hSelf, IDC_CHECK_BRACES, BM_SETCHECK, _pProp->bViewBraces?BST_CHECKED:BST_UNCHECKED, 0);
 	::SendDlgItemMessage(_hSelf, IDC_CHECK_HIDDEN, BM_SETCHECK, _pProp->bShowHidden?BST_CHECKED:BST_UNCHECKED, 0);
+	::SendDlgItemMessage(_hSelf, IDC_CHECK_USEICON, BM_SETCHECK, _pProp->bUseSystemIcons?BST_CHECKED:BST_UNCHECKED, 0);
+
+	char	TEMP[6];
+	::SetDlgItemText(_hSelf, IDC_EDIT_TIMEOUT, itoa(_pProp->uTimeout, TEMP, 10));
 }
 
 
@@ -144,6 +149,15 @@ BOOL OptionDlg::GetParams(void)
 		_pProp->bShowHidden = TRUE;
 	else
 		_pProp->bShowHidden = FALSE;
+
+	if (::SendDlgItemMessage(_hSelf, IDC_CHECK_USEICON, BM_GETCHECK, 0, 0) == BST_CHECKED)
+		_pProp->bUseSystemIcons = TRUE;
+	else
+		_pProp->bUseSystemIcons = FALSE;
+
+	char	TEMP[6];
+	::GetDlgItemText(_hSelf, IDC_EDIT_TIMEOUT, TEMP, 6);
+	_pProp->uTimeout = (UINT)atoi(TEMP);
 
 	return bRet;
 }
