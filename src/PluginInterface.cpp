@@ -75,6 +75,8 @@ CONST TCHAR SizeFormat[]		= "SizeFormat";
 CONST TCHAR DateFormat[]		= "DateFormat";
 CONST TCHAR FilterHistory[]		= "FilterHistory";
 CONST TCHAR LastFilter[]		= "LastFilter";
+CONST TCHAR TimeOut[]			= "TimeOut";
+CONST TCHAR UseSystemIcons[]	= "UseSystemIcons";
 
 
 /* global values */
@@ -226,6 +228,8 @@ BOOL APIENTRY DllMain( HANDLE hModule,
 			exProp.bAddExtToName			= ::GetPrivateProfileInt(Explorer, AddExtToName, FALSE, iniFilePath);
 			exProp.fmtSize					= (eSizeFmt)::GetPrivateProfileInt(Explorer, SizeFormat, SFMT_KBYTE, iniFilePath);
 			exProp.fmtDate					= (eDateFmt)::GetPrivateProfileInt(Explorer, DateFormat, DFMT_ENG, iniFilePath);
+			exProp.uTimeout					= ::GetPrivateProfileInt(Explorer, TimeOut, 1000, iniFilePath);
+			exProp.bUseSystemIcons			= ::GetPrivateProfileInt(Explorer, UseSystemIcons, TRUE, iniFilePath);
 
 			TCHAR	number[3];
 			LPTSTR	pszTemp = new TCHAR[MAX_PATH];
@@ -286,6 +290,8 @@ BOOL APIENTRY DllMain( HANDLE hModule,
 			::WritePrivateProfileString(Explorer, SizeFormat, itoa((INT)exProp.fmtSize, temp, 10), iniFilePath);
 			::WritePrivateProfileString(Explorer, DateFormat, itoa((INT)exProp.fmtDate, temp, 10), iniFilePath);
 			::WritePrivateProfileString(Explorer, DateFormat, itoa((INT)exProp.fmtDate, temp, 10), iniFilePath);
+			::WritePrivateProfileString(Explorer, TimeOut, itoa((INT)exProp.uTimeout, temp, 10), iniFilePath);
+			::WritePrivateProfileString(Explorer, UseSystemIcons, itoa(exProp.bUseSystemIcons, temp, 10), iniFilePath);
 
 			for (INT i = exProp.vStrFilterHistory.size() - 1; i >= 0 ; i--)
 			{
@@ -609,7 +615,8 @@ HIMAGELIST GetSystemImageList(BOOL fSmall)
 }
 
 
-void ExtractIcons(LPCSTR currentPath, LPCSTR volumeName, bool isDir, LPINT iIconNormal, LPINT iIconSelected, LPINT iIconOverlayed)
+void ExtractIcons(LPCSTR currentPath, LPCSTR volumeName, eDevType type, 
+	LPINT iIconNormal, LPINT iIconSelected, LPINT iIconOverlayed)
 {
 	SHFILEINFO		sfi	= {0};
 	TCHAR			TEMP[MAX_PATH];
@@ -629,35 +636,89 @@ void ExtractIcons(LPCSTR currentPath, LPCSTR volumeName, bool isDir, LPINT iIcon
 		strcat(TEMP, volumeName);
 	}
 
-
-	/* get normal and overlayed icon */
-	if (isDir)
+	if (exProp.bUseSystemIcons == FALSE)
 	{
-		SHGetFileInfo(TEMP, 0, &sfi, sizeof(SHFILEINFO), SHGFI_ICON | SHGFI_SMALLICON | SHGFI_OVERLAYINDEX);
-		if (TEMP[4] == '\0')
+		if (type == DEVT_DRIVE)
 		{
-			::DestroyIcon(sfi.hIcon);
-			SHGetFileInfo(TEMP, FILE_ATTRIBUTE_NORMAL, &sfi, sizeof(SHFILEINFO), SHGFI_ICON | SHGFI_SMALLICON | SHGFI_OVERLAYINDEX | SHGFI_USEFILEATTRIBUTES);
+			/* get drive icon in any case correct */
+			if ((type == DEVT_DRIVE) || (TEMP[4] == '\0'))
+			{
+				SHGetFileInfo(TEMP, 
+					0, 
+					&sfi, 
+					sizeof(SHFILEINFO), 
+					SHGFI_ICON | SHGFI_SMALLICON | SHGFI_OVERLAYINDEX);
+				SHGetFileInfo(TEMP, 
+					FILE_ATTRIBUTE_NORMAL, 
+					&sfi, 
+					sizeof(SHFILEINFO), 
+					SHGFI_ICON | SHGFI_SMALLICON | SHGFI_OVERLAYINDEX);
+				*iIconNormal	= sfi.iIcon & 0x000000ff;
+				*iIconSelected	= sfi.iIcon & 0x000000ff;
+				*iIconOverlayed = sfi.iIcon >> 24;
+				::DestroyIcon(sfi.hIcon);
+			}
+		}
+		else if (type == DEVT_DIRECTORY)
+		{
+			*iIconNormal	= 5;
+			*iIconSelected	= 5;
+			*iIconOverlayed = 0;
+		}
+		else
+		{
+			*iIconNormal	= 6;
+			*iIconSelected	= 6;
+			*iIconOverlayed = 0;
 		}
 	}
 	else
 	{
-		SHGetFileInfo(TEMP, FILE_ATTRIBUTE_NORMAL, &sfi, sizeof(SHFILEINFO), SHGFI_ICON | SHGFI_SMALLICON | SHGFI_OVERLAYINDEX | SHGFI_USEFILEATTRIBUTES);
-	}
+		/* get normal and overlayed icon */
+		if ((type == DEVT_DIRECTORY) || (type == DEVT_DRIVE))
+		{
+			SHGetFileInfo(TEMP, 
+				0, 
+				&sfi, 
+				sizeof(SHFILEINFO), 
+				SHGFI_ICON | SHGFI_SMALLICON | SHGFI_OVERLAYINDEX);
+			if (TEMP[4] == '\0')
+			{
+				::DestroyIcon(sfi.hIcon);
+				SHGetFileInfo(TEMP, 
+					FILE_ATTRIBUTE_NORMAL, 
+					&sfi, 
+					sizeof(SHFILEINFO), 
+					SHGFI_ICON | SHGFI_SMALLICON | SHGFI_OVERLAYINDEX | SHGFI_USEFILEATTRIBUTES);
+			}
+		}
+		else
+		{
+			SHGetFileInfo(TEMP, 
+				FILE_ATTRIBUTE_NORMAL, 
+				&sfi, 
+				sizeof(SHFILEINFO), 
+				SHGFI_ICON | SHGFI_SMALLICON | SHGFI_OVERLAYINDEX | SHGFI_USEFILEATTRIBUTES);
+		}
 
-	*iIconNormal	= sfi.iIcon & 0x000000ff;
-	*iIconOverlayed = sfi.iIcon >> 24;
-	::DestroyIcon(sfi.hIcon);
+		*iIconNormal	= sfi.iIcon & 0x000000ff;
+		*iIconOverlayed = sfi.iIcon >> 24;
+		::DestroyIcon(sfi.hIcon);
 
-	/* get selected icon */
-	if (isDir)
-	{
-		SHGetFileInfo(TEMP, 0, &sfi, sizeof(SHFILEINFO), SHGFI_SYSICONINDEX | SHGFI_SMALLICON | SHGFI_OPENICON);
-		*iIconSelected = sfi.iIcon;
-	}
-	else
-	{
-		*iIconSelected = 0;
+		/* get selected icon */
+		if ((type == DEVT_DIRECTORY) || (type == DEVT_DRIVE))
+		{
+			SHGetFileInfo(TEMP, 
+				0, 
+				&sfi, 
+				sizeof(SHFILEINFO), 
+				SHGFI_SYSICONINDEX | SHGFI_SMALLICON | SHGFI_OPENICON);
+			*iIconSelected = sfi.iIcon;
+		}
+		else
+		{
+			*iIconSelected = 0;
+		}
 	}
 }
 
