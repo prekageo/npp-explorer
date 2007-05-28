@@ -41,8 +41,8 @@ BOOL	DEBUG_ON		= FALSE;
 #define CSIDL_PROFILE (0x0028)
 #endif
 
-HANDLE hEvent[EID_MAX]	= {NULL};
-HANDLE hThread			= NULL;
+HANDLE g_hEvent[EID_MAX]	= {NULL};
+HANDLE g_hThread			= NULL;
 
 
 
@@ -56,7 +56,7 @@ DWORD WINAPI UpdateThread(LPVOID lpParam)
 
 	while (bRun)
 	{
-		dwWaitResult = ::WaitForMultipleObjects(EID_MAX, hEvent, FALSE, INFINITE);
+		dwWaitResult = ::WaitForMultipleObjects(EID_MAX, g_hEvent, FALSE, INFINITE);
 
 		if (dwWaitResult == EID_THREAD_END)
 		{
@@ -70,6 +70,21 @@ DWORD WINAPI UpdateThread(LPVOID lpParam)
 	return 0;
 }
 
+
+DWORD WINAPI GetVolumeInformationTimeoutThread(LPVOID lpParam)
+{
+	DWORD			serialNr		= 0;
+	DWORD			space			= 0;
+	DWORD			flags			= 0;
+	tGetVolumeInfo*	volInfo         = (tGetVolumeInfo*)lpParam;
+
+	*volInfo->pIsValidDrive = GetVolumeInformation(volInfo->pszDrivePathName,
+		volInfo->pszVolumeName, volInfo->maxSize, &serialNr, &space, &flags, NULL, 0);
+
+	::SetEvent(g_hEvent[EID_GET_VOLINFO]);
+
+	return 0;
+}
 
 
 static ToolBarButtonUnit toolBarIcons[] = {
@@ -168,6 +183,7 @@ void ExplorerDialog::init(HINSTANCE hInst, NppData nppData, tExProp *prop)
 	DockingDlgInterface::init(hInst, nppData._nppHandle);
 
 	_pExProp = prop;
+	_FileList.initProp(_pExProp);
 }
 
 
@@ -202,10 +218,10 @@ BOOL CALLBACK ExplorerDialog::run_dlgProc(HWND hWnd, UINT Message, WPARAM wParam
 
 			/* create events */
 			for (int i = 0; i < EID_MAX; i++)
-				hEvent[i] = ::CreateEvent(NULL, FALSE, FALSE, NULL);
+				g_hEvent[i] = ::CreateEvent(NULL, FALSE, FALSE, NULL);
 
 			/* create thread */
-			hThread = ::CreateThread(NULL, 0, UpdateThread, this, 0, &dwThreadId);
+			g_hThread = ::CreateThread(NULL, 0, UpdateThread, this, 0, &dwThreadId);
 			break;
 		}
 		case WM_COMMAND:
@@ -359,44 +375,18 @@ BOOL CALLBACK ExplorerDialog::run_dlgProc(HWND hWnd, UINT Message, WPARAM wParam
 			RECT	rcWnd		= {0};
 			RECT	rcBuff		= {0};
 
-			if (_bOldRectInitilized == 0)
-			{
-				getClientRect(_rcOldSize);
-				getClientRect(_rcOldSizeHorizontal);
-				_bOldRectInitilized = 1;
-			}
+			getClientRect(rc);
+
 			if ((_iDockedPos == CONT_LEFT) || (_iDockedPos == CONT_RIGHT))
 			{
 				INT		splitterPos	= _pExProp->iSplitterPos;
 
-				/* set splitter position (%) */
-				if (_bOldRectInitilized)
-				{
-					getClientRect(rc);
-					if ((_rcOldSize.bottom != rc.bottom) && (_bOldRectInitilized == 1))
-					{
-						getClientRect(_rcOldSize);
-						_bOldRectInitilized = 2;
-					}
-					_pExProp->iSplitterPos -= ((_rcOldSize.bottom - rc.bottom) / 2);
-					splitterPos	= _pExProp->iSplitterPos;
-				}
-
-				/* store old client rect */
-				getClientRect(_rcOldSize);
-
-				/* correct real splitter position */
-				if (splitterPos < 0)
-				{
-					splitterPos = 0;
-				}
-				else if (splitterPos > (rc.bottom - 54))
-				{
-					splitterPos = rc.bottom - 54;
-				}
+				if (splitterPos < 50)
+					splitterPos = 50;
+				else if (splitterPos > (rc.bottom - 100))
+					splitterPos = rc.bottom - 100;
 
 				/* set position of toolbar */
-				getClientRect(rc);
 				_ToolBar.reSizeTo(rc);
 				_Rebar.reSizeTo(rc);
 
@@ -454,28 +444,12 @@ BOOL CALLBACK ExplorerDialog::run_dlgProc(HWND hWnd, UINT Message, WPARAM wParam
 			{
 				INT		splitterPos	= _pExProp->iSplitterPosHorizontal;
 
-				/* triggered by notification NPPN_READY */
-				if (_bOldRectInitilized)
-				{
-					getClientRect(rc);
-					splitterPos	= _pExProp->iSplitterPosHorizontal;
-				}
-
-				/* store old client rect */
-				getClientRect(_rcOldSizeHorizontal);
-
-				/* correct real splitter position */
-				if (splitterPos < 0)
-				{
-					splitterPos = 0;
-				}
-				else if (splitterPos > (rc.right - 6))
-				{
-					splitterPos = rc.right - 6;
-				}
+				if (splitterPos < 50)
+					splitterPos = 50;
+				else if (splitterPos > (rc.right - 50))
+					splitterPos = rc.right - 50;
 
 				/* set position of toolbar */
-				getClientRect(rc);
 				rc.right   = splitterPos;
 				_ToolBar.reSizeTo(rc);
 				_Rebar.reSizeTo(rc);
@@ -561,14 +535,14 @@ BOOL CALLBACK ExplorerDialog::run_dlgProc(HWND hWnd, UINT Message, WPARAM wParam
 			_ComboFilter.getText(szLastFilter, MAX_PATH);
 			_pExProp->strLastFilter = szLastFilter;
 
-			::SetEvent(hEvent[EID_THREAD_END]);
+			::SetEvent(g_hEvent[EID_THREAD_END]);
 
 			/* destroy events */
 			for (int i = 0; i < EID_MAX; i++)
-				::CloseHandle(hEvent[i]);
+				::CloseHandle(g_hEvent[i]);
 
 			/* destroy thread */
-			::CloseHandle(hThread);
+			::CloseHandle(g_hThread);
 
 			/* destroy duplicated handle when we are on W2k machine */
 			if (getWindowsVersion() == WV_W2K)
@@ -703,12 +677,12 @@ BOOL CALLBACK ExplorerDialog::run_dlgProc(HWND hWnd, UINT Message, WPARAM wParam
 			if (wParam == EXT_UPDATEDEVICE)
 			{
 				::KillTimer(_hSelf, EXT_UPDATEDEVICE);
-				::SetEvent(hEvent[EID_UPDATE_DEVICE]);
+				::SetEvent(g_hEvent[EID_UPDATE_DEVICE]);
 			}
 			else if (wParam == EXT_UPDATE)
 			{
 				::KillTimer(_hSelf, EXT_UPDATE);
-				::SetEvent(hEvent[EID_UPDATE_ACTIVATE]);
+				::SetEvent(g_hEvent[EID_UPDATE_ACTIVATE]);
 			}
 			else if (wParam == EXT_UPDATEPATH)
 			{
@@ -768,28 +742,28 @@ LRESULT ExplorerDialog::runSplitterProc(HWND hwnd, UINT Message, WPARAM wParam, 
 			_isLeftButtonDown = FALSE;
 
 			/* set cursor */
-			if (_iDockedPos < CONT_TOP)
+			if ((_iDockedPos == CONT_LEFT) || (_iDockedPos == CONT_RIGHT))
 			{
 				SetCursor(_hSplitterCursorUpDown);
-				if (_pExProp->iSplitterPos < 0)
+				if (_pExProp->iSplitterPos < 50)
 				{
-					_pExProp->iSplitterPos = 0;
+					_pExProp->iSplitterPos = 50;
 				}
-				else if (_pExProp->iSplitterPos > (rc.bottom - 56))
+				else if (_pExProp->iSplitterPos > (rc.bottom - 100))
 				{
-					_pExProp->iSplitterPos = rc.bottom - 56;
+					_pExProp->iSplitterPos = rc.bottom - 100;
 				}
 			}
 			else
 			{
 				SetCursor(_hSplitterCursorLeftRight);
-				if (_pExProp->iSplitterPosHorizontal < 0)
+				if (_pExProp->iSplitterPosHorizontal < 50)
 				{
-					_pExProp->iSplitterPosHorizontal = 0;
+					_pExProp->iSplitterPosHorizontal = 50;
 				}
-				else if (_pExProp->iSplitterPosHorizontal > (rc.right - 6))
+				else if (_pExProp->iSplitterPosHorizontal > (rc.right - 50))
 				{
-					_pExProp->iSplitterPosHorizontal = rc.right - 6;
+					_pExProp->iSplitterPosHorizontal = rc.right - 50;
 				}
 			}
 			break;
@@ -988,7 +962,7 @@ void ExplorerDialog::tb_cmd(UINT message)
 		}
 		case IDM_EX_UPDATE:
 		{
-			::SetEvent(hEvent[EID_UPDATE_USER]);
+			::SetEvent(g_hEvent[EID_UPDATE_USER]);
 			break;
 		}
 		default:
@@ -1088,7 +1062,7 @@ void ExplorerDialog::InitialDialog(void)
 	::SendMessage(_hTreeCtrl, TVM_SETIMAGELIST, TVSIL_NORMAL, (LPARAM)_hImageListSmall);
 
 	/* initial file list */
-	_FileList.init(_hInst, _hSelf, _hListCtrl, _hImageListSmall, _pExProp);
+	_FileList.init(_hInst, _hSelf, _hListCtrl, _hImageListSmall);
 
 	/* create toolbar */
 	if (GetVersion() & 0x80000000)
@@ -1217,9 +1191,6 @@ BOOL ExplorerDialog::SelectItem(LPTSTR path)
 void ExplorerDialog::UpdateDevices(void)
 {
 	BOOL			bDefaultDevice  = FALSE;
-	DWORD			serialNr		= 0;
-	DWORD			space			= 0;
-	DWORD			flags			= 0;
 	DWORD			driveList		= ::GetLogicalDrives();
 	BOOL			isValidDrive	= FALSE;
 
@@ -1236,7 +1207,7 @@ void ExplorerDialog::UpdateDevices(void)
 		if (0x01 & (driveList >> i))
 		{
 			/* create volume name */
-			isValidDrive = GetVolumeInformation(drivePathName, TEMP, MAX_PATH, &serialNr, &space, &flags, NULL, 0);
+			isValidDrive = ExploreVolumeInformation(drivePathName, TEMP, MAX_PATH);
 			if (isValidDrive == TRUE)
 			{
 				sprintf(volumeName, "%c: [%s]", 'A' + i, TEMP);
@@ -1275,7 +1246,7 @@ void ExplorerDialog::UpdateDevices(void)
 					}
 
 					/* get icons */
-					ExtractIcons(drivePathName, NULL, true, &iIconNormal, &iIconSelected, &iIconOverlayed);
+					ExtractIcons(drivePathName, NULL, DEVT_DRIVE, &iIconNormal, &iIconSelected, &iIconOverlayed);
 					UpdateItem(hCurrentItem, volumeName, iIconNormal, iIconSelected, iIconOverlayed, 0, haveChildren);
 					DeleteChildren(hCurrentItem);
 					hCurrentItem = TreeView_GetNextItem(_hTreeCtrl, hCurrentItem, TVGN_NEXT);
@@ -1420,7 +1391,7 @@ void ExplorerDialog::UpdateFolderRecursive(LPTSTR pszParentPath, HTREEITEM hPare
 			pszPath[strlen(pszPath) - 2] = '\0';
 
 			/* get icons and update item */
-			ExtractIcons(pszPath, NULL, true, &iIconNormal, &iIconSelected, &iIconOverlayed);
+			ExtractIcons(pszPath, NULL, DEVT_DIRECTORY, &iIconNormal, &iIconSelected, &iIconOverlayed);
 			bHidden = ((vFolderList[i].dwAttributes & FILE_ATTRIBUTE_HIDDEN) != 0);
 			UpdateItem(hCurrentItem, pszItem, iIconNormal, iIconSelected, iIconOverlayed, bHidden, haveChildren);
 
@@ -1529,3 +1500,28 @@ void ExplorerDialog::NotifyNewFile(void)
 }
 
 
+BOOL ExplorerDialog::ExploreVolumeInformation(LPCTSTR pszDrivePathName, LPTSTR pszVolumeName, UINT maxSize)
+{
+	tGetVolumeInfo	volInfo;
+	DWORD			dwThreadId		= 0;
+    DWORD			dwWaitResult    = 0;
+	BOOL			isValidDrive	= FALSE;
+	HANDLE			hThread			= NULL;
+
+	volInfo.pszDrivePathName	= pszDrivePathName;
+	volInfo.pszVolumeName		= pszVolumeName;
+	volInfo.maxSize				= maxSize;
+	volInfo.pIsValidDrive		= &isValidDrive;
+
+	hThread = ::CreateThread(NULL, 0, GetVolumeInformationTimeoutThread, &volInfo, 0, &dwThreadId);
+	dwWaitResult = ::WaitForSingleObject(g_hEvent[EID_GET_VOLINFO], _pExProp->uTimeout);
+
+	if (dwWaitResult == WAIT_TIMEOUT)
+	{
+		::TerminateThread(hThread, 0);
+		isValidDrive == FALSE;
+	}
+	::CloseHandle(hThread);
+
+	return isValidDrive;
+}

@@ -43,8 +43,16 @@ typedef enum {
 	EID_UPDATE_DEVICE,
 	EID_UPDATE_ACTIVATE,
 	EID_THREAD_END,
+	EID_GET_VOLINFO,
 	EID_MAX
 } eEventID;
+
+typedef struct {
+	LPCTSTR		pszDrivePathName;
+	LPTSTR		pszVolumeName;
+	UINT		maxSize;
+	LPBOOL		pIsValidDrive;
+} tGetVolumeInfo;
 
 
 class ExplorerDialog : public DockingDlgInterface, public TreeHelper
@@ -56,13 +64,13 @@ public:
     void init(HINSTANCE hInst, NppData nppData, tExProp *prop);
 
 	virtual void redraw(void) {
-
-		/* be sure to update the window first */
-		_FileList.redraw();
-
-		/* and only when dialog is visible, select item again */
 		if (isVisible() == true)
+		{
+			/* be sure to update the window first */
+			_FileList.redraw();
+			/* and only when dialog is visible, select item again */
 			SelectItem(_pExProp->szCurrentPath);
+		}
 	};
 
 	void destroy(void) {};
@@ -105,6 +113,7 @@ protected:
 	void tb_cmd(UINT message);
 
 	void GetFolderPathName(HTREEITEM currentItem, LPTSTR folderPathName);
+	BOOL ExploreVolumeInformation(LPCTSTR pszDrivePathName, LPTSTR pszVolumeName, UINT maxSize);
 
 private:
 	/* Handles */
@@ -134,8 +143,6 @@ private:
 	ReBar					_Rebar;
 
 	/* splitter values */
-	RECT					_rcOldSize;
-	RECT					_rcOldSizeHorizontal;
 	POINT					_ptOldPos;
 	POINT					_ptOldPosHorizontal;
 	BOOL					_isLeftButtonDown;
