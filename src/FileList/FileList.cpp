@@ -85,12 +85,11 @@ FileList::~FileList(void)
 	_vFiles.clear();
 }
 
-void FileList::init(HINSTANCE hInst, HWND hParent, HWND hParentList, HIMAGELIST hImageList, tExProp* prop)
+void FileList::init(HINSTANCE hInst, HWND hParent, HWND hParentList, HIMAGELIST hImageList)
 {
-	/* set handles for list */
+	/* this is the list element */
 	Window::init(hInst, hParent);
 	_hSelf		= hParentList;
-	_pExProp	= prop;
 
 	/* keep sure to support virtual list with icons */
 	DWORD	dwStyle = ::GetWindowLong(_hSelf, GWL_STYLE);
@@ -128,6 +127,11 @@ void FileList::init(HINSTANCE hInst, HWND hParent, HWND hParentList, HIMAGELIST 
 	_bitmap9 = ::LoadBitmap(_hInst, MAKEINTRESOURCE(IDB_HEADER_SORTDOWNHIGHXP));
 }
 
+void FileList::initProp(tExProp* prop)
+{
+	/* set properties */
+	_pExProp	= prop;
+}
 
 
 /****************************************************************************
@@ -854,24 +858,33 @@ void FileList::notify(WPARAM wParam, LPARAM lParam)
 void FileList::ReadIconToList(INT iItem, LPINT piIcon, LPINT piOverlayed, LPBOOL pbHidden)
 {
 	INT		maxFolders		= _vFolders.size();
+	INT		iIconSelected	= 0;
 
 	if (iItem < maxFolders)
 	{
-		*piIcon			= _vFolders[iItem].iIcon;
-		*piOverlayed	= _vFolders[iItem].iOverlayed;
-		*pbHidden		= _vFolders[iItem].bHidden;
+		if (_vFolders[iItem].bParent == FALSE)
+		{
+			ExtractIcons(_strCurrentPath.c_str(), _vFolders[iItem].strNameExt.c_str(), 
+				DEVT_DIRECTORY, piIcon, &iIconSelected, piOverlayed);
+		}
+		else
+		{
+			*piIcon			= _iImageList;
+			*piOverlayed	= 0;
+		}
+		*pbHidden	= _vFolders[iItem].bHidden;
 	}
 	else
 	{
-		*piIcon			= _vFiles[iItem-maxFolders].iIcon;
-		*piOverlayed	= _vFiles[iItem-maxFolders].iOverlayed;
-		*pbHidden		= _vFiles[iItem-maxFolders].bHidden;
+		ExtractIcons(_strCurrentPath.c_str(), _vFiles[iItem-maxFolders].strNameExt.c_str(), 
+			DEVT_FILE, piIcon, &iIconSelected, piOverlayed);
+		*pbHidden	= _vFiles[iItem-maxFolders].bHidden;
 	}
 }
 
 void FileList::ReadArrayToList(LPSTR szItem, INT iItem ,INT iSubItem)
 {
-	INT		maxFolders	= _vFolders.size();
+	INT		maxFolders		= _vFolders.size();
 
 	if (iItem < maxFolders)
 	{
@@ -936,7 +949,6 @@ void FileList::viewPath(LPCSTR currentPath, BOOL redraw)
 	LPSTR					szFilterPath	= (LPSTR)new TCHAR[MAX_PATH+1];
 	WIN32_FIND_DATA			Find			= {0};
 	HANDLE					hFind			= NULL;
-	INT						iIconSelected	= 0;
 	tFileListData			tempData;
 
 	/* add backslash if necessary */
@@ -961,9 +973,8 @@ void FileList::viewPath(LPCSTR currentPath, BOOL redraw)
 			if (IsValidFolder(Find) == TRUE)
 			{
 				/* get data in order of list elements */
-				ExtractIcons(currentPath, Find.cFileName, true, &tempData.iIcon, &iIconSelected, &tempData.iOverlayed);
-				tempData.bHidden = ((Find.dwFileAttributes & FILE_ATTRIBUTE_HIDDEN) != 0);
-
+				tempData.bParent	= FALSE;
+				tempData.bHidden	= ((Find.dwFileAttributes & FILE_ATTRIBUTE_HIDDEN) != 0);
 				tempData.strName	= Find.cFileName;
 				tempData.strNameExt	= Find.cFileName;
 				tempData.strExt		= "";
@@ -981,10 +992,8 @@ void FileList::viewPath(LPCSTR currentPath, BOOL redraw)
 			else if (IsValidParentFolder(Find) == TRUE)
 			{
 				/* if 'Find' is not a folder but a parent one */
-				tempData.iIcon		= _iImageList;
-				tempData.iOverlayed	= 0;
+				tempData.bParent	= TRUE;
 				tempData.bHidden	= FALSE;
-
 				tempData.strName	= Find.cFileName;
 				tempData.strNameExt	= Find.cFileName;
 				tempData.strExt		= "";
@@ -1029,10 +1038,8 @@ void FileList::viewPath(LPCSTR currentPath, BOOL redraw)
 					{
 						/* store for correct sorting the complete name (with extension) */
 						tempData.strNameExt	= Find.cFileName;
-
-						/* get icons */
-						ExtractIcons(currentPath, Find.cFileName, false, &tempData.iIcon, &iIconSelected, &tempData.iOverlayed);
-						tempData.bHidden = ((Find.dwFileAttributes & FILE_ATTRIBUTE_HIDDEN) != 0);
+						tempData.bParent	= FALSE;
+						tempData.bHidden	= ((Find.dwFileAttributes & FILE_ATTRIBUTE_HIDDEN) != 0);
 
 						/* extract name and extension */
 						LPSTR	extBeg = strrchr(&Find.cFileName[1], '.');
@@ -1299,11 +1306,11 @@ void FileList::onLMouseBtnDbl(void)
 BOOL FileList::FindNextItemInList(UINT maxFolder, UINT maxData, LPUINT puPos)
 {
 	BOOL	bRet		= FALSE;
-	INT		iStartPos	= *puPos;
+	UINT	iStartPos	= *puPos;
 	LPTSTR	pszFileName	= new TCHAR[MAX_PATH];
 
 	/* search in list */
-	for (INT i = iStartPos; i != (iStartPos-1); i++)
+	for (UINT i = iStartPos; i != (iStartPos-1); i++)
 	{
 		/* if max data is reached, set iterator to zero */
 		if (i == maxData)
