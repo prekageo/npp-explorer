@@ -117,6 +117,8 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 	#define IDC_RADIO_ATTACHED              (IDD_OPTION_DLG + 6)
 	#define IDC_CHECK_HIDDEN                (IDD_OPTION_DLG + 7)
 	#define IDC_STATIC_LONG                 (IDD_OPTION_DLG + 8)
+	#define IDC_CHECK_USEICON               (IDD_OPTION_DLG + 9)
+	#define IDC_EDIT_TIMEOUT                (IDD_OPTION_DLG + 10)
 
 #define    IDD_HELP_DLG	     30700
     #define IDC_EMAIL_LINK                  (IDD_HELP_DLG + 1)
