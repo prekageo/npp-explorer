@@ -78,6 +78,7 @@ static LPTSTR cFavesItemNames[11] = {
 #define FAVES_PARAM_MAIN		0x00000010
 #define FAVES_PARAM_GROUP		0x00000020
 #define FAVES_PARAM_LINK		0x00000040
+#define FAVES_PARAM_EXPAND		0x00000100
 
 
 typedef struct TItemElement {
@@ -264,6 +265,13 @@ typedef struct {
 
 
 typedef enum {
+	DEVT_DRIVE,
+	DEVT_DIRECTORY,
+	DEVT_FILE
+} eDevType;
+
+
+typedef enum {
 	SFMT_BYTES,
 	SFMT_KBYTE,
 	SFMT_DYNAMIC,
@@ -310,6 +318,8 @@ typedef struct {
 	eDateFmt		fmtDate;
 	vector<string>	vStrFilterHistory;
 	string			strLastFilter;
+	UINT			uTimeout;
+	BOOL			bUseSystemIcons;
 } tExProp;
 
 
@@ -337,7 +347,7 @@ bool IsValidFile(WIN32_FIND_DATA Find);
 BOOL HaveChildren(LPTSTR parentFolderPathName);
 
 HIMAGELIST GetSystemImageList(BOOL fSmall);
-void ExtractIcons(LPCSTR currentPath, LPCSTR fileName, bool isDir, LPINT iIconNormal, LPINT iIconSelected, LPINT iIconOverlayed);
+void ExtractIcons(LPCSTR currentPath, LPCSTR fileName, eDevType type, LPINT iIconNormal, LPINT iIconSelected, LPINT iIconOverlayed);
 
 /* Extended Window Funcions */
 void ClientToScreen(HWND hWnd, RECT* rect);
