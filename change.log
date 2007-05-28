@@ -5,7 +5,7 @@ Change-log for Explorer.dll
 07/05/28  v1.4 :
 ------------------------------------------------------------------------------------
     Fix: Option dialog crashed if explorer wasn't used until Notepad++ startup
-    Fix: Automatic splitter moved in some cases. Now splitter is fix
+    Fix: Automatic splitter moved in some cases
     New: Favorites stores the expand state
     New: The user can choose between Windows system icons or standard icons
     New: Changeable timeout when explorer updates volume information of drives.
