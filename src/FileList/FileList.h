@@ -35,8 +35,7 @@ using namespace std;
 
 
 typedef struct {
-	INT			iIcon;
-	INT			iOverlayed;
+	BOOL		bParent;
 	BOOL		bHidden;
 	string		strName;
 	string		strExt;
@@ -57,7 +56,8 @@ public:
 	FileList(void);
 	~FileList(void);
 	
-	void init(HINSTANCE hInst, HWND hParent, HWND hParentList, HIMAGELIST hImageList, tExProp* prop);
+	void init(HINSTANCE hInst, HWND hParent, HWND hParentList, HIMAGELIST hImageList);
+	void initProp(tExProp* prop);
 
 	void viewPath(LPCSTR currentPath, BOOL redraw = FALSE);
 
