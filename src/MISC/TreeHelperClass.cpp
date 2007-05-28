@@ -160,7 +160,7 @@ HTREEITEM TreeHelper::InsertChildFolder(LPTSTR childFolderName, HTREEITEM parent
 	INT					iIconOverlayed	= 0;
 
 	/* get icons */
-	ExtractIcons(parentFolderPathName, NULL, true, &iIconNormal, &iIconSelected, &iIconOverlayed);
+	ExtractIcons(parentFolderPathName, NULL, DEVT_DIRECTORY, &iIconNormal, &iIconSelected, &iIconOverlayed);
 
 	/* set item */
 	pCurrentItem = InsertItem(childFolderName, iIconNormal, iIconSelected, iIconOverlayed, bHidden, parentItem, insertAfter, haveChildren);
