@@ -34,19 +34,6 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #define IDI_HEART                           110
 #define IDI_EXPLORE							111
 
-/* List View Header Bitmaps */
-
-#define IDB_HEADER_NORMXP					1001
-#define IDB_HEADER_SNORMXP					1002
-#define IDB_HEADER_SHIGHXP					1003
-#define IDB_HEADER_HIGHXP					1004
-#define IDB_HEADER_ENORMXP					1005
-#define IDB_HEADER_EHIGHXP					1006
-#define IDB_HEADER_SORTUPNORMXP				1007
-#define IDB_HEADER_SORTUPHIGHXP				1008
-#define IDB_HEADER_SORTDOWNNORMXP			1009
-#define IDB_HEADER_SORTDOWNHIGHXP			1010
-
 
 /* Toolbar icons */
 
@@ -67,6 +54,12 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #define IDB_EX_FOLDERUSER					1064
 
 
+/* header sort icons */
+
+#define IDB_SORTUP							1065
+#define IDB_SORTDOWN						1066
+
+
 #define		IDM_TOOLBAR		2000
 	#define	IDM_EX_UNDO						(IDM_TOOLBAR + 1)
 	#define	IDM_EX_REDO						(IDM_TOOLBAR + 2)
@@ -79,8 +72,8 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 	#define	IDM_EX_LINK_NEW_FILE			(IDM_TOOLBAR + 9)
 	#define	IDM_EX_LINK_NEW_FOLDER			(IDM_TOOLBAR + 10)
 	#define	IDM_EX_LINK_NEW 				(IDM_TOOLBAR + 11)
-	#define	IDM_EX_LINK_EDIT				(IDM_TOOLBAR + 12)
-	#define IDM_EX_LINK_DELETE				(IDM_TOOLBAR + 13)
+	#define IDM_EX_LINK_DELETE				(IDM_TOOLBAR + 12)
+	#define	IDM_EX_LINK_EDIT				(IDM_TOOLBAR + 13)
 
 
 
