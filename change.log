@@ -2,6 +2,24 @@
 Change-log for Explorer.dll
 
 ------------------------------------------------------------------------------------
+07/08/10  v1.5 :
+------------------------------------------------------------------------------------
+    Fix: Cut/Copy of elements in Favorites caused crash
+    Fix: On typing file names in list, the element has now the correct focus
+    Fix: Remove owner drawn header in file list for better OS style support
+    Fix: Shell icons works now on every OS correctly. Own icons not added anymore 
+         to system image list.
+    New: Next and previous folder button supports drop down history
+    New: On "Folder of Current File" the file is now focused
+    New: File list partial owner drawn
+         - parent icon is manually blitted
+         - opened files now marked with an underline
+         - If "Ext. attached to Name" is enabled, extension sort is now possible
+    Change: Now using NPPM_GETPLUGINSCONFIGDIR to get *.ini file location
+    Change: Support of new Notepad message notifications
+    Change: Reorder of toolbar icons in Favorites dialog
+
+------------------------------------------------------------------------------------
 07/05/28  v1.4 :
 ------------------------------------------------------------------------------------
     Fix: Option dialog crashed if explorer wasn't used until Notepad++ startup
@@ -25,7 +43,7 @@ Change-log for Explorer.dll
 ------------------------------------------------------------------------------------
     Fix: Update of tree when switching between apps doesn't freeze Notepad anymore
     Fix: Folders and Files are now sorted correctly on W2k machines
-    Fix: Create of new files or folders with characters "\/:*?"<>" now denied
+    Fix: Create of new file or folder with characters "\/:*?"<>" now denied
     Fix: UTF8 named folder displayed as "????????" now hidden
     Fix: Layout behaviour of right docked explorer
     New: Remembering of last selected filter
