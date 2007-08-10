@@ -95,19 +95,25 @@ OptionDlg			optionDlg;
 HelpDlg				helpDlg;
 
 /* global explorer params */
-tExProp		exProp;
+tExProp				exProp;
 
 /* global favorite params */
-TCHAR	szLastElement[MAX_PATH];
+TCHAR				szLastElement[MAX_PATH];
 
 /* get system information */
-BOOL	isNotepadCreated	= FALSE;
+BOOL				isNotepadCreated	= FALSE;
 
 /* section Faves */
-CONST TCHAR LastElement[]	= "LastElement";
+CONST TCHAR			LastElement[]		= "LastElement";
 
 /* for subclassing */
-WNDPROC	wndProcNotepad		= NULL;
+WNDPROC				wndProcNotepad		= NULL;
+
+/* win version */
+winVer				gWinVersion			= WV_UNKNOWN;
+
+/* own image list */
+HIMAGELIST			ghImgList			= NULL;
 
 
 
@@ -121,66 +127,6 @@ BOOL APIENTRY DllMain( HANDLE hModule,
     {
 		case DLL_PROCESS_ATTACH:
 		{
-			TCHAR	nppPath[MAX_PATH];
-
-			GetModuleFileName((HMODULE)hModule, nppPath, sizeof(nppPath));
-            // remove the module name : get plugins directory path
-			PathRemoveFileSpec(nppPath);
- 
-			// cd .. : get npp executable path
-			PathRemoveFileSpec(nppPath);
- 
-			// Make localConf.xml path
-			TCHAR	localConfPath[MAX_PATH];
-			_tcscpy(localConfPath, nppPath);
-			PathAppend(localConfPath, NPP_LOCAL_XML);
- 
-			// Test if localConf.xml exist
-			if (PathFileExists(localConfPath) == TRUE)
-			{
-				/* make ini file path if not exist */
-				_tcscpy(configPath, nppPath);
-				_tcscat(configPath, CONFIG_PATH);
-				if (PathFileExists(configPath) == FALSE)
-				{
-					::CreateDirectory(configPath, NULL);
-				}
-			}
-			else
-			{
-				ITEMIDLIST *pidl;
-				SHGetSpecialFolderLocation(NULL, CSIDL_APPDATA, &pidl);
-				SHGetPathFromIDList(pidl, configPath);
- 
-				PathAppend(configPath, NPP);
-
-				/* move old version files to new directory, if they exist */
-				TCHAR	configFileOld[MAX_PATH];
-				PathRemoveFileSpec(localConfPath);
-				strcpy(configFileOld, localConfPath);
-				PathAppend(configFileOld, CONFIG_PATH);
-				PathAppend(configFileOld, EXPLORER_INI);
-				if (PathFileExists(configFileOld) == TRUE)
-				{
-					TCHAR	configFileNew[MAX_PATH];
-					strcpy(configFileNew, configPath);
-					PathAppend(configFileNew, EXPLORER_INI);
-					::MoveFile(configFileOld, configFileNew);
-					PathRemoveFileSpec(configFileOld);
-					PathRemoveFileSpec(configFileNew);
-					PathAppend(configFileOld, FAVES_DATA);
-					PathAppend(configFileNew, FAVES_DATA);
-					::MoveFile(configFileOld, configFileNew);
-				}
-			}
-
-			_tcscpy(iniFilePath, configPath);
-			_tcscat(iniFilePath, EXPLORER_INI);
-			if (PathFileExists(iniFilePath) == FALSE)
-			{
-				::CloseHandle(::CreateFile(iniFilePath, GENERIC_READ | GENERIC_WRITE, FILE_SHARE_READ | FILE_SHARE_WRITE, NULL, OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL));
-			}
-
 			/* Set function pointers */
 			funcItem[0]._pFunc = toggleExplorerDialog;
 			funcItem[1]._pFunc = toggleFavesDialog;
@@ -213,42 +159,23 @@ BOOL APIENTRY DllMain( HANDLE hModule,
 			funcItem[4]._pShKey				= NULL;
 			funcItem[5]._pShKey				= NULL;
 
-			::GetPrivateProfileString(Explorer, LastPath, "C:\\", exProp.szCurrentPath, MAX_PATH, iniFilePath);
-			exProp.iSplitterPos				= ::GetPrivateProfileInt(Explorer, SplitterPos, 120, iniFilePath);
-			exProp.iSplitterPosHorizontal	= ::GetPrivateProfileInt(Explorer, SplitterPosHor, 200, iniFilePath);
-			exProp.bAscending				= ::GetPrivateProfileInt(Explorer, SortAsc, TRUE, iniFilePath);
-			exProp.iSortPos					= ::GetPrivateProfileInt(Explorer, SortPos, 0, iniFilePath);
-			exProp.iColumnPosName			= ::GetPrivateProfileInt(Explorer, ColPosName, 150, iniFilePath);
-			exProp.iColumnPosExt			= ::GetPrivateProfileInt(Explorer, ColPosExt, 50, iniFilePath);
-			exProp.iColumnPosSize			= ::GetPrivateProfileInt(Explorer, ColPosSize, 70, iniFilePath);
-			exProp.iColumnPosDate			= ::GetPrivateProfileInt(Explorer, ColPosDate, 100, iniFilePath);
-			exProp.bShowHidden				= ::GetPrivateProfileInt(Explorer, ShowHiddenData, FALSE, iniFilePath);
-			exProp.bViewBraces				= ::GetPrivateProfileInt(Explorer, ShowBraces, TRUE, iniFilePath);
-			exProp.bViewLong				= ::GetPrivateProfileInt(Explorer, ShowLongInfo, FALSE, iniFilePath);
-			exProp.bAddExtToName			= ::GetPrivateProfileInt(Explorer, AddExtToName, FALSE, iniFilePath);
-			exProp.fmtSize					= (eSizeFmt)::GetPrivateProfileInt(Explorer, SizeFormat, SFMT_KBYTE, iniFilePath);
-			exProp.fmtDate					= (eDateFmt)::GetPrivateProfileInt(Explorer, DateFormat, DFMT_ENG, iniFilePath);
-			exProp.uTimeout					= ::GetPrivateProfileInt(Explorer, TimeOut, 1000, iniFilePath);
-			exProp.bUseSystemIcons			= ::GetPrivateProfileInt(Explorer, UseSystemIcons, TRUE, iniFilePath);
-
-			TCHAR	number[3];
-			LPTSTR	pszTemp = new TCHAR[MAX_PATH];
-			for (INT i = 0; i < 20; i++)
-			{
-				sprintf(number, "%d", i);
-				if (::GetPrivateProfileString(FilterHistory, number, "", pszTemp, MAX_PATH, iniFilePath) != 0)
-					exProp.vStrFilterHistory.push_back(pszTemp);
-			}
-			::GetPrivateProfileString(Explorer, LastFilter, "*.*", pszTemp, MAX_PATH, iniFilePath);
-			exProp.strLastFilter = pszTemp;
-			delete [] pszTemp;
-
-			::GetPrivateProfileString(Faves, LastElement, "", szLastElement, MAX_PATH, iniFilePath);
+			/* set image list and icon */
+			ghImgList = ImageList_Create(16, 16, ILC_COLOR32 | ILC_MASK, 5, 5);
+			ImageList_AddIcon(ghImgList, ::LoadIcon((HINSTANCE)g_hModule, MAKEINTRESOURCE(IDI_FOLDER)));
+			ImageList_AddIcon(ghImgList, ::LoadIcon((HINSTANCE)g_hModule, MAKEINTRESOURCE(IDI_FILE)));
+			ImageList_AddIcon(ghImgList, ::LoadIcon((HINSTANCE)g_hModule, MAKEINTRESOURCE(IDI_WEB)));
+			ImageList_AddIcon(ghImgList, ::LoadIcon((HINSTANCE)g_hModule, MAKEINTRESOURCE(IDI_SESSION)));
+			ImageList_AddIcon(ghImgList, ::LoadIcon((HINSTANCE)g_hModule, MAKEINTRESOURCE(IDI_GROUP)));
+			ImageList_AddIcon(ghImgList, ::LoadIcon((HINSTANCE)g_hModule, MAKEINTRESOURCE(IDI_PARENTFOLDER)));
 			break;
 		}	
 		case DLL_PROCESS_DETACH:
 		{
-			TCHAR	temp[256];
+			/* save settings */
+			saveSettings();
+
+			/* destroy image list */
+			ImageList_Destroy(ghImgList);
 
 			/* destroy dialogs */
 			explorerDlg.destroy();
@@ -274,31 +201,6 @@ BOOL APIENTRY DllMain( HANDLE hModule,
 			if (g_TBFaves.hToolbarIcon)
 				::DestroyIcon(g_TBFaves.hToolbarIcon);
 
-			::WritePrivateProfileString(Explorer, LastPath, exProp.szCurrentPath, iniFilePath);
-			::WritePrivateProfileString(Explorer, SplitterPos, itoa(exProp.iSplitterPos, temp, 10), iniFilePath);
-			::WritePrivateProfileString(Explorer, SplitterPosHor, itoa(exProp.iSplitterPosHorizontal, temp, 10), iniFilePath);
-			::WritePrivateProfileString(Explorer, SortAsc, itoa(exProp.bAscending, temp, 10), iniFilePath);
-			::WritePrivateProfileString(Explorer, SortPos, itoa(exProp.iSortPos, temp, 10), iniFilePath);
-			::WritePrivateProfileString(Explorer, ColPosName, itoa(exProp.iColumnPosName, temp, 10), iniFilePath);
-			::WritePrivateProfileString(Explorer, ColPosExt, itoa(exProp.iColumnPosExt, temp, 10), iniFilePath);
-			::WritePrivateProfileString(Explorer, ColPosSize, itoa(exProp.iColumnPosSize, temp, 10), iniFilePath);
-			::WritePrivateProfileString(Explorer, ColPosDate, itoa(exProp.iColumnPosDate, temp, 10), iniFilePath);
-			::WritePrivateProfileString(Explorer, ShowHiddenData, itoa(exProp.bShowHidden, temp, 10), iniFilePath);
-			::WritePrivateProfileString(Explorer, ShowBraces, itoa(exProp.bViewBraces, temp, 10), iniFilePath);
-			::WritePrivateProfileString(Explorer, ShowLongInfo, itoa(exProp.bViewLong, temp, 10), iniFilePath);
-			::WritePrivateProfileString(Explorer, AddExtToName, itoa(exProp.bAddExtToName, temp, 10), iniFilePath);
-			::WritePrivateProfileString(Explorer, SizeFormat, itoa((INT)exProp.fmtSize, temp, 10), iniFilePath);
-			::WritePrivateProfileString(Explorer, DateFormat, itoa((INT)exProp.fmtDate, temp, 10), iniFilePath);
-			::WritePrivateProfileString(Explorer, DateFormat, itoa((INT)exProp.fmtDate, temp, 10), iniFilePath);
-			::WritePrivateProfileString(Explorer, TimeOut, itoa((INT)exProp.uTimeout, temp, 10), iniFilePath);
-			::WritePrivateProfileString(Explorer, UseSystemIcons, itoa(exProp.bUseSystemIcons, temp, 10), iniFilePath);
-
-			for (INT i = exProp.vStrFilterHistory.size() - 1; i >= 0 ; i--)
-			{
-				::WritePrivateProfileString(FilterHistory, itoa(i, temp, 10), exProp.vStrFilterHistory[i].c_str(), iniFilePath); 
-			}
-			::WritePrivateProfileString(Explorer, LastFilter, exProp.strLastFilter.c_str(), iniFilePath); 
-
 			break;
 		}
 		case DLL_THREAD_ATTACH:
@@ -316,9 +218,15 @@ extern "C" __declspec(dllexport) void setInfo(NppData notpadPlusData)
 	/* stores notepad data */
 	nppData = notpadPlusData;
 
+	/* get windows version */
+	gWinVersion  = (winVer)::SendMessage(nppData._nppHandle, NPPM_GETWINDOWSVERSION, 0, 0);
+
+	/* load data */
+	loadSettings();
+
 	/* initial dialogs */
 	explorerDlg.init((HINSTANCE)g_hModule, nppData, &exProp);
-	favesDlg.init((HINSTANCE)g_hModule, nppData, szLastElement);
+	favesDlg.init((HINSTANCE)g_hModule, nppData, szLastElement, &exProp);
 	optionDlg.init((HINSTANCE)g_hModule, nppData);
 	helpDlg.init((HINSTANCE)g_hModule, nppData);
 
@@ -351,19 +259,41 @@ extern "C" __declspec(dllexport) void beNotified(SCNotification *notifyCode)
 	if ((notifyCode->nmhdr.hwndFrom == nppData._scintillaMainHandle) ||
 		(notifyCode->nmhdr.hwndFrom == nppData._scintillaSecondHandle))
 	{
-		::SendMessage(nppData._nppHandle, WM_GETCURRENTSCINTILLA, 0, (LPARAM)&currentEdit);
+		::SendMessage(nppData._nppHandle, NPPM_GETCURRENTSCINTILLA, 0, (LPARAM)&currentEdit);
 		g_HSource = (currentEdit == 0)?nppData._scintillaMainHandle:nppData._scintillaSecondHandle;
 
 		char		newPath[MAX_PATH];
 
 		/* update open files */
-		::SendMessage(nppData._nppHandle, WM_GET_FULLCURRENTPATH, 0, (LPARAM)newPath);
+		::SendMessage(nppData._nppHandle, NPPM_GETFULLCURRENTPATH, 0, (LPARAM)newPath);
 
 		if (strcmp(newPath, currentFile) != 0)
 		{
+			INT			i = 0;
+			INT			docCnt;
+			const char	**fileNames;
+
+			/* update current path in explorer and favorites */
 			strcpy(currentFile, newPath);
 			explorerDlg.NotifyNewFile();
 			favesDlg.NotifyNewFile();
+			
+			/* update doc information for file list () */
+			docCnt		= (INT)::SendMessage(nppData._nppHandle, NPPM_NBOPENFILES, 0, ALL_OPEN_FILES);
+			fileNames	= (const char **)new char*[docCnt];
+
+			for (i = 0; i < docCnt; i++)
+				fileNames[i] = (char*)new char[MAX_PATH];
+
+			if (::SendMessage(nppData._nppHandle, NPPM_GETOPENFILENAMES, (WPARAM)fileNames, (LPARAM)docCnt))
+			{
+				INT openDoc = (INT)::SendMessage(nppData._nppHandle, NPPM_GETCURRENTDOCINDEX, 0, SC_MAINHANDLE);
+				explorerDlg.UpdateDocs(fileNames, docCnt, openDoc);
+			}
+
+			for (i = 0; i < docCnt; i++)
+				delete [] fileNames[i];
+			delete [] fileNames;
 		}
 	}
 	if (notifyCode->nmhdr.hwndFrom == nppData._nppHandle)
@@ -372,8 +302,8 @@ extern "C" __declspec(dllexport) void beNotified(SCNotification *notifyCode)
 		{
 			g_TBExplorer.hToolbarBmp = (HBITMAP)::LoadImage((HINSTANCE)g_hModule, MAKEINTRESOURCE(IDB_TB_EXPLORER), IMAGE_BITMAP, 0, 0, (LR_DEFAULTSIZE | LR_LOADMAP3DCOLORS));
 			g_TBFaves.hToolbarBmp = (HBITMAP)::LoadImage((HINSTANCE)g_hModule, MAKEINTRESOURCE(IDB_TB_FAVES), IMAGE_BITMAP, 0, 0, (LR_DEFAULTSIZE | LR_LOADMAP3DCOLORS));
-			::SendMessage(nppData._nppHandle, WM_ADDTOOLBARICON, (WPARAM)funcItem[DOCKABLE_EXPLORER_INDEX]._cmdID, (LPARAM)&g_TBExplorer);
-			::SendMessage(nppData._nppHandle, WM_ADDTOOLBARICON, (WPARAM)funcItem[DOCKABLE_FAVORTIES_INDEX]._cmdID, (LPARAM)&g_TBFaves);
+			::SendMessage(nppData._nppHandle, NPPM_ADDTOOLBARICON, (WPARAM)funcItem[DOCKABLE_EXPLORER_INDEX]._cmdID, (LPARAM)&g_TBExplorer);
+			::SendMessage(nppData._nppHandle, NPPM_ADDTOOLBARICON, (WPARAM)funcItem[DOCKABLE_FAVORTIES_INDEX]._cmdID, (LPARAM)&g_TBFaves);
 		}
 		if (notifyCode->nmhdr.code == NPPN_READY)
 		{
@@ -405,6 +335,97 @@ extern "C" __declspec(dllexport) void messageProc(UINT Message, WPARAM wParam, L
 UINT ScintillaMsg(UINT message, WPARAM wParam, LPARAM lParam)
 {
 	return ::SendMessage(g_HSource, message, wParam, lParam);
+}
+
+/***
+ *	loadSettings()
+ *
+ *	Load the parameters for plugin
+ */
+void loadSettings(void)
+{
+	/* initialize the config directory */
+	::SendMessage(nppData._nppHandle, NPPM_GETPLUGINSCONFIGDIR, MAX_PATH, (LPARAM)configPath);
+
+	/* Test if config path exist */
+	if (PathFileExists(configPath) == FALSE)
+	{
+		::CreateDirectory(configPath, NULL);
+	}
+
+	strcpy(iniFilePath, configPath);
+	strcat(iniFilePath, EXPLORER_INI);
+	if (PathFileExists(iniFilePath) == FALSE)
+	{
+		::CloseHandle(::CreateFile(iniFilePath, GENERIC_READ | GENERIC_WRITE, FILE_SHARE_READ | FILE_SHARE_WRITE, NULL, OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL));
+	}
+
+	::GetPrivateProfileString(Explorer, LastPath, "C:\\", exProp.szCurrentPath, MAX_PATH, iniFilePath);
+	exProp.iSplitterPos				= ::GetPrivateProfileInt(Explorer, SplitterPos, 120, iniFilePath);
+	exProp.iSplitterPosHorizontal	= ::GetPrivateProfileInt(Explorer, SplitterPosHor, 200, iniFilePath);
+	exProp.bAscending				= ::GetPrivateProfileInt(Explorer, SortAsc, TRUE, iniFilePath);
+	exProp.iSortPos					= ::GetPrivateProfileInt(Explorer, SortPos, 0, iniFilePath);
+	exProp.iColumnPosName			= ::GetPrivateProfileInt(Explorer, ColPosName, 150, iniFilePath);
+	exProp.iColumnPosExt			= ::GetPrivateProfileInt(Explorer, ColPosExt, 50, iniFilePath);
+	exProp.iColumnPosSize			= ::GetPrivateProfileInt(Explorer, ColPosSize, 70, iniFilePath);
+	exProp.iColumnPosDate			= ::GetPrivateProfileInt(Explorer, ColPosDate, 100, iniFilePath);
+	exProp.bShowHidden				= ::GetPrivateProfileInt(Explorer, ShowHiddenData, FALSE, iniFilePath);
+	exProp.bViewBraces				= ::GetPrivateProfileInt(Explorer, ShowBraces, TRUE, iniFilePath);
+	exProp.bViewLong				= ::GetPrivateProfileInt(Explorer, ShowLongInfo, FALSE, iniFilePath);
+	exProp.bAddExtToName			= ::GetPrivateProfileInt(Explorer, AddExtToName, FALSE, iniFilePath);
+	exProp.fmtSize					= (eSizeFmt)::GetPrivateProfileInt(Explorer, SizeFormat, SFMT_KBYTE, iniFilePath);
+	exProp.fmtDate					= (eDateFmt)::GetPrivateProfileInt(Explorer, DateFormat, DFMT_ENG, iniFilePath);
+	exProp.uTimeout					= ::GetPrivateProfileInt(Explorer, TimeOut, 1000, iniFilePath);
+	exProp.bUseSystemIcons			= ::GetPrivateProfileInt(Explorer, UseSystemIcons, TRUE, iniFilePath);
+
+	TCHAR	number[3];
+	LPTSTR	pszTemp = new TCHAR[MAX_PATH];
+	for (INT i = 0; i < 20; i++)
+	{
+		sprintf(number, "%d", i);
+		if (::GetPrivateProfileString(FilterHistory, number, "", pszTemp, MAX_PATH, iniFilePath) != 0)
+			exProp.vStrFilterHistory.push_back(pszTemp);
+	}
+	::GetPrivateProfileString(Explorer, LastFilter, "*.*", pszTemp, MAX_PATH, iniFilePath);
+	exProp.strLastFilter = pszTemp;
+	delete [] pszTemp;
+
+	::GetPrivateProfileString(Faves, LastElement, "", szLastElement, MAX_PATH, iniFilePath);
+}
+
+/***
+ *	saveSettings()
+ *
+ *	Saves the parameters for plugin
+ */
+void saveSettings(void)
+{
+	TCHAR	temp[256];
+
+	::WritePrivateProfileString(Explorer, LastPath, exProp.szCurrentPath, iniFilePath);
+	::WritePrivateProfileString(Explorer, SplitterPos, itoa(exProp.iSplitterPos, temp, 10), iniFilePath);
+	::WritePrivateProfileString(Explorer, SplitterPosHor, itoa(exProp.iSplitterPosHorizontal, temp, 10), iniFilePath);
+	::WritePrivateProfileString(Explorer, SortAsc, itoa(exProp.bAscending, temp, 10), iniFilePath);
+	::WritePrivateProfileString(Explorer, SortPos, itoa(exProp.iSortPos, temp, 10), iniFilePath);
+	::WritePrivateProfileString(Explorer, ColPosName, itoa(exProp.iColumnPosName, temp, 10), iniFilePath);
+	::WritePrivateProfileString(Explorer, ColPosExt, itoa(exProp.iColumnPosExt, temp, 10), iniFilePath);
+	::WritePrivateProfileString(Explorer, ColPosSize, itoa(exProp.iColumnPosSize, temp, 10), iniFilePath);
+	::WritePrivateProfileString(Explorer, ColPosDate, itoa(exProp.iColumnPosDate, temp, 10), iniFilePath);
+	::WritePrivateProfileString(Explorer, ShowHiddenData, itoa(exProp.bShowHidden, temp, 10), iniFilePath);
+	::WritePrivateProfileString(Explorer, ShowBraces, itoa(exProp.bViewBraces, temp, 10), iniFilePath);
+	::WritePrivateProfileString(Explorer, ShowLongInfo, itoa(exProp.bViewLong, temp, 10), iniFilePath);
+	::WritePrivateProfileString(Explorer, AddExtToName, itoa(exProp.bAddExtToName, temp, 10), iniFilePath);
+	::WritePrivateProfileString(Explorer, SizeFormat, itoa((INT)exProp.fmtSize, temp, 10), iniFilePath);
+	::WritePrivateProfileString(Explorer, DateFormat, itoa((INT)exProp.fmtDate, temp, 10), iniFilePath);
+	::WritePrivateProfileString(Explorer, DateFormat, itoa((INT)exProp.fmtDate, temp, 10), iniFilePath);
+	::WritePrivateProfileString(Explorer, TimeOut, itoa((INT)exProp.uTimeout, temp, 10), iniFilePath);
+	::WritePrivateProfileString(Explorer, UseSystemIcons, itoa(exProp.bUseSystemIcons, temp, 10), iniFilePath);
+
+	for (INT i = exProp.vStrFilterHistory.size() - 1; i >= 0 ; i--)
+	{
+		::WritePrivateProfileString(FilterHistory, itoa(i, temp, 10), exProp.vStrFilterHistory[i].c_str(), iniFilePath); 
+	}
+	::WritePrivateProfileString(Explorer, LastFilter, exProp.strLastFilter.c_str(), iniFilePath); 
 }
 
 
@@ -451,8 +472,10 @@ void toggleFavesDialog(void)
 
 void openOptionDlg(void)
 {
-	if (optionDlg.doDialog(&exProp) == IDOK)
+	if (optionDlg.doDialog(&exProp) == IDOK) {
 		explorerDlg.redraw();
+		favesDlg.redraw();
+	}
 }
 
 void openHelpDlg(void)
@@ -569,17 +592,13 @@ BOOL HaveChildren(LPTSTR parentFolderPathName)
 	BOOL				bRet		= FALSE;
 
 	if (parentFolderPathName[strlen(parentFolderPathName) - 1] != '\\')
-	{
 		strcat(parentFolderPathName, "\\");
-	}
 
 	/* add wildcard */
 	strcat(parentFolderPathName, "*");
 
 	if ((hFind = ::FindFirstFile(parentFolderPathName, &Find)) == INVALID_HANDLE_VALUE)
-	{
 		return FALSE;
-	}
 
 	do
 	{
@@ -598,20 +617,17 @@ BOOL HaveChildren(LPTSTR parentFolderPathName)
 /**************************************************************************
  *	Get system images
  */
-HIMAGELIST GetSystemImageList(BOOL fSmall)
+HIMAGELIST GetSmallImageList(BOOL bSystem)
 {
 	HIMAGELIST		himl	= NULL;
 	SHFILEINFO		sfi		= {0};
 
-	if (fSmall)
+	if (bSystem)
 		himl = (HIMAGELIST)SHGetFileInfo("C:\\", 0, &sfi, sizeof(SHFILEINFO), SHGFI_SYSICONINDEX | SHGFI_SMALLICON);
 	else
-		himl = (HIMAGELIST)SHGetFileInfo("C:\\", 0, &sfi, sizeof(SHFILEINFO), SHGFI_SYSICONINDEX);
+		himl = ghImgList;
 
-	if (getWindowsVersion() == WV_W2K)
-		return ImageList_Duplicate(himl);
-	else
-		return himl;
+	return himl;
 }
 
 
@@ -619,22 +635,17 @@ void ExtractIcons(LPCSTR currentPath, LPCSTR volumeName, eDevType type,
 	LPINT iIconNormal, LPINT iIconSelected, LPINT iIconOverlayed)
 {
 	SHFILEINFO		sfi	= {0};
+	UINT			length = strlen(currentPath) - 1;
 	TCHAR			TEMP[MAX_PATH];
 
 	strcpy(TEMP, currentPath);
-	if (TEMP[strlen(TEMP) - 1] == '*')
-	{
-		TEMP[strlen(TEMP) - 1] = '\0';
-	}
-	else if (TEMP[strlen(TEMP) - 1] != '\\')
-	{
+	if (TEMP[length] == '*')
+		TEMP[length] = '\0';
+	else if (TEMP[length] != '\\')
 		strcat(TEMP, "\\");
-	}
 
 	if (volumeName != NULL)
-	{
 		strcat(TEMP, volumeName);
-	}
 
 	if (exProp.bUseSystemIcons == FALSE)
 	{
@@ -661,14 +672,14 @@ void ExtractIcons(LPCSTR currentPath, LPCSTR volumeName, eDevType type,
 		}
 		else if (type == DEVT_DIRECTORY)
 		{
-			*iIconNormal	= 5;
-			*iIconSelected	= 5;
+			*iIconNormal	= ICON_FOLDER;
+			*iIconSelected	= ICON_FOLDER;
 			*iIconOverlayed = 0;
 		}
 		else
 		{
-			*iIconNormal	= 6;
-			*iIconSelected	= 6;
+			*iIconNormal	= ICON_FILE;
+			*iIconSelected	= ICON_FILE;
 			*iIconOverlayed = 0;
 		}
 	}
