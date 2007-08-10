@@ -64,7 +64,12 @@ public:
 	FavesDialog(void);
 	~FavesDialog(void);
 
-    void init(HINSTANCE hInst, NppData nppData, LPTSTR pCurrentPath);
+    void init(HINSTANCE hInst, NppData nppData, LPTSTR pCurrentPath, tExProp *prop);
+
+	virtual void redraw(void) {
+		ExpandElementsRecursive(TVI_ROOT);
+		DockingDlgInterface::redraw();
+	};
 
 	void destroy(void)
 	{
@@ -105,6 +110,7 @@ protected:
 	BOOL DoesLinkExist(LPTSTR link, int root);
 	void OpenLink(PELEM pElem);
 	void UpdateLink(HTREEITEM hItem);
+	void UpdateNode(HTREEITEM hItem, BOOL haveChildren);
 
 	void SortElementList(vector<tItemElement>* parentElement);
 	void SortElementsRecursive(vector<tItemElement>* parentElement, int d, int h);
@@ -137,8 +143,10 @@ private:
 	NppData					_nppData;
 	tTbData					_data;
 
-	HIMAGELIST				_hImageListSmall;
-	INT						_iUserImagePos;
+	BOOL					_isImlChanging;
+	BOOL					_isNotSysIml;
+	HIMAGELIST				_hImageList;
+	HIMAGELIST				_hImageListSys;
 
 	BOOL					_isCut;
 	HTREEITEM				_hTreeCutCopy;
@@ -151,6 +159,7 @@ private:
 	ReBar					_Rebar;
 
 	PELEM					_peOpenLink;
+	tExProp*				_pExProp;
 
 	/* database */
 	vector<tItemElement>	_vDB;

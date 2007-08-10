@@ -31,36 +31,38 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include <shlwapi.h>
 #include <shlobj.h>
 
+extern winVer gWinVersion;
+
 
 static void GetFolderPathName(HTREEITEM currentItem, LPTSTR folderPathName);
 
 static ToolBarButtonUnit toolBarIcons[] = {
 	
-    {IDM_EX_LINK_NEW_FILE,  IDI_SEPARATOR_ICON,		IDI_SEPARATOR_ICON,		IDI_SEPARATOR_ICON, -1},
-    {IDM_EX_LINK_NEW_FOLDER,IDI_SEPARATOR_ICON,		IDI_SEPARATOR_ICON,		IDI_SEPARATOR_ICON, -1},
+    {IDM_EX_LINK_NEW_FILE,  IDI_SEPARATOR_ICON,		IDI_SEPARATOR_ICON,		IDI_SEPARATOR_ICON, -1, 0},
+    {IDM_EX_LINK_NEW_FOLDER,IDI_SEPARATOR_ICON,		IDI_SEPARATOR_ICON,		IDI_SEPARATOR_ICON, -1, 0},
 
 	//-------------------------------------------------------------------------------------//
-	{0,						IDI_SEPARATOR_ICON,		IDI_SEPARATOR_ICON,		IDI_SEPARATOR_ICON, IDI_SEPARATOR_ICON},
+	{0,						IDI_SEPARATOR_ICON,		IDI_SEPARATOR_ICON,		IDI_SEPARATOR_ICON, IDI_SEPARATOR_ICON, 0},
 	//-------------------------------------------------------------------------------------//
 
-    {IDM_EX_LINK_NEW,  		IDI_SEPARATOR_ICON,		IDI_SEPARATOR_ICON,		IDI_SEPARATOR_ICON, -1},
-    {IDM_EX_LINK_EDIT,	    IDI_SEPARATOR_ICON,		IDI_SEPARATOR_ICON,		IDI_SEPARATOR_ICON, -1},
+    {IDM_EX_LINK_NEW,  		IDI_SEPARATOR_ICON,		IDI_SEPARATOR_ICON,		IDI_SEPARATOR_ICON, -1, 0},
+	{IDM_EX_LINK_DELETE,	IDI_SEPARATOR_ICON,		IDI_SEPARATOR_ICON,		IDI_SEPARATOR_ICON, -1, 0},
 
 	//-------------------------------------------------------------------------------------//
-	{0,						IDI_SEPARATOR_ICON,		IDI_SEPARATOR_ICON,		IDI_SEPARATOR_ICON, IDI_SEPARATOR_ICON},
+	{0,						IDI_SEPARATOR_ICON,		IDI_SEPARATOR_ICON,		IDI_SEPARATOR_ICON, IDI_SEPARATOR_ICON, 0},
 	//-------------------------------------------------------------------------------------//
 
-	{IDM_EX_LINK_DELETE,	IDI_SEPARATOR_ICON,		IDI_SEPARATOR_ICON,		IDI_SEPARATOR_ICON, -1}
+    {IDM_EX_LINK_EDIT,	    IDI_SEPARATOR_ICON,		IDI_SEPARATOR_ICON,		IDI_SEPARATOR_ICON, -1, 0}
 };    
 		
-static int stdIcons[] = {IDB_EX_LINKNEWFILE, IDB_EX_LINKNEWFOLDER, IDB_EX_LINKNEW, IDB_EX_LINKEDIT, IDB_EX_LINKDELETE};
+static int stdIcons[] = {IDB_EX_LINKNEWFILE, IDB_EX_LINKNEWFOLDER, IDB_EX_LINKNEW, IDB_EX_LINKDELETE, IDB_EX_LINKEDIT, 0};
 
 static LPTSTR szToolTip[23] = {
 	"Link Current File...",
 	"Link Current Folder...",
 	"New Link...",
-	"Edit Link...",
-	"Delete Link"
+	"Delete Link",
+	"Edit Link..."
 };
 
 void FavesDialog::GetNameStrFromCmd(UINT idButton, LPTSTR* tip)
@@ -74,6 +76,8 @@ void FavesDialog::GetNameStrFromCmd(UINT idButton, LPTSTR* tip)
 
 FavesDialog::FavesDialog(void) : DockingDlgInterface(IDD_EXPLORER_DLG)
 {
+	_isNotSysIml				= TRUE;
+	_isImlChanging			= FALSE;
 	_hTreeCtrl				= NULL;
 	_isSelNotifyEnable		= TRUE;
 	_isCut					= FALSE;
@@ -82,26 +86,21 @@ FavesDialog::FavesDialog(void) : DockingDlgInterface(IDD_EXPLORER_DLG)
 
 FavesDialog::~FavesDialog(void)
 {
+	ImageList_Destroy(_hImageList);
 }
 
 
-void FavesDialog::init(HINSTANCE hInst, NppData nppData, LPTSTR pCurrentElement)
+void FavesDialog::init(HINSTANCE hInst, NppData nppData, LPTSTR pCurrentElement, tExProp *prop)
 {
 	_nppData = nppData;
+	_pExProp = prop;
 	DockingDlgInterface::init(hInst, nppData._nppHandle);
 
 	_pCurrentElement  = pCurrentElement;
 
 	/* Load Image List */
-	SHFILEINFO		sfi	= {0};
-	_hImageListSmall = GetSystemImageList(TRUE);
-
-	/* set image list and icon */
-	_iUserImagePos = ImageList_AddIcon(_hImageListSmall, ::LoadIcon(_hInst, MAKEINTRESOURCE(IDI_FOLDER)));
-	ImageList_AddIcon(_hImageListSmall, ::LoadIcon(_hInst, MAKEINTRESOURCE(IDI_FILE)));
-	ImageList_AddIcon(_hImageListSmall, ::LoadIcon(_hInst, MAKEINTRESOURCE(IDI_WEB)));
-	ImageList_AddIcon(_hImageListSmall, ::LoadIcon(_hInst, MAKEINTRESOURCE(IDI_SESSION)));
-	ImageList_AddIcon(_hImageListSmall, ::LoadIcon(_hInst, MAKEINTRESOURCE(IDI_GROUP)));
+	_hImageListSys	= GetSmallImageList(TRUE);
+	_hImageList		= GetSmallImageList(FALSE);
 
 	/* init database */
 	ReadSettings();
@@ -120,7 +119,7 @@ void FavesDialog::doDialog(bool willBeShown)
 		_data.hIconTab		= (HICON)::LoadImage(_hInst, MAKEINTRESOURCE(IDI_HEART), IMAGE_ICON, 0, 0, LR_LOADMAP3DCOLORS | LR_LOADTRANSPARENT);
 		_data.pszModuleName	= getPluginFileName();
 		_data.dlgID			= DOCKABLE_FAVORTIES_INDEX;
-		::SendMessage(_hParent, WM_DMM_REGASDCKDLG, 0, (LPARAM)&_data);
+		::SendMessage(_hParent, NPPM_DMM_REGASDCKDLG, 0, (LPARAM)&_data);
 
 		/* Update "Add current..." icons */
 		NotifyNewFile();
@@ -144,11 +143,11 @@ void FavesDialog::NotifyNewFile(void)
 		LPTSTR	TEMP	= (LPTSTR)new TCHAR[MAX_PATH];
 
 		/* update "new file link" icon */
-		::SendMessage(_hParent, WM_GET_FULLCURRENTPATH, 0, (LPARAM)TEMP);
+		::SendMessage(_hParent, NPPM_GETFULLCURRENTPATH, 0, (LPARAM)TEMP);
 		_ToolBar.enable(IDM_EX_LINK_NEW_FILE, (TEMP[1] == ':'));
 
 		/* update "new folder link" icon */
-		::SendMessage(_hParent, WM_GET_CURRENTDIRECTORY, 0, (LPARAM)TEMP);
+		::SendMessage(_hParent, NPPM_GETCURRENTDIRECTORY, 0, (LPARAM)TEMP);
 		_ToolBar.enable(IDM_EX_LINK_NEW_FOLDER, (strlen(TEMP) != 0));
 
 		delete [] TEMP;
@@ -294,6 +293,62 @@ BOOL CALLBACK FavesDialog::run_dlgProc(HWND hWnd, UINT Message, WPARAM wParam, L
 						}						
 						break;
 					}
+					case NM_CUSTOMDRAW:
+					{
+						/* switch image lists to display icons of both lists */
+						if ((_isImlChanging) || (isVisible() == FALSE))
+							return FALSE;
+
+						LPNMTVCUSTOMDRAW lpCD = (LPNMTVCUSTOMDRAW) lParam;
+
+						switch (lpCD->nmcd.dwDrawStage)
+						{
+							case CDDS_PREPAINT:
+							{
+								SetWindowLong(_hSelf, DWL_MSGRESULT, (LONG)(CDRF_NOTIFYITEMDRAW|CDRF_NOTIFYPOSTPAINT));
+								return TRUE;
+							}
+							case CDDS_POSTPAINT:
+							{
+								_ToolBar.redraw();
+								return TRUE;
+							}
+							case CDDS_ITEMPREPAINT:
+							{
+								PELEM	pElem	= (PELEM)GetParam((HTREEITEM)lpCD->nmcd.dwItemSpec);
+
+								if (pElem) {
+									UINT	root = pElem->uParam & FAVES_PARAM;
+
+									if (((pElem->uParam & FAVES_PARAM_GROUP) || (pElem->uParam & FAVES_PARAM_MAIN) ||
+										((pElem->uParam & FAVES_PARAM_LINK) && ((root == FAVES_WEB) || (root == FAVES_SESSIONS)))))
+									{
+										_isImlChanging = TRUE;
+										::SendMessage(hWnd, WM_SETREDRAW, FALSE, 0);
+										::SendMessage(_hTreeCtrl, TVM_SETIMAGELIST, TVSIL_NORMAL, (LPARAM)_hImageList);
+										::SendMessage(hWnd, WM_SETREDRAW, TRUE, 0);
+										_isImlChanging = FALSE;
+
+										SetWindowLong(_hSelf, DWL_MSGRESULT, (LONG)(CDRF_NOTIFYPOSTPAINT));
+										return _pExProp->bUseSystemIcons;
+									}
+								}
+								return FALSE;
+							}
+							case CDDS_ITEMPOSTPAINT:
+							{
+								_isImlChanging = TRUE;
+								::SendMessage(hWnd, WM_SETREDRAW, FALSE, 0);
+								::SendMessage(_hTreeCtrl, TVM_SETIMAGELIST, TVSIL_NORMAL, (LPARAM)_hImageListSys);
+								::SendMessage(hWnd, WM_SETREDRAW, TRUE, 0);
+								_isImlChanging = FALSE;
+								return FALSE;
+							}
+							default:
+								return FALSE;
+						}
+						break;
+					}
 					default:
 						break;
 				}
@@ -348,8 +403,8 @@ BOOL CALLBACK FavesDialog::run_dlgProc(HWND hWnd, UINT Message, WPARAM wParam, L
 			::DestroyIcon(_data.hIconTab);
 
 			/* destroy duplicated handle when we are on W2k machine */
-			if (getWindowsVersion() == WV_W2K)
-				ImageList_Destroy(_hImageListSmall);
+			if (gWinVersion == WV_W2K)
+				ImageList_Destroy(_hImageListSys);
 			break;
 		}
 		case WM_TIMER:
@@ -377,7 +432,7 @@ void FavesDialog::tb_cmd(UINT message)
 		{
 			LPTSTR	TEMP	= (LPTSTR)new TCHAR[MAX_PATH];
 
-			::SendMessage(_hParent, WM_GET_FULLCURRENTPATH, 0, (LPARAM)TEMP);
+			::SendMessage(_hParent, NPPM_GETFULLCURRENTPATH, 0, (LPARAM)TEMP);
 
 			if (TEMP[1] == ':')
 			{
@@ -391,7 +446,7 @@ void FavesDialog::tb_cmd(UINT message)
 		{
 			LPTSTR	TEMP	= (LPTSTR)new TCHAR[MAX_PATH];
 
-			::SendMessage(_hParent, WM_GET_CURRENTDIRECTORY, 0, (LPARAM)TEMP);
+			::SendMessage(_hParent, NPPM_GETCURRENTDIRECTORY, 0, (LPARAM)TEMP);
 
 			if (strlen(TEMP) != 0)
 			{
@@ -440,7 +495,7 @@ void FavesDialog::InitialDialog(void)
 #endif
 
 	/* set image list */
-	::SendMessage(_hTreeCtrl, TVM_SETIMAGELIST, TVSIL_NORMAL, (LPARAM)_hImageListSmall);
+	::SendMessage(_hTreeCtrl, TVM_SETIMAGELIST, TVSIL_NORMAL, (LPARAM)_hImageList);
 
 	/* create toolbar */
 	_ToolBar.init(_hInst, _hSelf, 16, toolBarIcons, sizeof(toolBarIcons)/sizeof(ToolBarButtonUnit), true, stdIcons, sizeof(stdIcons)/sizeof(int));
@@ -451,7 +506,7 @@ void FavesDialog::InitialDialog(void)
 	/* add new items in list and make reference to items */
 	for (UINT i = 0; i < FAVES_ITEM_MAX; i++)
 	{
-		UpdateLink(InsertItem(cFavesItemNames[i], _iUserImagePos + i, _iUserImagePos + i, 0, 0, TVI_ROOT, TVI_LAST, TRUE, (LPARAM)&_vDB[i]));
+		UpdateLink(InsertItem(cFavesItemNames[i], i, i, 0, 0, TVI_ROOT, TVI_LAST, TRUE, (LPARAM)&_vDB[i]));
 	}
 }
 
@@ -584,15 +639,16 @@ void FavesDialog::PasteItem(HTREEITEM hItem)
 		if (_isCut == TRUE)
 		{
 			/* delete item */
-			HTREEITEM	hItemParent	= TreeView_GetParent(_hTreeCtrl, _hTreeCutCopy);
-			PELEM		pElemParent = (PELEM)GetParam(hItemParent);
+			HTREEITEM	hParentItem	= TreeView_GetParent(_hTreeCtrl, _hTreeCutCopy);
+			PELEM		pParentElem = (PELEM)GetParam(hParentItem);
 
 			delete [] pElemCC->pszName;
 			delete [] pElemCC->pszLink;
-			pElemParent->vElements.erase(pElemCC);
+			pParentElem->vElements.erase(pElemCC);
 
 			/* update information and delete element */
 			TreeView_DeleteItem(_hTreeCtrl, _hTreeCutCopy);
+			UpdateNode(hParentItem, (BOOL)pParentElem->vElements.size());
 		}
 		else
 		{
@@ -602,11 +658,7 @@ void FavesDialog::PasteItem(HTREEITEM hItem)
 		pElem->vElements.push_back(element);
 
 		/* update information */
-		HTREEITEM	hParentItem = TreeView_GetParent(_hTreeCtrl, hItem);
-		if (hParentItem != NULL)
-		{
-			UpdateLink(hParentItem);
-		}
+		UpdateNode(hItem, TRUE);
 		UpdateLink(hItem);
 		TreeView_Expand(_hTreeCtrl, hItem, TVM_EXPAND | TVE_COLLAPSERESET);
 
@@ -664,7 +716,7 @@ void FavesDialog::AddToFavorties(BOOL isFolder, LPTSTR szLink)
 	dlgProp.init(_hInst, _hParent);
 
 	/* select root element */
-	dlgProp.setTreeElements(&_vDB[root], _hImageListSmall, _iUserImagePos);
+	dlgProp.setTreeElements(&_vDB[root], _hImageList, 0);
 
 	while (isOk == FALSE)
 	{
@@ -754,7 +806,7 @@ void FavesDialog::AddSaveSession(HTREEITEM hItem, BOOL bSave)
 	{
 		/* select root element */
 		root	 = FAVES_SESSIONS;
-		dlgProp.setTreeElements(&_vDB[root], _hImageListSmall, _iUserImagePos, TRUE);
+		dlgProp.setTreeElements(&_vDB[root], _hImageList, 0, TRUE);
 	}
 	else
 	{
@@ -820,7 +872,7 @@ void FavesDialog::AddSaveSession(HTREEITEM hItem, BOOL bSave)
 				/* save current session when expected */
 				if (bSave == TRUE)
 				{
-					::SendMessage(_hParent, WM_SAVECURRENTSESSION, 0, (LPARAM)pszLink);
+					::SendMessage(_hParent, NPPM_SAVECURRENTSESSION, 0, (LPARAM)pszLink);
 				}
 			}
 		}
@@ -1259,7 +1311,7 @@ void FavesDialog::OpenContext(HTREEITEM hItem, POINT pt)
 				}
 				case FM_SAVESESSION:
 				{
-					::SendMessage(_hParent, WM_SAVECURRENTSESSION, 0, (LPARAM)pElem->pszLink);
+					::SendMessage(_hParent, NPPM_SAVECURRENTSESSION, 0, (LPARAM)pElem->pszLink);
 					DeleteChildren(hItem);
 					DrawSessionChildren(hItem);
 					break;
@@ -1306,10 +1358,10 @@ void FavesDialog::OpenContext(HTREEITEM hItem, POINT pt)
 void FavesDialog::UpdateLink(HTREEITEM	hParentItem)
 {
 	BOOL		haveChildren	= FALSE;
-	int			iIconNormal		= 0;
-	int			iIconSelected	= 0;
-	int			iIconOverlayed	= 0;
-	int			root			= 0;
+	INT			iIconNormal		= 0;
+	INT			iIconSelected	= 0;
+	INT			iIconOverlayed	= 0;
+	INT			root			= 0;
 	LPTSTR		TEMP			= (LPTSTR)new TCHAR[MAX_PATH];
 	HTREEITEM	pCurrentItem	= TreeView_GetNextItem(_hTreeCtrl, hParentItem, TVGN_CHILD);
 
@@ -1335,8 +1387,8 @@ void FavesDialog::UpdateLink(HTREEITEM	hParentItem)
 
 			if (pElem->uParam & FAVES_PARAM_GROUP)
 			{
-				iIconNormal		= _iUserImagePos + 4;
-				iIconSelected	= iIconNormal;
+				iIconNormal		= ICON_GROUP;
+				iIconSelected	= ICON_GROUP;
 				iIconOverlayed	= 0;
 				if (pElem->vElements.size() != 0)
 				{
@@ -1360,16 +1412,18 @@ void FavesDialog::UpdateLink(HTREEITEM	hParentItem)
 					{
 						/* get icons and update item */
 						strcpy(TEMP, pElem->pszLink);
-						ExtractIcons(TEMP, NULL, DEVT_DIRECTORY, &iIconNormal, &iIconSelected, &iIconOverlayed);
+						ExtractIcons(TEMP, NULL, DEVT_FILE, &iIconNormal, &iIconSelected, &iIconOverlayed);
 						break;
 					}
 					case FAVES_SESSIONS:
-						haveChildren	= (0 != ::SendMessage(_hParent, WM_NBSESSIONFILES, 0, (LPARAM)pElem->pszLink));
+						haveChildren	= (0 != ::SendMessage(_hParent, NPPM_NBSESSIONFILES, 0, (LPARAM)pElem->pszLink));
+						iIconNormal		= ICON_SESSION;
+						iIconSelected	= ICON_SESSION;
+						break;
 					case FAVES_WEB:
 					{
-						iIconNormal		= _iUserImagePos + root;
-						iIconSelected	= _iUserImagePos + root;
-						iIconOverlayed	= 0;
+						iIconNormal		= ICON_WEB;
+						iIconSelected	= ICON_WEB;
 						break;
 					}
 				}
@@ -1410,6 +1464,24 @@ void FavesDialog::UpdateLink(HTREEITEM	hParentItem)
 	delete [] TEMP;
 }
 
+void FavesDialog::UpdateNode(HTREEITEM hItem, BOOL haveChildren)
+{
+	if (hItem != NULL)
+	{
+		LPTSTR	TEMP	= (LPTSTR)new TCHAR[MAX_PATH];
+
+		TVITEM			tvi;
+		tvi.mask		= TVIF_TEXT | TVIF_IMAGE | TVIF_SELECTEDIMAGE | TVIF_PARAM;
+		tvi.hItem		= hItem;
+		tvi.pszText		= TEMP;
+		tvi.cchTextMax	= MAX_PATH;
+
+		if (TreeView_GetItem(_hTreeCtrl, &tvi) == TRUE)
+		{
+			UpdateItem(hItem, TEMP, tvi.iImage, tvi.iSelectedImage, 0, 0, haveChildren, tvi.lParam);
+		}
+	}
+}
 
 void FavesDialog::DrawSessionChildren(HTREEITEM hItem)
 {
@@ -1419,14 +1491,14 @@ void FavesDialog::DrawSessionChildren(HTREEITEM hItem)
 	PELEM		pElem			= (PELEM)GetParam(hItem);
 
 	/* get document count and create resources */
-	docCnt			= (int)::SendMessage(_hParent, WM_NBSESSIONFILES, 0, (LPARAM)pElem->pszLink);
+	docCnt			= (int)::SendMessage(_hParent, NPPM_NBSESSIONFILES, 0, (LPARAM)pElem->pszLink);
 	ppszFileNames	= (TCHAR **)new LPTSTR[docCnt];
 
 	for (i = 0; i < docCnt; i++)
 		ppszFileNames[i] = new TCHAR[MAX_PATH];
 
 	/* get file names */
-	if (::SendMessage(_hParent, WM_GETSESSIONFILES, (WPARAM)ppszFileNames, (LPARAM)pElem->pszLink) == TRUE)
+	if (::SendMessage(_hParent, NPPM_GETSESSIONFILES, (WPARAM)ppszFileNames, (LPARAM)pElem->pszLink) == TRUE)
 	{
 		/* when successfull add it to the tree */
 		int			iIconNormal		= 0;
@@ -1547,7 +1619,7 @@ void FavesDialog::OpenLink(PELEM pElem)
 				if (explorerDlg.isVisible() == FALSE)
 					explorerDlg.doDialog();
 
-				::SendMessage(_hParent, WM_DMM_VIEWOTHERTAB, 0, (LPARAM)"Explorer");
+				::SendMessage(_hParent, NPPM_DMM_VIEWOTHERTAB, 0, (LPARAM)"Explorer");
 				::SetFocus(explorerDlg.getHSelf());
 				break;
 			}
@@ -1563,7 +1635,7 @@ void FavesDialog::OpenLink(PELEM pElem)
 			}
 			case FAVES_SESSIONS:
 			{
-				::SendMessage(_hParent, WM_LOADSESSION, 0, (LPARAM)pElem->pszLink);
+				::SendMessage(_hParent, NPPM_LOADSESSION, 0, (LPARAM)pElem->pszLink);
 				break;
 			}
 			default:
