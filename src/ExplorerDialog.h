@@ -64,13 +64,11 @@ public:
     void init(HINSTANCE hInst, NppData nppData, tExProp *prop);
 
 	virtual void redraw(void) {
-		if (isVisible() == true)
-		{
-			/* be sure to update the window first */
-			_FileList.redraw();
-			/* and only when dialog is visible, select item again */
-			SelectItem(_pExProp->szCurrentPath);
-		}
+		/* possible new imagelist -> update the window */
+		::SendMessage(_hTreeCtrl, TVM_SETIMAGELIST, TVSIL_NORMAL, (LPARAM)GetSmallImageList(_pExProp->bUseSystemIcons));
+		_FileList.redraw();
+		/* and only when dialog is visible, select item again */
+		SelectItem(_pExProp->szCurrentPath);
 	};
 
 	void destroy(void) {};
@@ -85,6 +83,10 @@ public:
 	};
 
 	void NotifyEvent(DWORD event);
+
+	void UpdateDocs(const char** pFiles, UINT numFiles, INT openDoc) {
+		_FileList.UpdateDocs(pFiles, numFiles, openDoc);
+	};
 
 protected:
 
@@ -111,6 +113,7 @@ protected:
 	BOOL SelectItem(LPTSTR path);
 
 	void tb_cmd(UINT message);
+	void tb_not(LPNMTOOLBAR lpnmtb);
 
 	void GetFolderPathName(HTREEITEM currentItem, LPTSTR folderPathName);
 	BOOL ExploreVolumeInformation(LPCTSTR pszDrivePathName, LPTSTR pszVolumeName, UINT maxSize);
@@ -118,7 +121,6 @@ protected:
 private:
 	/* Handles */
 	NppData					_nppData;
-	HIMAGELIST				_hImageListSmall;
 	tTbData					_data;
 	BOOL					_bStartupFinish;
 	BOOL					_bInitFinish;
@@ -132,6 +134,7 @@ private:
 
 	/* handles of controls */
 	HWND					_hListCtrl;
+	HWND					_hHeader;
 	HWND					_hSplitterCtrl;
 	HWND					_hFilter;
 	HWND					_hFilterButton;

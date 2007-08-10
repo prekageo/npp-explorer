@@ -26,10 +26,13 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include "ToolTip.h"
 #include "resource.h"
 
+#include <sys/types.h>
+#include <sys/stat.h>
 #include <shellapi.h>
 #include <shlwapi.h>
 #include <shlobj.h>
 #include <dbt.h>
+
 
 ToolTip		toolTip;
 
@@ -89,23 +92,23 @@ DWORD WINAPI GetVolumeInformationTimeoutThread(LPVOID lpParam)
 
 static ToolBarButtonUnit toolBarIcons[] = {
 	
-	{IDM_EX_UNDO,			IDI_SEPARATOR_ICON,		IDI_SEPARATOR_ICON,		IDI_SEPARATOR_ICON, -1},
-	{IDM_EX_REDO,			IDI_SEPARATOR_ICON,		IDI_SEPARATOR_ICON,		IDI_SEPARATOR_ICON, -1},	 
+	{IDM_EX_UNDO,			IDI_SEPARATOR_ICON,		IDI_SEPARATOR_ICON,		IDI_SEPARATOR_ICON, -1, TBSTYLE_DROPDOWN},
+	{IDM_EX_REDO,			IDI_SEPARATOR_ICON,		IDI_SEPARATOR_ICON,		IDI_SEPARATOR_ICON, -1, TBSTYLE_DROPDOWN},	 
 	 
 	//-------------------------------------------------------------------------------------//
-	{0,						IDI_SEPARATOR_ICON,		IDI_SEPARATOR_ICON,		IDI_SEPARATOR_ICON, IDI_SEPARATOR_ICON},
+	{0,						IDI_SEPARATOR_ICON,		IDI_SEPARATOR_ICON,		IDI_SEPARATOR_ICON,	IDI_SEPARATOR_ICON, 0},
 	//-------------------------------------------------------------------------------------//
 	 
-    {IDM_EX_FILE_NEW,		IDI_SEPARATOR_ICON,		IDI_SEPARATOR_ICON,		IDI_SEPARATOR_ICON, -1},
-    {IDM_EX_FOLDER_NEW,		IDI_SEPARATOR_ICON,		IDI_SEPARATOR_ICON,		IDI_SEPARATOR_ICON, -1},
-	{IDM_EX_SEARCH_FIND,	IDI_SEPARATOR_ICON,		IDI_SEPARATOR_ICON,		IDI_SEPARATOR_ICON, -1},
-	{IDM_EX_GO_TO_FOLDER,	IDI_SEPARATOR_ICON,		IDI_SEPARATOR_ICON,		IDI_SEPARATOR_ICON, -1},
+    {IDM_EX_FILE_NEW,		IDI_SEPARATOR_ICON,		IDI_SEPARATOR_ICON,		IDI_SEPARATOR_ICON, -1, 0},
+    {IDM_EX_FOLDER_NEW,		IDI_SEPARATOR_ICON,		IDI_SEPARATOR_ICON,		IDI_SEPARATOR_ICON, -1, 0},
+	{IDM_EX_SEARCH_FIND,	IDI_SEPARATOR_ICON,		IDI_SEPARATOR_ICON,		IDI_SEPARATOR_ICON, -1, 0},
+	{IDM_EX_GO_TO_FOLDER,	IDI_SEPARATOR_ICON,		IDI_SEPARATOR_ICON,		IDI_SEPARATOR_ICON, -1, 0},
 
 	//-------------------------------------------------------------------------------------//
-	{0,						IDI_SEPARATOR_ICON,		IDI_SEPARATOR_ICON,		IDI_SEPARATOR_ICON, IDI_SEPARATOR_ICON},
+	{0,						IDI_SEPARATOR_ICON,		IDI_SEPARATOR_ICON,		IDI_SEPARATOR_ICON, IDI_SEPARATOR_ICON, 0},
 	//-------------------------------------------------------------------------------------//
 	 
-	{IDM_EX_UPDATE,			IDI_SEPARATOR_ICON,		IDI_SEPARATOR_ICON,		IDI_SEPARATOR_ICON, -1}
+	{IDM_EX_UPDATE,			IDI_SEPARATOR_ICON,		IDI_SEPARATOR_ICON,		IDI_SEPARATOR_ICON, -1, 0}
 };
 					
 static int stdIcons[] = {IDB_EX_UNDO, IDB_EX_REDO, IDB_EX_FILENEW, IDB_EX_FOLDERNEW, IDB_EX_FIND, IDB_EX_FOLDERGO, IDB_EX_UPDATE};
@@ -113,24 +116,24 @@ static int stdIcons[] = {IDB_EX_UNDO, IDB_EX_REDO, IDB_EX_FILENEW, IDB_EX_FOLDER
 
 static ToolBarButtonUnit toolBarIconsNT[] = {
 	
-	{IDM_EX_UNDO,			IDI_SEPARATOR_ICON,		IDI_SEPARATOR_ICON,		IDI_SEPARATOR_ICON, -1},
-	{IDM_EX_REDO,			IDI_SEPARATOR_ICON,		IDI_SEPARATOR_ICON,		IDI_SEPARATOR_ICON, -1},	 
+	{IDM_EX_UNDO,			IDI_SEPARATOR_ICON,		IDI_SEPARATOR_ICON,		IDI_SEPARATOR_ICON, -1, TBSTYLE_DROPDOWN},
+	{IDM_EX_REDO,			IDI_SEPARATOR_ICON,		IDI_SEPARATOR_ICON,		IDI_SEPARATOR_ICON, -1, TBSTYLE_DROPDOWN},	 
 	 
 	//-------------------------------------------------------------------------------------//
-	{0,						IDI_SEPARATOR_ICON,		IDI_SEPARATOR_ICON,		IDI_SEPARATOR_ICON, IDI_SEPARATOR_ICON},
+	{0,						IDI_SEPARATOR_ICON,		IDI_SEPARATOR_ICON,		IDI_SEPARATOR_ICON, IDI_SEPARATOR_ICON, 0},
 	//-------------------------------------------------------------------------------------//
 	 
-    {IDM_EX_FILE_NEW,		IDI_SEPARATOR_ICON,		IDI_SEPARATOR_ICON,		IDI_SEPARATOR_ICON, -1},
-    {IDM_EX_FOLDER_NEW,		IDI_SEPARATOR_ICON,		IDI_SEPARATOR_ICON,		IDI_SEPARATOR_ICON, -1},
-	{IDM_EX_SEARCH_FIND,	IDI_SEPARATOR_ICON,		IDI_SEPARATOR_ICON,		IDI_SEPARATOR_ICON, -1},
-	{IDM_EX_GO_TO_USER,		IDI_SEPARATOR_ICON,		IDI_SEPARATOR_ICON,		IDI_SEPARATOR_ICON, -1},
-	{IDM_EX_GO_TO_FOLDER,	IDI_SEPARATOR_ICON,		IDI_SEPARATOR_ICON,		IDI_SEPARATOR_ICON, -1},
+    {IDM_EX_FILE_NEW,		IDI_SEPARATOR_ICON,		IDI_SEPARATOR_ICON,		IDI_SEPARATOR_ICON, -1, 0},
+    {IDM_EX_FOLDER_NEW,		IDI_SEPARATOR_ICON,		IDI_SEPARATOR_ICON,		IDI_SEPARATOR_ICON, -1, 0},
+	{IDM_EX_SEARCH_FIND,	IDI_SEPARATOR_ICON,		IDI_SEPARATOR_ICON,		IDI_SEPARATOR_ICON, -1, 0},
+	{IDM_EX_GO_TO_USER,		IDI_SEPARATOR_ICON,		IDI_SEPARATOR_ICON,		IDI_SEPARATOR_ICON, -1, 0},
+	{IDM_EX_GO_TO_FOLDER,	IDI_SEPARATOR_ICON,		IDI_SEPARATOR_ICON,		IDI_SEPARATOR_ICON, -1, 0},
 
 	//-------------------------------------------------------------------------------------//
-	{0,						IDI_SEPARATOR_ICON,		IDI_SEPARATOR_ICON,		IDI_SEPARATOR_ICON, IDI_SEPARATOR_ICON},
+	{0,						IDI_SEPARATOR_ICON,		IDI_SEPARATOR_ICON,		IDI_SEPARATOR_ICON, IDI_SEPARATOR_ICON, 0},
 	//-------------------------------------------------------------------------------------//
 	 
-	{IDM_EX_UPDATE,			IDI_SEPARATOR_ICON,		IDI_SEPARATOR_ICON,		IDI_SEPARATOR_ICON, -1}
+	{IDM_EX_UPDATE,			IDI_SEPARATOR_ICON,		IDI_SEPARATOR_ICON,		IDI_SEPARATOR_ICON, -1, 0}
 };
 					
 static int stdIconsNT[] = {IDB_EX_UNDO, IDB_EX_REDO, IDB_EX_FILENEW, IDB_EX_FOLDERNEW, IDB_EX_FIND, IDB_EX_FOLDERUSER, IDB_EX_FOLDERGO, IDB_EX_UPDATE};
@@ -161,6 +164,7 @@ ExplorerDialog::ExplorerDialog(void) : DockingDlgInterface(IDD_EXPLORER_DLG)
 {
 	_hTreeCtrl				= NULL;
 	_hListCtrl				= NULL;
+	_hHeader				= NULL;
 	_hFilter				= NULL;
 	_isSelNotifyEnable		= TRUE;
 	_isLeftButtonDown		= FALSE;
@@ -199,7 +203,7 @@ void ExplorerDialog::doDialog(bool willBeShown)
 		_data.hIconTab		= (HICON)::LoadImage(_hInst, MAKEINTRESOURCE(IDI_EXPLORE), IMAGE_ICON, 0, 0, LR_LOADMAP3DCOLORS | LR_LOADTRANSPARENT);
 		_data.pszModuleName	= getPluginFileName();
 		_data.dlgID			= DOCKABLE_EXPLORER_INDEX;
-		::SendMessage(_hParent, WM_DMM_REGASDCKDLG, 0, (LPARAM)&_data);
+		::SendMessage(_hParent, NPPM_DMM_REGASDCKDLG, 0, (LPARAM)&_data);
 	}
 
 	display(willBeShown);
@@ -235,12 +239,11 @@ BOOL CALLBACK ExplorerDialog::run_dlgProc(HWND hWnd, UINT Message, WPARAM wParam
 			/* Only used on non NT based systems */
 			if ((HWND)lParam == _hFilterButton)
 			{
-				LPTSTR	TEMP = (LPTSTR)new TCHAR[MAX_PATH];
+				TCHAR	TEMP[MAX_PATH];
 
 				_ComboFilter.getText(TEMP);
 				_ComboFilter.addText(TEMP);
 				_FileList.filterFiles(TEMP);
-				delete [] TEMP;
 			}
 
 			if ((HWND)lParam == _ToolBar.getHSelf())
@@ -275,14 +278,12 @@ BOOL CALLBACK ExplorerDialog::run_dlgProc(HWND hWnd, UINT Message, WPARAM wParam
 						hItem = TreeView_HitTest(_hTreeCtrl, &ht);
 						if (hItem != NULL)
 						{
-							LPTSTR	strPathName	= (LPTSTR)new TCHAR[MAX_PATH];
+							TCHAR	strPathName[MAX_PATH];
 
 							GetFolderPathName(hItem, strPathName);
 
 							cm.SetObjects(strPathName);
 							cm.ShowContextMenu(_nppData._nppHandle, _hSelf, pt);
-
-							delete [] strPathName;
 						}
 						return TRUE;
 					}
@@ -309,18 +310,13 @@ BOOL CALLBACK ExplorerDialog::run_dlgProc(HWND hWnd, UINT Message, WPARAM wParam
 						hItem = TreeView_HitTest(_hTreeCtrl, &ht);
 						if (hItem != NULL)
 						{
-							if (!TreeView_GetChild(_hTreeCtrl, hItem))
-							{
+							if (!TreeView_GetChild(_hTreeCtrl, hItem)) {
 								DrawChildren(hItem);
-							}
-							else
-							{
-								LPTSTR	strPathName	= (LPTSTR)new TCHAR[MAX_PATH];
-
+							} else {
+								TCHAR	strPathName[MAX_PATH];
 								GetFolderPathName(hItem, strPathName);
 								strPathName[strlen(strPathName)-1] = '\0';
 								UpdateFolderRecursive(strPathName, hItem);
-								delete [] strPathName;
 							}
 						}
 						break;
@@ -338,11 +334,16 @@ BOOL CALLBACK ExplorerDialog::run_dlgProc(HWND hWnd, UINT Message, WPARAM wParam
 						break;
 				}
 			}
-			else if ((nmhdr->hwndFrom == _hListCtrl) && (_bInitFinish == TRUE))
+			else if ((_bInitFinish == TRUE) && 
+				((nmhdr->hwndFrom == _hListCtrl) || (nmhdr->hwndFrom == _hHeader)))
 			{
-				_FileList.notify(wParam, lParam);
-				return TRUE;
+				return _FileList.notify(wParam, lParam);
 			}
+			else if ((nmhdr->hwndFrom == _ToolBar.getHSelf()) && (nmhdr->code == TBN_DROPDOWN))
+			{
+				tb_not((LPNMTOOLBAR)lParam);
+				return TBDDRET_NODEFAULT;
+			}	
 			else if (nmhdr->code == TTN_GETDISPINFO)
 			{
 				LPTOOLTIPTEXT lpttt; 
@@ -543,10 +544,6 @@ BOOL CALLBACK ExplorerDialog::run_dlgProc(HWND hWnd, UINT Message, WPARAM wParam
 
 			/* destroy thread */
 			::CloseHandle(g_hThread);
-
-			/* destroy duplicated handle when we are on W2k machine */
-			if (getWindowsVersion() == WV_W2K)
-				ImageList_Destroy(_hImageListSmall);
 			break;
 		}
 		case EXM_CHANGECOMBO:
@@ -560,9 +557,10 @@ BOOL CALLBACK ExplorerDialog::run_dlgProc(HWND hWnd, UINT Message, WPARAM wParam
 		{
 			if (strlen((LPTSTR)lParam) != 0)
 			{
+				TCHAR		folderPathName[MAX_PATH]	= "\0";
+				TCHAR		folderChildPath[MAX_PATH]	= "\0";
+
 				LPTSTR		szInList		= NULL;
-				LPTSTR		folderChildPath	= NULL;
-				LPTSTR		folderPathName	= (LPTSTR) new TCHAR[MAX_PATH];
 				HTREEITEM	hItem			= TreeView_GetSelection(_hTreeCtrl);
 
 				strcpy(folderPathName, (LPTSTR)lParam);
@@ -576,8 +574,6 @@ BOOL CALLBACK ExplorerDialog::run_dlgProc(HWND hWnd, UINT Message, WPARAM wParam
 					/* test if selected parent folder */
 					if (strcmp((LPTSTR)lParam, "..") == 0)
 					{
-						folderChildPath = (LPTSTR) new TCHAR[MAX_PATH];
-
 						/* if so get the parnet folder name and the current one */
 						*strrchr(folderPathName, '\\') = '\0';
 						*strrchr(folderPathName, '\\') = '\0';
@@ -588,10 +584,7 @@ BOOL CALLBACK ExplorerDialog::run_dlgProc(HWND hWnd, UINT Message, WPARAM wParam
 						 * folderPathName, it seems to be a root folder and break
 						 */
 						if (szInList < folderPathName)
-						{
-							delete [] folderPathName;
 							break;
-						}
 
 						strcpy(folderChildPath, &szInList[1]);
 						szInList[1] = '\0';
@@ -606,19 +599,11 @@ BOOL CALLBACK ExplorerDialog::run_dlgProc(HWND hWnd, UINT Message, WPARAM wParam
 				SelectItem(folderPathName);
 
 				/* set position of selection */
-				if (folderChildPath != NULL)
-				{
+				if (folderChildPath[0] != '\0') {
 					_FileList.SelectFolder(folderChildPath);
-				}
-				else
-				{
+				} else {
 					_FileList.SelectFolder("..");
 				}
-
-				delete [] folderPathName;
-
-				if (folderChildPath != NULL)
-					delete [] folderChildPath;
 			}
 			return TRUE;
 		}
@@ -626,7 +611,7 @@ BOOL CALLBACK ExplorerDialog::run_dlgProc(HWND hWnd, UINT Message, WPARAM wParam
 		{
 			if (strlen((LPTSTR)lParam) != 0)
 			{
-				LPTSTR		folderPathName	= (LPTSTR) new TCHAR[MAX_PATH];
+				TCHAR		folderPathName[MAX_PATH];
 				HTREEITEM	hItem = TreeView_GetSelection(_hTreeCtrl);
 
 				/* get current folder path */
@@ -635,8 +620,6 @@ BOOL CALLBACK ExplorerDialog::run_dlgProc(HWND hWnd, UINT Message, WPARAM wParam
 
 				/* open file */
 				::SendMessage(_nppData._nppHandle, WM_DOOPEN, 0, (LPARAM)folderPathName);
-
-				delete [] folderPathName;
 			}
 			return TRUE;
 		}
@@ -647,7 +630,7 @@ BOOL CALLBACK ExplorerDialog::run_dlgProc(HWND hWnd, UINT Message, WPARAM wParam
 			vector<string>	files			= *((vector<string>*)lParam);
 			HTREEITEM		hItem			= TreeView_GetSelection(_hTreeCtrl);
 			DWORD			dwpos			= ::GetMessagePos();
-			LPTSTR			folderPathName	= (LPTSTR) new TCHAR[MAX_PATH];
+			TCHAR			folderPathName[MAX_PATH];
 
 			GetFolderPathName(hItem, folderPathName);
 
@@ -657,19 +640,17 @@ BOOL CALLBACK ExplorerDialog::run_dlgProc(HWND hWnd, UINT Message, WPARAM wParam
 			cm.SetObjects(files);
 			cm.ShowContextMenu(_nppData._nppHandle, _hSelf, pt, (strcmp(files[0].c_str(), folderPathName) != 0));
 
-			delete [] folderPathName;
 			return TRUE;
 		}
 		case EXM_UPDATE_PATH :
 		{
-			LPTSTR	pszPath = (LPTSTR)new TCHAR[MAX_PATH];
+			TCHAR	pszPath[MAX_PATH];
 
 			_FileList.ToggleStackRec();
 			GetFolderPathName(TreeView_GetSelection(_hTreeCtrl), pszPath);
 			_FileList.viewPath(pszPath);
 			_FileList.ToggleStackRec();
 
-			delete [] pszPath;
 			return TRUE;
 		}
 		case WM_TIMER:
@@ -688,9 +669,8 @@ BOOL CALLBACK ExplorerDialog::run_dlgProc(HWND hWnd, UINT Message, WPARAM wParam
 			{
 				::KillTimer(_hSelf, EXT_UPDATEPATH);
 
+				TCHAR		strPathName[MAX_PATH];
 				HTREEITEM	hItem = TreeView_GetSelection(_hTreeCtrl);
-
-				LPTSTR		strPathName	= (LPTSTR)new TCHAR[MAX_PATH];
 
 				if (hItem != NULL)
 				{
@@ -698,8 +678,6 @@ BOOL CALLBACK ExplorerDialog::run_dlgProc(HWND hWnd, UINT Message, WPARAM wParam
 					_FileList.viewPath(strPathName, TRUE);
 					SetCaption(strPathName);
 				}
-				delete [] strPathName;
-
 			}
 			return TRUE;
 		}
@@ -816,9 +794,9 @@ void ExplorerDialog::tb_cmd(UINT message)
 	{
 		case IDM_EX_UNDO:
 		{
+			TCHAR	pszPath[MAX_PATH];
 			BOOL	dirValid	= TRUE;
 			BOOL	selected	= TRUE;
-			LPTSTR	pszPath		= (LPTSTR)new TCHAR[MAX_PATH];
 
 			_FileList.ToggleStackRec();
 
@@ -831,15 +809,13 @@ void ExplorerDialog::tb_cmd(UINT message)
 				_FileList.GetNextDir(pszPath);
 
 			_FileList.ToggleStackRec();
-
-			delete [] pszPath;
 			break;
 		}
 		case IDM_EX_REDO:
 		{
+			TCHAR	pszPath[MAX_PATH];
 			BOOL	dirValid	= TRUE;
 			BOOL	selected	= TRUE;
-			LPTSTR	pszPath		= (LPTSTR)new TCHAR[MAX_PATH];
 
 			_FileList.ToggleStackRec();
 
@@ -852,15 +828,13 @@ void ExplorerDialog::tb_cmd(UINT message)
 				_FileList.GetPrevDir(pszPath);
 
 			_FileList.ToggleStackRec();
-
-			delete [] pszPath;
 			break;
 		}
 		case IDM_EX_FILE_NEW:
 		{
 			NewDlg		dlg;
+			TCHAR		szFileName[MAX_PATH];
 			BOOL		bLeave		= FALSE;
-			LPTSTR		szFileName	= (LPTSTR)new TCHAR[MAX_PATH];
 
 			szFileName[0] = '\0';
 
@@ -872,7 +846,7 @@ void ExplorerDialog::tb_cmd(UINT message)
 					/* test if is correct */
 					if (IsValidFileName(szFileName))
 					{
-						LPTSTR	pszNewFile = (LPTSTR)new TCHAR[MAX_PATH];
+						TCHAR	pszNewFile[MAX_PATH];
 
 						GetFolderPathName(TreeView_GetSelection(_hTreeCtrl), pszNewFile);
 						strcat(pszNewFile, szFileName);
@@ -880,21 +854,19 @@ void ExplorerDialog::tb_cmd(UINT message)
 						::CloseHandle(::CreateFile(pszNewFile, GENERIC_READ | GENERIC_WRITE, FILE_SHARE_READ | FILE_SHARE_WRITE, NULL, OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL));
 						::SendMessage(_hParent, WM_DOOPEN, 0, (LPARAM)pszNewFile);
 
-						delete [] pszNewFile;
 						bLeave = TRUE;
 					}
 				}
 				else
 					bLeave = TRUE;
 			}
-			delete [] szFileName;
 			break;
 		}
 		case IDM_EX_FOLDER_NEW:
 		{
 			NewDlg		dlg;
+			TCHAR		szFolderName[MAX_PATH];
 			BOOL		bLeave			= FALSE;
-			LPTSTR		szFolderName	= (LPTSTR)new TCHAR[MAX_PATH];
 
 			szFolderName[0] = '\0';
 
@@ -906,7 +878,7 @@ void ExplorerDialog::tb_cmd(UINT message)
 					/* test if is correct */
 					if (IsValidFileName(szFolderName))
 					{
-						LPTSTR	pszNewFolder = (LPTSTR)new TCHAR[MAX_PATH];
+						TCHAR	pszNewFolder[MAX_PATH];
 
 						GetFolderPathName(TreeView_GetSelection(_hTreeCtrl), pszNewFolder);
 						strcat(pszNewFolder, szFolderName);
@@ -916,48 +888,38 @@ void ExplorerDialog::tb_cmd(UINT message)
 							::MessageBox(_hSelf, "Folder couldn't be created.", "Error", MB_OK);
 						}
 
-						delete [] pszNewFolder;
 						bLeave = TRUE;
 					}
 				}
 				else
 					bLeave = TRUE;
 			}
-			delete [] szFolderName;
 			break;
 		}
 		case IDM_EX_SEARCH_FIND:
 		{
-			LPTSTR	pszPath = (LPTSTR)new TCHAR[MAX_PATH];
-
+			TCHAR	pszPath[MAX_PATH];
 			GetFolderPathName(TreeView_GetSelection(_hTreeCtrl), pszPath);
-			::SendMessage(_hParent, WM_LAUNCH_FINDINFILESDLG, (WPARAM)pszPath, NULL);
-
-			delete [] pszPath;
+			::SendMessage(_hParent, NPPM_LAUNCH_FINDINFILESDLG, (WPARAM)pszPath, NULL);
 			break;
 		}
 		case IDM_EX_GO_TO_USER:
 		{
-			LPTSTR	pathName	= (LPTSTR)new TCHAR[MAX_PATH];
+			TCHAR	pathName[MAX_PATH];
 
-			if (SHGetSpecialFolderPath(_hSelf, pathName, CSIDL_PROFILE, FALSE) == TRUE)
-			{
+			if (SHGetSpecialFolderPath(_hSelf, pathName, CSIDL_PROFILE, FALSE) == TRUE) {
 				strcat(pathName, "\\");
 				SelectItem(pathName);
 			}
-
-			delete [] pathName;
 			break;
 		}
 		case IDM_EX_GO_TO_FOLDER:
 		{
-			LPTSTR	pathName	= (LPTSTR)new TCHAR[MAX_PATH];
-
-			::SendMessage(_hParent, WM_GET_CURRENTDIRECTORY, 0, (LPARAM)pathName);
+			TCHAR	pathName[MAX_PATH];
+			::SendMessage(_hParent, NPPM_GETCURRENTDIRECTORY, 0, (LPARAM)pathName);
 			strcat(pathName, "\\");
 			SelectItem(pathName);
-
-			delete [] pathName;
+			_FileList.SelectCurFile();
 			break;
 		}
 		case IDM_EX_UPDATE:
@@ -968,6 +930,65 @@ void ExplorerDialog::tb_cmd(UINT message)
 		default:
 			break;
 	}
+}
+
+void ExplorerDialog::tb_not(LPNMTOOLBAR lpnmtb)
+{
+	INT			i = 0;
+	TCHAR		TEMP[MAX_PATH];
+	LPSTR		*pszPathes;
+	INT			iElements	= 0;
+		
+	_FileList.ToggleStackRec();
+
+	/* get element cnt */
+	if (lpnmtb->iItem == IDM_EX_UNDO) {
+		iElements = _FileList.GetPrevDirs(NULL);
+	} else if (lpnmtb->iItem == IDM_EX_REDO) {
+		iElements = _FileList.GetNextDirs(NULL);
+	}
+
+	/* allocate elements */
+	pszPathes	= (LPSTR*)new LPSTR[iElements];
+	for (i = 0; i < iElements; i++)
+		pszPathes[i] = (LPSTR)new TCHAR[MAX_PATH];
+
+	/* get directories */
+	if (lpnmtb->iItem == IDM_EX_UNDO) {
+		_FileList.GetPrevDirs(pszPathes);
+	} else if (lpnmtb->iItem == IDM_EX_REDO) {
+		_FileList.GetNextDirs(pszPathes);
+	}
+
+	POINT	pt		= {0};
+	HMENU	hMenu	= ::CreatePopupMenu();
+
+	for (i = 0; i < iElements; i++)
+	{
+		/* test if folder exists */
+		struct _stat st = {0};
+		strcpy(TEMP, pszPathes[i]);
+		TEMP[strlen(TEMP)-1] = '\0';
+		if (!_stat(TEMP, &st))
+			::AppendMenu(hMenu, MF_STRING, i+1, pszPathes[i]);
+	}
+
+	::GetCursorPos(&pt);
+	INT cmd = ::TrackPopupMenu(hMenu, TPM_RETURNCMD, pt.x, pt.y, 0, _hSelf, NULL);
+	::DestroyMenu(hMenu);
+	_Rebar.redraw();
+
+	/* select element */
+	if (cmd) {
+		SelectItem(pszPathes[cmd-1]);
+		_FileList.OffsetItr(lpnmtb->iItem == IDM_EX_UNDO ? -cmd : cmd);
+	}
+
+	for (i = 0; i < iElements; i++)
+		delete [] pszPathes[i];
+	delete [] pszPathes;
+
+	_FileList.ToggleStackRec();
 }
 
 void ExplorerDialog::NotifyEvent(DWORD event)
@@ -1037,16 +1058,14 @@ void ExplorerDialog::InitialDialog(void)
 	/* get handle of dialogs */
 	_hTreeCtrl		= ::GetDlgItem(_hSelf, IDC_TREE_FOLDER);
 	_hListCtrl		= ::GetDlgItem(_hSelf, IDC_LIST_FILE);
+	_hHeader		= ListView_GetHeader(_hListCtrl);
 	_hSplitterCtrl	= ::GetDlgItem(_hSelf, IDC_BUTTON_SPLITTER);
 	_hFilter		= ::GetDlgItem(_hSelf, IDC_COMBO_FILTER);
 
-	if (GetVersion() & 0x80000000)
-	{
+	if (gWinVersion < WV_NT) {
 		_hFilterButton = ::GetDlgItem(_hSelf, IDC_BUTTON_FILTER);
 		::DestroyWindow(::GetDlgItem(_hSelf, IDC_STATIC_FILTER));
-	}
-	else
-	{
+	} else {
 		::DestroyWindow(::GetDlgItem(_hSelf, IDC_BUTTON_FILTER));
 	}
 
@@ -1057,20 +1076,15 @@ void ExplorerDialog::InitialDialog(void)
 	_hDefaultSplitterProc = reinterpret_cast<WNDPROC>(::SetWindowLong(_hSplitterCtrl, GWL_WNDPROC, reinterpret_cast<LONG>(wndDefaultSplitterProc)));
 
 	/* Load Image List */
-	SHFILEINFO		sfi	= {0};
-	_hImageListSmall = GetSystemImageList(TRUE);
-	::SendMessage(_hTreeCtrl, TVM_SETIMAGELIST, TVSIL_NORMAL, (LPARAM)_hImageListSmall);
+	::SendMessage(_hTreeCtrl, TVM_SETIMAGELIST, TVSIL_NORMAL, (LPARAM)GetSmallImageList(_pExProp->bUseSystemIcons));
 
 	/* initial file list */
-	_FileList.init(_hInst, _hSelf, _hListCtrl, _hImageListSmall);
+	_FileList.init(_hInst, _hSelf, _hListCtrl);
 
 	/* create toolbar */
-	if (GetVersion() & 0x80000000)
-	{
+	if (gWinVersion < WV_NT) {
 		_ToolBar.init(_hInst, _hSelf, 16, toolBarIcons, sizeof(toolBarIcons)/sizeof(ToolBarButtonUnit), true, stdIcons, sizeof(stdIcons)/sizeof(int));
-	}
-	else
-	{
+	} else {
 		_ToolBar.init(_hInst, _hSelf, 16, toolBarIconsNT, sizeof(toolBarIconsNT)/sizeof(ToolBarButtonUnit), true, stdIconsNT, sizeof(stdIconsNT)/sizeof(int));
 	}
 	_ToolBar.display();
@@ -1086,100 +1100,99 @@ void ExplorerDialog::InitialDialog(void)
 
 void ExplorerDialog::SetCaption(LPTSTR path)
 {
-	/* store current path */
-	strcpy(_pExProp->szCurrentPath, path);
-
-	/* update text */
-	updateDockingDlg();
+	if (isVisible())
+	{
+		/* store current path and update caption */
+		strcpy(_pExProp->szCurrentPath, path);
+		updateDockingDlg();
+	}
 }
 
 BOOL ExplorerDialog::SelectItem(LPTSTR path)
 {
 	BOOL				folderExists	= FALSE;
 
-	LPTSTR				TEMP			= NULL;
-	LPTSTR				pszItemName		= NULL;
-	LPTSTR				pszShortPath	= NULL;
-	LPTSTR				pszCurrPath		= NULL;
+	TCHAR				TEMP[MAX_PATH];
+	TCHAR				pszItemName[MAX_PATH];
+	TCHAR				pszShortPath[MAX_PATH];
+	TCHAR				pszCurrPath[MAX_PATH];
 	BOOL				isRoot			= TRUE;
 	HTREEITEM			hItem			= TreeView_GetRoot(_hTreeCtrl);
 	HTREEITEM			hItemSel		= NULL;
 	HTREEITEM			hLastItem		= NULL;
 
-	TEMP			= (LPTSTR)new TCHAR[MAX_PATH];
-	pszItemName		= (LPTSTR)new TCHAR[MAX_PATH];
-	pszShortPath	= (LPTSTR)new TCHAR[MAX_PATH];
-	pszCurrPath		= (LPTSTR)new TCHAR[MAX_PATH];
+	/* test if folder exists */
+	struct _stat st = {0};
+	strcpy(TEMP, path);
+	TEMP[strlen(TEMP)-1] = '\0';
+	folderExists = (_stat(TEMP, &st) ? FALSE : TRUE);
 
-	/* empty pszCurrPath */
-	pszCurrPath[0] = '\0';
-
-	/* disabled detection of TVN_SELCHANGED notification */
-	_isSelNotifyEnable = FALSE;
-
-	do
+	if (folderExists == TRUE)
 	{
-		GetItemText(hItem, pszItemName, MAX_PATH);
+		/* empty pszCurrPath */
+		pszCurrPath[0] = '\0';
 
-		/* truncate item name if we are in root */
-		if (isRoot == TRUE)
-			pszItemName[2] = '\0';
+		/* disabled detection of TVN_SELCHANGED notification */
+		_isSelNotifyEnable = FALSE;
 
-		/* create temporary path name in long and short form */
-		sprintf(TEMP, "%s%s\\", pszCurrPath, pszItemName);
-		GetShortPathName(TEMP, pszShortPath, MAX_PATH);
-		size_t	length	= strlen(TEMP);
-
-		if ((strnicmp(path, TEMP, length) == 0) || 
-			(strnicmp(path, pszShortPath, length) == 0))
+		do
 		{
-			/* found -> store item for correct selection */
-			hItemSel = hItem;
+			GetItemText(hItem, pszItemName, MAX_PATH);
 
-			/* expand, if possible and get child item */
-			if (TreeView_GetChild(_hTreeCtrl, hItem) == NULL)
+			/* truncate item name if we are in root */
+			if (isRoot == TRUE)
+				pszItemName[2] = '\0';
+
+			/* create temporary path name in long and short form */
+			sprintf(TEMP, "%s%s\\", pszCurrPath, pszItemName);
+			GetShortPathName(TEMP, pszShortPath, MAX_PATH);
+			size_t	length	= strlen(TEMP);
+
+			if ((strnicmp(path, TEMP, length) == 0) || 
+				(strnicmp(path, pszShortPath, length) == 0))
 			{
-				/* if no child item available, draw them */
-				TreeView_SelectItem(_hTreeCtrl, hItem);
-				DrawChildren(hItem);
+				/* found -> store item for correct selection */
+				hItemSel = hItem;
+
+				/* expand, if possible and get child item */
+				if (TreeView_GetChild(_hTreeCtrl, hItem) == NULL)
+				{
+					/* if no child item available, draw them */
+					TreeView_SelectItem(_hTreeCtrl, hItem);
+					DrawChildren(hItem);
+				}
+				hItem = TreeView_GetChild(_hTreeCtrl, hItem);
+
+				/* store item */
+				hLastItem = hItem;
+
+				/* set current selected path */
+				strcpy(pszCurrPath, TEMP);
+
+				/* only on first case it is a root */
+				isRoot = FALSE;
 			}
-			hItem = TreeView_GetChild(_hTreeCtrl, hItem);
+			else
+			{
+				/* search for next item in list */
+				hItem = TreeView_GetNextItem(_hTreeCtrl, hItem, TVGN_NEXT);
+			}
+		} while (hItem != NULL);
 
-			/* store item */
-			hLastItem = hItem;
-
-			/* set current selected path */
-			strcpy(pszCurrPath, TEMP);
-
-			/* only on first case it is a root */
-			isRoot = FALSE;
-		}
-		else
+		/* view path */
+		if (pszCurrPath[0] != '\0')
 		{
-			/* search for next item in list */
-			hItem = TreeView_GetNextItem(_hTreeCtrl, hItem, TVGN_NEXT);
+			/* select last selected item */
+			TreeView_SelectItem(_hTreeCtrl, hItemSel);
+			TreeView_EnsureVisible(_hTreeCtrl, hItemSel);
+
+			_FileList.viewPath(pszCurrPath, TRUE);
+			SetCaption(pszCurrPath);
 		}
-	} while (hItem != NULL);
 
-	/* view path */
-	if (pszCurrPath[0] != '\0')
-	{
-		/* select last selected item */
-		TreeView_SelectItem(_hTreeCtrl, hItemSel);
-		TreeView_EnsureVisible(_hTreeCtrl, hItemSel);
-
-		_FileList.viewPath(pszCurrPath, TRUE);
-		SetCaption(pszCurrPath);
-		folderExists = TRUE;
+		/* enable detection of TVN_SELCHANGED notification */
+		_isSelNotifyEnable = TRUE;
 	}
-
-	delete [] TEMP;
-	delete [] pszItemName;
-	delete [] pszShortPath;
-	delete [] pszCurrPath;
-
-	/* enable detection of TVN_SELCHANGED notification */
-	_isSelNotifyEnable = TRUE;
 
 	return folderExists;
 }
@@ -1197,8 +1210,8 @@ void ExplorerDialog::UpdateDevices(void)
 	HTREEITEM		hCurrentItem	= TreeView_GetNextItem(_hTreeCtrl, TVI_ROOT, TVGN_CHILD);
 
 	TCHAR			drivePathName[]	= " :\\\0\0";	// it is longer for function 'HaveChildren()'
-	LPTSTR			volumeName		= (LPTSTR)new TCHAR[MAX_PATH];
-	LPTSTR			TEMP			= (LPTSTR)new TCHAR[MAX_PATH];
+	TCHAR			TEMP[MAX_PATH];
+	TCHAR			volumeName[MAX_PATH];
 
 	for (int i = 1; i < 32; i++)
 	{
@@ -1279,14 +1292,11 @@ void ExplorerDialog::UpdateDevices(void)
 			}
 		}
 	}
-
-	delete [] volumeName;
-	delete [] TEMP;
 }
 
 void ExplorerDialog::UpdateFolders(void)
 {
-	LPTSTR			pszPath			= (LPTSTR)new TCHAR[MAX_PATH];
+	TCHAR			pszPath[MAX_PATH];
 	HTREEITEM		hCurrentItem	= TreeView_GetChild(_hTreeCtrl, TVI_ROOT);
 
 	while (hCurrentItem != NULL)
@@ -1299,8 +1309,6 @@ void ExplorerDialog::UpdateFolders(void)
 		}
 		hCurrentItem = TreeView_GetNextItem(_hTreeCtrl, hCurrentItem, TVGN_NEXT);
 	}
-
-	delete [] pszPath;
 }
 
 void ExplorerDialog::UpdateFolderRecursive(LPTSTR pszParentPath, HTREEITEM hParentItem)
@@ -1311,9 +1319,9 @@ void ExplorerDialog::UpdateFolderRecursive(LPTSTR pszParentPath, HTREEITEM hPare
 	
 	vector<tItemList>	vFolderList;
 	tItemList			listElement;
-	LPTSTR				pszItem			= (LPTSTR) new TCHAR[MAX_PATH];
-	LPTSTR				pszPath			= (LPTSTR) new TCHAR[MAX_PATH];
-	LPTSTR				pszSearch		= (LPTSTR) new TCHAR[MAX_PATH];
+	TCHAR				pszItem[MAX_PATH];
+	TCHAR				pszPath[MAX_PATH];
+	TCHAR				pszSearch[MAX_PATH];
 	HTREEITEM			hCurrentItem	= TreeView_GetNextItem(_hTreeCtrl, hParentItem, TVGN_CHILD);
 
 	strcpy(pszSearch, pszParentPath);
@@ -1322,12 +1330,7 @@ void ExplorerDialog::UpdateFolderRecursive(LPTSTR pszParentPath, HTREEITEM hPare
 	strcat(pszSearch, "\\*");
 
 	if ((hFind = ::FindFirstFile(pszSearch, &Find)) == INVALID_HANDLE_VALUE)
-	{
-		delete [] pszItem;
-		delete [] pszPath;
-		delete [] pszSearch;
 		return;
-	}
 
 	/* find folders */
 	do
@@ -1418,16 +1421,12 @@ void ExplorerDialog::UpdateFolderRecursive(LPTSTR pszParentPath, HTREEITEM hPare
 		hCurrentItem			= TreeView_GetNextItem(_hTreeCtrl, hCurrentItem, TVGN_NEXT);
 		TreeView_DeleteItem(_hTreeCtrl, pPrevItem);
 	}
-
-	delete [] pszItem;
-	delete [] pszPath;
-	delete [] pszSearch;
 }
 
 BOOL ExplorerDialog::FindFolderAfter(LPTSTR itemName, HTREEITEM pAfterItem)
 {
+	TCHAR		pszItem[MAX_PATH];
 	BOOL		isFound			= FALSE;
-	LPTSTR		pszItem			= (LPTSTR) new TCHAR[MAX_PATH];
 	HTREEITEM	hCurrentItem	= TreeView_GetNextItem(_hTreeCtrl, pAfterItem, TVGN_NEXT);
 
 	while (hCurrentItem != NULL)
@@ -1452,16 +1451,14 @@ void ExplorerDialog::GetFolderPathName(HTREEITEM currentItem, LPTSTR folderPathN
 {
 	/* return if current folder is root folder */
 	if (currentItem == TVI_ROOT)
-	{
 		return;
-	}
 
 	/* delete folder path name */
 	folderPathName[0]	= '\0';
 
 	/* create temp resources */
-	LPTSTR	TEMP	= (LPTSTR)new TCHAR[MAX_PATH];
-	LPTSTR	szName	= (LPTSTR)new TCHAR[MAX_PATH];
+	TCHAR	TEMP[MAX_PATH];
+	TCHAR	szName[MAX_PATH];
 
 	/* join elements together */
 	while (currentItem != NULL)
@@ -1480,9 +1477,6 @@ void ExplorerDialog::GetFolderPathName(HTREEITEM currentItem, LPTSTR folderPathN
 
 		sprintf(folderPathName, "%c:%s", TEMP[0], &TEMP[i]);
 	}
-
-	delete [] TEMP;
-	delete [] szName;
 }
 
 
@@ -1490,12 +1484,9 @@ void ExplorerDialog::NotifyNewFile(void)
 {
 	if (isCreated())
 	{
-		LPTSTR	TEMP	= (LPTSTR)new TCHAR[MAX_PATH];
-
-		::SendMessage(_hParent, WM_GET_CURRENTDIRECTORY, 0, (LPARAM)TEMP);
+		TCHAR	TEMP[MAX_PATH];
+		::SendMessage(_hParent, NPPM_GETCURRENTDIRECTORY, 0, (LPARAM)TEMP);
 		_ToolBar.enable(IDM_EX_GO_TO_FOLDER, (strlen(TEMP) != 0));
-
-		delete [] TEMP;
 	}
 }
 
@@ -1519,7 +1510,7 @@ BOOL ExplorerDialog::ExploreVolumeInformation(LPCTSTR pszDrivePathName, LPTSTR p
 	if (dwWaitResult == WAIT_TIMEOUT)
 	{
 		::TerminateThread(hThread, 0);
-		isValidDrive == FALSE;
+		isValidDrive = FALSE;
 	}
 	::CloseHandle(hThread);
 
