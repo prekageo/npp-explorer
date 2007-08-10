@@ -196,9 +196,6 @@
 			<File
 				RelativePath="..\..\src\stdafx.cpp">
 			</File>
-			<File
-				RelativePath="..\..\src\MISC\winVersion.cpp">
-			</File>
 		</Filter>
 		<Filter
 			Name="Header-Dateien"
@@ -281,9 +278,6 @@
 			<File
 				RelativePath="..\..\src\stdafx.h">
 			</File>
-			<File
-				RelativePath="..\..\src\MISC\winVersion.h">
-			</File>
 		</Filter>
 		<Filter
 			Name="Ressourcendateien"
@@ -335,6 +329,18 @@
 			</File>
 			<File
 				RelativePath="..\..\res\Heart.ico">
+			</File>
+			<File
+				RelativePath="..\..\res\SortDown.bmp">
+			</File>
+			<File
+				RelativePath="..\..\res\SortUp.bmp">
+			</File>
+			<File
+				RelativePath="..\..\res\bitmap1.bmp">
+			</File>
+			<File
+				RelativePath="..\..\res\bmp00001.bmp">
 			</File>
 			<File
 				RelativePath="..\..\res\explore.bmp">
