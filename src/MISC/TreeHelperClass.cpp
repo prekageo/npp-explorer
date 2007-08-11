@@ -172,7 +172,7 @@ HTREEITEM TreeHelper::InsertChildFolder(LPTSTR childFolderName, HTREEITEM parent
 
 HTREEITEM TreeHelper::InsertItem(LPTSTR lpszItem, 
 								 INT nImage, 
-								 INT nSelectedIamage, 
+								 INT nSelectedImage, 
 								 INT nOverlayedImage,
 								 BOOL bHidden,
 								 HTREEITEM hParent, 
@@ -188,7 +188,7 @@ HTREEITEM TreeHelper::InsertItem(LPTSTR lpszItem,
 	tvis.item.mask			 = TVIF_PARAM | TVIF_IMAGE | TVIF_SELECTEDIMAGE | TVIF_TEXT | TVIF_CHILDREN;
 	tvis.item.pszText		 = lpszItem;
 	tvis.item.iImage		 = nImage;
-	tvis.item.iSelectedImage = nSelectedIamage;
+	tvis.item.iSelectedImage = nSelectedImage;
 	tvis.item.cChildren		 = haveChildren;
 	tvis.item.lParam		 = lParam;
 
@@ -222,7 +222,7 @@ void TreeHelper::DeleteChildren(HTREEITEM parentItem)
 BOOL TreeHelper::UpdateItem(HTREEITEM hItem, 
 							LPTSTR lpszItem, 
 							INT nImage, 
-							INT nSelectedIamage, 
+							INT nSelectedImage, 
 							INT nOverlayedImage, 
 							BOOL bHidden,
 							BOOL haveChildren, 
@@ -235,7 +235,7 @@ BOOL TreeHelper::UpdateItem(HTREEITEM hItem,
 	item.mask			 = TVIF_PARAM | TVIF_IMAGE | TVIF_SELECTEDIMAGE | TVIF_TEXT | TVIF_CHILDREN | TVIF_STATE;
 	item.pszText		 = lpszItem;
 	item.iImage			 = nImage;
-	item.iSelectedImage	 = nSelectedIamage;
+	item.iSelectedImage	 = nSelectedImage;
 	item.cChildren		 = haveChildren;
 	item.state			|= INDEXTOOVERLAYMASK(nOverlayedImage);
 	item.stateMask		|= TVIS_OVERLAYMASK;
