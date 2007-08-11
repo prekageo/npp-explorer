@@ -34,6 +34,15 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 using namespace std;
 
 
+static class FileList*	lpFileListClass	= NULL;
+
+
+/* pattern for column resize by mouse */
+static const WORD DotPattern[] = 
+{
+	0x00FF, 0x00FF, 0x00FF, 0x00FF, 0x00FF, 0x00FF, 0x00FF, 0x00FF
+};
+
 typedef struct {
 	BOOL		bParent;
 	BOOL		bHidden;
@@ -56,50 +65,61 @@ public:
 	FileList(void);
 	~FileList(void);
 	
-	void init(HINSTANCE hInst, HWND hParent, HWND hParentList, HIMAGELIST hImageList);
+	void init(HINSTANCE hInst, HWND hParent, HWND hParentList);
 	void initProp(tExProp* prop);
 
 	void viewPath(LPCSTR currentPath, BOOL redraw = FALSE);
 
-	void notify(WPARAM wParam, LPARAM lParam);
+	BOOL notify(WPARAM wParam, LPARAM lParam);
 
 	void filterFiles(LPSTR currentFilter);
+	void SelectCurFile(void);
 	void SelectFolder(LPSTR selFolder);
 
-	void ToggleStackRec(void);			// enables/disable trace of viewed directories
-	void ResetDirStack(void);			// resets the stack
-	void SetToolBarInfo(ToolBar *ToolBar, UINT idRedo, UINT idUndo);	// set dependency to a toolbar element
-	bool GetPrevDir(LPSTR pszPath);		// get previous directory
-	bool GetNextDir(LPSTR pszPath);		// get next directory
+	void UpdateDocs(const char** pFiles, UINT numFiles, INT openDoc) {
+		_iOpenDoc = openDoc;
+		_vStrCurrentFiles.clear();
+		for (UINT i = 0; i < numFiles; i++)
+			_vStrCurrentFiles.push_back(pFiles[i]);
+	};
 
+	virtual void destroy() {};
 	virtual void redraw(void) {
+		::SendMessage(_hSelf, LVM_SETIMAGELIST, LVSIL_SMALL, (LPARAM)GetSmallImageList(_pExProp->bUseSystemIcons));
 		SetColumns();
 		Window::redraw();
 	};
 
-	virtual void destroy() {};
+	void ToggleStackRec(void);					// enables/disable trace of viewed directories
+	void ResetDirStack(void);					// resets the stack
+	void SetToolBarInfo(ToolBar *ToolBar, UINT idRedo, UINT idUndo);	// set dependency to a toolbar element
+	bool GetPrevDir(LPSTR pszPath);				// get previous directory
+	bool GetNextDir(LPSTR pszPath);				// get next directory
+	INT  GetPrevDirs(LPSTR *pszPathes);			// get previous directorys
+	INT  GetNextDirs(LPSTR *pszPathes);			// get next directorys
+	void OffsetItr(INT offsetItr);
 
 protected:
 
 	/* Subclassing list control */
 	LRESULT runListProc(HWND hwnd, UINT Message, WPARAM wParam, LPARAM lParam);
 	static LRESULT CALLBACK wndDefaultListProc(HWND hwnd, UINT Message, WPARAM wParam, LPARAM lParam) {
-		return (((FileList *)(::GetWindowLong(hwnd, GWL_USERDATA)))->runListProc(hwnd, Message, wParam, lParam));
+		return (lpFileListClass->runListProc(hwnd, Message, wParam, lParam));
 	};
 
 	/* Subclassing header control */
 	LRESULT runHeaderProc(HWND hwnd, UINT Message, WPARAM wParam, LPARAM lParam);
 	static LRESULT CALLBACK wndDefaultHeaderProc(HWND hwnd, UINT Message, WPARAM wParam, LPARAM lParam) {
-		return (((FileList *)(::GetWindowLong(hwnd, GWL_USERDATA)))->runHeaderProc(hwnd, Message, wParam, lParam));
+		return (lpFileListClass->runHeaderProc(hwnd, Message, wParam, lParam));
 	};
-
-	void drawHeaderItem(DRAWITEMSTRUCT *pDrawItemStruct);
 
 	void ReadIconToList(INT iItem, LPINT iIcon, LPINT iOverlayed, LPBOOL pbHidden);
 	void ReadArrayToList(LPSTR szItem, INT iItem ,INT iSubItem);
 
+	void DrawDivider(UINT x);
 	void UpdateList(void);
 	void SetColumns(void);
+	void SetOrder(void);
 
 	BOOL FindNextItemInList(UINT maxFolder, UINT maxData, LPUINT puPos);
 
@@ -135,42 +155,42 @@ private:
 
 	tExProp*					_pExProp;
 
-	/* header control */
-	BOOL						_isMouseOver;
-	BOOL						_isLeftButtonDown;
-	INT							_iMouseOver;
+	/* file list owner drawn */
+	RECT						_rcClip;
+	HFONT						_hFont;
+	HFONT						_hFontUnder;
+	HIMAGELIST					_hImlParent;
 
-	UINT						_iImageList;
+	/* header values */
+	HBITMAP						_bmpSortUp;
+	HBITMAP						_bmpSortDown;
+	INT							_iMouseTrackItem;
+	LONG						_lMouseTrackPos;
+	INT							_iBltPos;
 
+	/* tooltip values */
 	ToolTip						_pToolTip;
 	UINT						_iItem;
 	UINT						_iSubItem;
 
-	INT							_iSelMark;
-	LPUINT						_puSelList;
+	/* current file filter */
+	TCHAR						_szFileFilter[MAX_PATH];
 
 	/* stores the path here for sorting		*/
 	/* Note: _vFolder will not be sorted    */
+	UINT						_uMaxFolders;
+	UINT						_uMaxElements;
 	vector<tFileListData>		_vFolders;
 	vector<tFileListData>		_vFiles;
 
+	/* current open docs */
 	string						_strCurrentPath;
-	TCHAR						_szFileFilter[MAX_PATH];
+	INT							_iOpenDoc;
+	vector<string>				_vStrCurrentFiles;
 
 	/* search in list by typing of characters */
 	BOOL						_bSearchFile;
 	char						_strSearchFile[MAX_PATH];
-
-	HBITMAP						_bitmap0;
-	HBITMAP						_bitmap1;
-	HBITMAP						_bitmap2;
-	HBITMAP						_bitmap3;
-	HBITMAP						_bitmap4;
-	HBITMAP						_bitmap5;
-	HBITMAP						_bitmap6;
-	HBITMAP						_bitmap7;
-	HBITMAP						_bitmap8;
-	HBITMAP						_bitmap9;
 
 	BOOL						_bOldAddExtToName;
 	BOOL						_bOldViewLong;

@@ -26,43 +26,60 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include <shlwapi.h>
 #include <shellapi.h>
 
-//#include "wbded.h"
-
-
-//HRESULT CreateDropSource(WB_IDropSource **ppDropSource);
-//HRESULT CreateDataObject(FORMATETC *etc, STGMEDIUM *stgmeds, UINT count, WB_IDataObject **ppDataObject);
-
 
 #ifndef LVM_SETSELECTEDCOLUMN
 #define LVM_SETSELECTEDCOLUMN (LVM_FIRST + 140)
 #endif
 
+#ifndef WH_MOUSE_LL
+#define WH_MOUSE_LL 14
+#endif
+
+
+#define LVIS_SELANDFOC	(LVIS_SELECTED|LVIS_FOCUSED)
+
+
+static HWND		hWndServer		= NULL;
+static HHOOK	hookMouse		= NULL;
+
+static LRESULT CALLBACK hookProcMouse(INT nCode, WPARAM wParam, LPARAM lParam)
+{
+    if (nCode >= 0)
+    {
+		switch (wParam)
+		{
+			case WM_MOUSEMOVE:
+			case WM_NCMOUSEMOVE:
+				::PostMessage(hWndServer, wParam, 0, 0);
+				break;
+			case WM_LBUTTONUP:
+			case WM_NCLBUTTONUP:
+				::PostMessage(hWndServer, wParam, 0, 0);
+				return TRUE;
+			default: 
+				break;
+		}
+	}
+	return ::CallNextHookEx(hookMouse, nCode, wParam, lParam);
+}
 
 
 FileList::FileList(void)
 {
+	_hFont				= NULL;
+	_hFontUnder			= NULL;
 	_hHeader			= NULL;
+	_bmpSortUp			= NULL;
+	_bmpSortDown		= NULL;
+	_iMouseTrackItem	= 0;
+	_lMouseTrackPos		= 0;
+	_iBltPos			= 0;
 	_strCurrentPath		= "";
-	_isMouseOver		= FALSE;
-	_isLeftButtonDown	= FALSE;
-	_iMouseOver			= -1;
-	_bitmap0			= NULL;
-	_bitmap1			= NULL;
-	_bitmap2			= NULL;
-	_bitmap3			= NULL;
-	_bitmap4			= NULL;
-	_bitmap5			= NULL;
-	_bitmap6			= NULL;
-	_bitmap7			= NULL;
-	_bitmap8			= NULL;
-	_bitmap9			= NULL;
 	_isStackRec			= TRUE;
 	_iItem				= 0;
 	_iSubItem			= 0;
 	_bOldAddExtToName	= FALSE;
 	_bOldViewLong		= FALSE;
-	_iSelMark			= 0;
-	_puSelList			= NULL;
 	_bSearchFile		= FALSE;
 	strcpy(_strSearchFile, "");
 	strcpy(_szFileFilter, "*.*");
@@ -70,26 +87,40 @@ FileList::FileList(void)
 
 FileList::~FileList(void)
 {
-	::DeleteObject(_bitmap0);
-//	::DeleteObject(_bitmap1);
-	::DeleteObject(_bitmap2);
-	::DeleteObject(_bitmap3);
-	::DeleteObject(_bitmap4);
-	::DeleteObject(_bitmap5);
-	::DeleteObject(_bitmap6);
-	::DeleteObject(_bitmap7);
-	::DeleteObject(_bitmap8);
-	::DeleteObject(_bitmap9);
+	if (gWinVersion < WV_XP)
+	{
+		::DeleteObject(_bmpSortUp);
+		::DeleteObject(_bmpSortDown);
+	}
+	ImageList_Destroy(_hImlParent);
+	::DeleteObject(_hFontUnder);
+
 	_vDirStack.clear();
 	_vFolders.clear();
 	_vFiles.clear();
 }
 
-void FileList::init(HINSTANCE hInst, HWND hParent, HWND hParentList, HIMAGELIST hImageList)
+void FileList::init(HINSTANCE hInst, HWND hParent, HWND hParentList)
 {
 	/* this is the list element */
 	Window::init(hInst, hParent);
-	_hSelf		= hParentList;
+	_hSelf = hParentList;
+
+	/* get font for drawing */
+	_hFont		= (HFONT)::SendMessage(_hParent, WM_GETFONT, 0, 0);
+
+	/* create copy of current font with underline */
+	LOGFONT	lf			= {0};
+	::GetObject(_hFont, sizeof(LOGFONT), &lf);
+	lf.lfUnderline		= TRUE;
+	_hFontUnder	= ::CreateFontIndirect(&lf);
+
+	/* load sort bitmaps */
+	if (gWinVersion < WV_XP)
+	{
+		_bmpSortUp	 = (HBITMAP)::LoadImage(hInst, MAKEINTRESOURCE(IDB_SORTUP), IMAGE_BITMAP, 0, 0, LR_LOADMAP3DCOLORS);
+		_bmpSortDown = (HBITMAP)::LoadImage(hInst, MAKEINTRESOURCE(IDB_SORTDOWN), IMAGE_BITMAP, 0, 0, LR_LOADMAP3DCOLORS);
+	}
 
 	/* keep sure to support virtual list with icons */
 	DWORD	dwStyle = ::GetWindowLong(_hSelf, GWL_STYLE);
@@ -100,31 +131,19 @@ void FileList::init(HINSTANCE hInst, HWND hParent, HWND hParentList, HIMAGELIST 
 	ListView_SetCallbackMask(_hSelf, LVIS_OVERLAYMASK);
 
 	/* subclass list control */
-	::SetWindowLong(_hSelf, GWL_USERDATA, reinterpret_cast<LONG>(this));
+	lpFileListClass = this;
 	_hDefaultListProc = reinterpret_cast<WNDPROC>(::SetWindowLong(_hSelf, GWL_WNDPROC, reinterpret_cast<LONG>(wndDefaultListProc)));
 
 	/* set image list and icon */
-	_iImageList = ImageList_AddIcon(hImageList, ::LoadIcon(_hInst, MAKEINTRESOURCE(IDI_PARENTFOLDER)));
-	::SendMessage(_hSelf, LVM_SETIMAGELIST, LVSIL_SMALL, (LPARAM)hImageList);
+	_hImlParent = GetSmallImageList(FALSE);
+	::SendMessage(_hSelf, LVM_SETIMAGELIST, LVSIL_SMALL, (LPARAM)GetSmallImageList(_pExProp->bUseSystemIcons));
 
 	/* get header control and subclass it */
-	_hHeader = ListView_GetHeader(_hSelf);
-	::SetWindowLong(_hHeader, GWL_USERDATA, reinterpret_cast<LONG>(this));
+	hWndServer = _hHeader = ListView_GetHeader(_hSelf);
 	_hDefaultHeaderProc = reinterpret_cast<WNDPROC>(::SetWindowLong(_hHeader, GWL_WNDPROC, reinterpret_cast<LONG>(wndDefaultHeaderProc)));
 
 	/* set here the columns */
 	SetColumns();
-
-	_bitmap0 = ::LoadBitmap(_hInst, MAKEINTRESOURCE(IDB_HEADER_NORMXP));
-//	_bitmap1 = ::LoadBitmap(_hInst, MAKEINTRESOURCE(IDB_HEADER_SNORMXP));
-	_bitmap2 = ::LoadBitmap(_hInst, MAKEINTRESOURCE(IDB_HEADER_SHIGHXP));
-	_bitmap3 = ::LoadBitmap(_hInst, MAKEINTRESOURCE(IDB_HEADER_HIGHXP));
-	_bitmap4 = ::LoadBitmap(_hInst, MAKEINTRESOURCE(IDB_HEADER_ENORMXP));
-	_bitmap5 = ::LoadBitmap(_hInst, MAKEINTRESOURCE(IDB_HEADER_EHIGHXP));
-	_bitmap6 = ::LoadBitmap(_hInst, MAKEINTRESOURCE(IDB_HEADER_SORTUPNORMXP));
-	_bitmap7 = ::LoadBitmap(_hInst, MAKEINTRESOURCE(IDB_HEADER_SORTUPHIGHXP));
-	_bitmap8 = ::LoadBitmap(_hInst, MAKEINTRESOURCE(IDB_HEADER_SORTDOWNNORMXP));
-	_bitmap9 = ::LoadBitmap(_hInst, MAKEINTRESOURCE(IDB_HEADER_SORTDOWNHIGHXP));
 }
 
 void FileList::initProp(tExProp* prop)
@@ -141,23 +160,12 @@ LRESULT FileList::runListProc(HWND hwnd, UINT Message, WPARAM wParam, LPARAM lPa
 {
 	switch (Message)
 	{
-		case WM_DRAWITEM:
-		{
-			if (((DRAWITEMSTRUCT *)lParam)->hwndItem == _hHeader)
-			{
-				drawHeaderItem((DRAWITEMSTRUCT *)lParam);
-				return TRUE;
-			}
-			break;
-		}
 		case WM_GETDLGCODE:
 		{
 			return DLGC_WANTALLKEYS | ::CallWindowProc(_hDefaultListProc, hwnd, Message, wParam, lParam);
 		}
 		case WM_CHAR:
 		{
-			UINT	maxFolders	= _vFolders.size();
-			UINT	maxData		= maxFolders + _vFiles.size();
 			UINT	selRow		= ListView_GetSelectionMark(_hSelf);
 
 			/* restart timer */
@@ -175,20 +183,20 @@ LRESULT FileList::runListProc(HWND hwnd, UINT Message, WPARAM wParam, LPARAM lPa
 				selRow++;
 
 			UINT startPos	= selRow;
-			BOOL bRet		= FindNextItemInList(maxFolders, maxData, &selRow);
+			BOOL bRet		= FindNextItemInList(_uMaxFolders, _uMaxElements, &selRow);
 			if ((bRet == FALSE) && (_bSearchFile == TRUE))
 			{
 				_strSearchFile[strlen(_strSearchFile)-1] = '\0';
 				selRow++;
-				bRet = FindNextItemInList(maxFolders, maxData, &selRow);
+				bRet = FindNextItemInList(_uMaxFolders, _uMaxElements, &selRow);
 			}
 
 			if (bRet == TRUE)
 			{
 				/* select only one item */
-				for (UINT i = 0; i < maxData; i++)
+				for (UINT i = 0; i < _uMaxElements; i++)
 				{
-					ListView_SetItemState(_hSelf, i, (selRow == i ? LVIS_SELECTED : 0), 0xFF);
+					ListView_SetItemState(_hSelf, i, (selRow == i ? LVIS_SELANDFOC : 0), 0xFF);
 				}
 				ListView_SetSelectionMark(_hSelf, selRow);
 				ListView_EnsureVisible(_hSelf, selRow, TRUE);
@@ -217,25 +225,64 @@ LRESULT FileList::runListProc(HWND hwnd, UINT Message, WPARAM wParam, LPARAM lPa
 				/* show text */
 				if (ListView_GetSubItemRect(_hSelf, hittest.iItem, hittest.iSubItem, LVIR_LABEL, &rcLabel))
 				{
+					TCHAR		pszItemText[MAX_PATH];
 					RECT		rc				= {0};
-					LPSTR		pszItemText		= (LPSTR)new TCHAR[MAX_PATH];
 					INT			width			= 0;
 
 					::GetClientRect(_hSelf, &rc);
-					ListView_GetItemText(_hSelf, hittest.iItem, hittest.iSubItem, pszItemText, MAX_PATH);
-					width = ListView_GetStringWidth(_hSelf, pszItemText);
+
+					/* get width of selected column */
+					if ((hittest.iSubItem == 0) || 
+						((hittest.iSubItem == 1) && (_pExProp->bAddExtToName == TRUE)))
+					{
+						HDC		hDc			= ::GetDC(_hSelf);
+						SIZE	size		= {0};
+
+						/* get font length */
+						HFONT hDefFont = (HFONT)::SelectObject(hDc, _hFont);
+						if (hittest.iItem < (INT)_uMaxFolders)
+						{
+							if (_pExProp->bViewBraces == TRUE)
+								sprintf(pszItemText, "[%s]", _vFolders[hittest.iItem].strName.c_str());
+							else
+								sprintf(pszItemText, "%s", _vFolders[hittest.iItem].strName.c_str());
+						} else {
+							strcpy(pszItemText, _vFiles[hittest.iItem-_uMaxFolders].strName.c_str());
+						}
+						::GetTextExtentPoint32(hDc, pszItemText, strlen(pszItemText), &size);
+						width = size.cx;
+
+						SelectObject(hDc, hDefFont);
+
+						/* recalc label */
+						if (_pExProp->bAddExtToName == TRUE)
+						{
+							RECT rcLabelSec	= {0};
+							ListView_GetSubItemRect(_hSelf, hittest.iItem, 0, LVIR_LABEL, &rcLabel);
+							ListView_GetSubItemRect(_hSelf, hittest.iItem, 1, LVIR_LABEL, &rcLabelSec);
+							rcLabel.right = rcLabelSec.right;
+						}
+					}
+					else
+					{
+						ListView_GetItemText(_hSelf, hittest.iItem, hittest.iSubItem, pszItemText, MAX_PATH);
+						width = ListView_GetStringWidth(_hSelf, pszItemText);
+					}
 
 					/* open tooltip only when it's content is too small */
-					if ((((rcLabel.right - rcLabel.left) - (hittest.iSubItem == 0 ? 10 : 13)) < width) ||
-						(((rc.right - rcLabel.left) - (hittest.iSubItem == 0 ? 10 : 5)) < width))
+					if ((((rcLabel.right - rcLabel.left) - (hittest.iSubItem == 0 ? 5 : 12)) < width) ||
+						(((rc.right - rcLabel.left) - (hittest.iSubItem == 0 ? 5 : 5)) < width))
 					{
 						_pToolTip.init(_hInst, _hSelf);
-						rcLabel.left += (hittest.iSubItem == 0 ? -1 : 3);
+						if ((hittest.iSubItem == 0) || ((hittest.iSubItem == 1) && (_pExProp->bAddExtToName == TRUE)))
+							rcLabel.left -= 1;
+						else
+							rcLabel.left += 3;
 						ClientToScreen(_hSelf, &rcLabel);
 
 						if ((_pExProp->bAddExtToName == FALSE) && (hittest.iSubItem == 0))
 						{
-							LPSTR pszItemTextExt = (LPSTR)new TCHAR[MAX_PATH];
+							TCHAR	pszItemTextExt[MAX_PATH];
 							ListView_GetItemText(_hSelf, hittest.iItem, 1, pszItemTextExt, MAX_PATH);
 							if (pszItemTextExt[0] != '\0')
 							{
@@ -243,20 +290,113 @@ LRESULT FileList::runListProc(HWND hwnd, UINT Message, WPARAM wParam, LPARAM lPa
 								strcat(pszItemText, pszItemTextExt);
 							}
 							_pToolTip.Show(rcLabel, pszItemText);
-							delete [] pszItemTextExt;
 						}
 						else
 						{
 							_pToolTip.Show(rcLabel, pszItemText);
 						}
 					}
-
-					delete [] pszItemText;
 				}
 			}
 			_iItem		= hittest.iItem;
 			_iSubItem	= hittest.iSubItem;
 			break;
+		}
+		case WM_SIZE:
+		{
+			RECT	rc			= {0};
+			UINT	uListBegin	= ListView_GetTopIndex(_hSelf);
+
+			::GetClientRect(_hHeader, &rc);
+			::GetClientRect(hwnd, &_rcClip);
+			_rcClip.top = rc.bottom + 2;
+			break;
+		}
+		case WM_PAINT:
+		{
+			/* buffer for string to draw */
+			static char	szDrawItem[MAX_PATH];
+
+			/* when no elments in list return */
+			if (_uMaxElements == 0)
+				break;
+
+			/* paint the background */
+			LRESULT	lpRet = ::CallWindowProc(_hDefaultListProc, hwnd, Message, wParam, lParam);
+
+			/* declaration */
+			RECT	rc			= {0};
+			RECT	rcExt		= {0};
+			HDC		hDc			= ::GetWindowDC(hwnd);
+			HFONT	hDefFont	= NULL;
+
+			/* set clip rect */
+			::IntersectClipRect(hDc, _rcClip.left, _rcClip.top, _rcClip.right, _rcClip.bottom);
+
+			/* set transparent background */
+			::SetBkMode(hDc, TRANSPARENT);
+
+			/* calculate number of items to draw */
+			UINT	uListBegin	= ListView_GetTopIndex(_hSelf);
+			UINT	uListCnt	= uListBegin + ListView_GetCountPerPage(_hSelf) + 1;
+			for (UINT i = uListBegin; (i < uListCnt) && (i < _uMaxElements); i++)
+			{
+				/* test if element is selected */
+				bool isSel = (bool)
+					((ListView_GetItemState(_hSelf, i, LVIS_SELECTED) & LVIS_SELECTED) && (::GetFocus() == _hSelf));
+
+				/* draw parent up icon */
+				if ((i == 0) && (_vFolders[i].bParent == TRUE))
+				{
+					ListView_GetSubItemRect(_hSelf, 0, 0, LVIR_ICON, &rc);
+					ImageList_Draw(_hImlParent, ICON_PARENT, hDc, rc.left+2, rc.top+2, ILD_NORMAL | (isSel ? ILD_SELECTED : 0));
+				}
+
+				/* calculate complete rect */
+				ListView_GetSubItemRect(_hSelf, i, 0, LVIR_LABEL, &rc);
+				rc.left += 4;
+				if (_pExProp->bAddExtToName == TRUE)
+				{
+					/* get extension rect offset */
+					ListView_GetSubItemRect(_hSelf, i, 1, LVIR_LABEL, &rcExt);
+					rc.right = rcExt.right;
+				}
+
+				/* set text color */
+				if (isSel)
+					::SetTextColor(hDc, RGB(255,255,255));
+
+				if (i < _uMaxFolders)
+				{
+					if (_pExProp->bViewBraces == TRUE)
+						sprintf(szDrawItem, "[%s]", _vFolders[i].strName.c_str());
+					else
+						sprintf(szDrawItem, "%s", _vFolders[i].strName.c_str());
+					hDefFont = (HFONT)::SelectObject(hDc, _hFont);
+				}
+				else
+				{
+					/* copy string */
+					strcpy(szDrawItem, _vFiles[i-_uMaxFolders].strName.c_str());
+					string	strFilePath	= _strCurrentPath + _vFiles[i-_uMaxFolders].strNameExt;
+					for (UINT iCurFiles = 0; iCurFiles < _vStrCurrentFiles.size(); iCurFiles++)
+					{
+						if (_vStrCurrentFiles[iCurFiles] == strFilePath)
+						{
+							hDefFont = (HFONT)::SelectObject(hDc, _hFontUnder);
+							goto drawText;
+						}
+					}
+					hDefFont = (HFONT)::SelectObject(hDc, _hFont);
+				}
+
+drawText:		/* draw text */					
+				::DrawText(hDc, szDrawItem, strlen(szDrawItem), &rc, DT_LEFT | DT_SINGLELINE | DT_BOTTOM | DT_END_ELLIPSIS);
+				::SetTextColor(hDc, RGB(0,0,0));
+				::SelectObject(hDc, hDefFont);
+			}
+
+			return lpRet;
 		}
 		case WM_TIMER:
 		{
@@ -267,8 +407,6 @@ LRESULT FileList::runListProc(HWND hwnd, UINT Message, WPARAM wParam, LPARAM lPa
 		}
 		case EXM_TOOLTIP:
 		{
-			INT				iFolders	= _vFolders.size();
-			UINT			uListCnt	= iFolders + _vFiles.size();
 			LVHITTESTINFO	hittest		= *((LVHITTESTINFO*)lParam);
 
 			switch (wParam)
@@ -276,14 +414,14 @@ LRESULT FileList::runListProc(HWND hwnd, UINT Message, WPARAM wParam, LPARAM lPa
 				case WM_LBUTTONDBLCLK:
 				{
 					/* select only one item */
-					for (UINT uList = 0; uList < uListCnt; uList++)
+					for (UINT uList = 0; uList < _uMaxElements; uList++)
 					{
-						ListView_SetItemState(_hSelf, uList, (hittest.iItem == uList ? LVIS_SELECTED : 0), 0xFF);
+						ListView_SetItemState(_hSelf, uList, (hittest.iItem == uList ? LVIS_SELANDFOC : 0), 0xFF);
 					}
 					ListView_SetSelectionMark(_hSelf, hittest.iItem);
 
 					/* hide tooltip */
-					if (hittest.iItem < iFolders)
+					if (hittest.iItem < (INT)_uMaxFolders)
 						_pToolTip.destroy();
 
 					onLMouseBtnDbl();
@@ -296,33 +434,25 @@ LRESULT FileList::runListProc(HWND hwnd, UINT Message, WPARAM wParam, LPARAM lPa
 					{
 						INT lastSel = ListView_GetSelectionMark(_hSelf);
 
-						if (lastSel < hittest.iItem)
-						{
+						if (lastSel < hittest.iItem) {
 							for (INT uList = lastSel; uList <= hittest.iItem; uList++)
-							{
-								ListView_SetItemState(_hSelf, uList, LVIS_SELECTED, 0xFF);
-							}
-						}
-						else
-						{
+								ListView_SetItemState(_hSelf, uList, LVIS_SELANDFOC, 0xFF);
+						} else {
 							for (INT uList = lastSel; uList >= hittest.iItem; uList--)
-							{
-								ListView_SetItemState(_hSelf, uList, LVIS_SELECTED, 0xFF);
-							}
+								ListView_SetItemState(_hSelf, uList, LVIS_SELANDFOC, 0xFF);
 						}
 					}
 					else if (0x80 & ::GetKeyState(VK_CONTROL)) 
 					{
 						bool	isSel = (ListView_GetItemState(_hSelf, hittest.iItem, LVIS_SELECTED) == LVIS_SELECTED);
 
-						ListView_SetItemState(_hSelf, hittest.iItem, isSel ? 0 : LVIS_SELECTED, 0xFF);
+						ListView_SetItemState(_hSelf, hittest.iItem, isSel ? 0 : LVIS_SELANDFOC, 0xFF);
 					}
 					else
 					{
 						/* select only one item */
-						for (UINT uList = 0; uList < uListCnt; uList++)
-						{
-							ListView_SetItemState(_hSelf, uList, (hittest.iItem == uList ? LVIS_SELECTED : 0), 0xFF);
+						for (UINT uList = 0; uList < _uMaxElements; uList++) {
+							ListView_SetItemState(_hSelf, uList, (hittest.iItem == uList ? LVIS_SELANDFOC : 0), 0xFF);
 						}
 					}
 					ListView_SetSelectionMark(_hSelf, hittest.iItem);
@@ -333,9 +463,8 @@ LRESULT FileList::runListProc(HWND hwnd, UINT Message, WPARAM wParam, LPARAM lPa
     			case WM_RBUTTONDOWN:
 				{
 					/* select only one item */
-					for (UINT uList = 0; uList < uListCnt; uList++)
-					{
-						ListView_SetItemState(_hSelf, uList, (hittest.iItem == uList ? LVIS_SELECTED : 0), 0xFF);
+					for (UINT uList = 0; uList < _uMaxElements; uList++) {
+						ListView_SetItemState(_hSelf, uList, (hittest.iItem == uList ? LVIS_SELANDFOC : 0), 0xFF);
 					}
 					ListView_SetSelectionMark(_hSelf, hittest.iItem);
 
@@ -356,122 +485,6 @@ LRESULT FileList::runListProc(HWND hwnd, UINT Message, WPARAM wParam, LPARAM lPa
 	return ::CallWindowProc(_hDefaultListProc, hwnd, Message, wParam, lParam);
 }
 
-#ifndef ODS_HOTLIGHT
-#define ODS_HOTLIGHT 0x0040
-#endif
-
-void FileList::drawHeaderItem(DRAWITEMSTRUCT *pDrawItemStruct)
-{
-	/* get drawing context */
-	HDC		hDc			= pDrawItemStruct->hDC;
-	HDC		hMemDc		= ::CreateCompatibleDC(hDc);
-	HDC		hBitmapDc	= ::CreateCompatibleDC(hDc);
-	RECT	clientRect	= {0};
-	UINT	nItems		= ListView_GetItemCount(_hSelf);
-	RECT	rect		= {0};
-
-	::GetClientRect(_hHeader, &rect);
-
-	/* create memory DC for flicker free paint */
-	HBITMAP	bitmap = ::CreateCompatibleBitmap(hDc, rect.right - rect.left, rect.bottom - rect.top);
-	HBITMAP hOldMemBitmap = (HBITMAP)::SelectObject(hMemDc, bitmap);
-
-	/* blit the grayed bottom border */
-	HBITMAP	hOldBitmapSpan = (HBITMAP)::SelectObject(hBitmapDc, _bitmap0);
-	::StretchBlt(hMemDc, rect.left, rect.top, rect.right - rect.left, 20, hBitmapDc, 0, 0, 1, 20, SRCCOPY);
-	::SelectObject(hBitmapDc, hOldBitmapSpan);
-
-	/* view if cusor points in rect */
-	rect = pDrawItemStruct->rcItem;
-
-	if (_iMouseOver == pDrawItemStruct->itemID)
-	{	
-		/* draw the start piece of the column header */
-		HBITMAP	hOldBitmap = (HBITMAP)::SelectObject(hBitmapDc, _bitmap2);
-		::BitBlt(hMemDc, rect.left, 0, 6, 20, hBitmapDc, 0, 0,SRCCOPY);
-		::SelectObject(hBitmapDc, hOldBitmap);
-
-		UINT uWidth = rect.right - rect.left - 12;
-		hOldBitmap = (HBITMAP)::SelectObject(hBitmapDc, _bitmap3);
-		::StretchBlt(hMemDc, rect.left + 6, 0, uWidth, 20, hBitmapDc, 0, 0, 1, 20, SRCCOPY);
-		::SelectObject(hBitmapDc, hOldBitmap);
-		
-		/* draw the end piece of the column header */
-		HBITMAP	hOldBitmapEnd = (HBITMAP)::SelectObject(hBitmapDc, _bitmap5);
-		::BitBlt(hMemDc, rect.right - 6, 0, 6, 20, hBitmapDc, 0, 0, SRCCOPY);
-		::SelectObject(hBitmapDc, hOldBitmapEnd);
-	}
-	else
-	{
-		HBITMAP	hOldBitmapEnd = (HBITMAP)::SelectObject(hBitmapDc, _bitmap4);
-		::BitBlt(hMemDc, rect.right - 6, 0, 6, 20, hBitmapDc, 0, 0, SRCCOPY);
-		::SelectObject(hBitmapDc, hOldBitmapEnd);
-	}
-
-	/* create own font */
-	HFONT		hFont	= NULL;
-	LOGFONT		lf		= {0};
-	SIZE		size	= {0};
-
-	ZeroMemory(&lf, sizeof(LOGFONT));
-	lf.lfHeight = 14;
-	strcpy(lf.lfFaceName, "MS Shell Dlg");
-	hFont = ::CreateFontIndirect(&lf);
-
-	/* inflate item rect for text */
-	RECT	rectItem = pDrawItemStruct->rcItem;
-	rectItem.top	+= 2;
-	rectItem.left	+= 8;
-	
-	TCHAR		buf[256];
-	LVCOLUMN	column	= {0};
-	
-	column.mask			= LVCF_TEXT;
-	column.pszText		= buf;
-	column.cchTextMax	= 256;
-	ListView_GetColumn(_hSelf, pDrawItemStruct->itemID, &column);
-
-	HFONT hDefFont = (HFONT)::SelectObject(hMemDc, hFont);
-	::GetTextExtentPoint32(hMemDc, buf, strlen(buf), &size);
-
-	::SetBkMode(hMemDc, TRANSPARENT);
-	::DrawText(hMemDc, buf, strlen(buf), &rectItem, DT_LEFT | DT_VCENTER);
-	::SelectObject(hMemDc, hDefFont);
-	::DeleteObject(hFont);
-
-	if (_pExProp->iSortPos == pDrawItemStruct->itemID)
-	{
-		//draw the sort arrow
-		HBITMAP	hOldBitmap = NULL; //::SelectObject(hBitmapDc, bitmap2);
-
-		if (_iMouseOver == pDrawItemStruct->itemID)
-		{
-			if (_pExProp->bAscending == TRUE)
-				hOldBitmap = (HBITMAP)::SelectObject(hBitmapDc, _bitmap7);
-			else
-				hOldBitmap = (HBITMAP)::SelectObject(hBitmapDc, _bitmap9);
-		}
-		else
-		{
-			if (_pExProp->bAscending == TRUE)
-				hOldBitmap = (HBITMAP)::SelectObject(hBitmapDc, _bitmap6);
-			else
-				hOldBitmap = (HBITMAP)::SelectObject(hBitmapDc, _bitmap8);
-		}
-		if ((rect.right - rect.left) < (size.cx + 16 + 14))
-			::StretchBlt(hMemDc, rect.right - 14, 6, 8, 7, hBitmapDc, 0,0, 8, 7, SRCCOPY);
-		else
-			::StretchBlt(hMemDc, rect.left + size.cx + 16, 6, 8, 7, hBitmapDc, 0,0, 8, 7, SRCCOPY);
-		::SelectObject(hBitmapDc, hOldBitmap);
-	}
-
-	::BitBlt(hDc, rect.left, 0, rect.right - rect.left, rect.bottom - rect.top, hMemDc, rect.left, 0, SRCCOPY);
-	::SelectObject(hMemDc, hOldMemBitmap);
-	::DeleteObject(bitmap);
-	::DeleteDC(hBitmapDc);
-	::DeleteDC(hMemDc);
-}
-
 /****************************************************************************
  *	Message handling of header
  */
@@ -479,380 +492,306 @@ LRESULT FileList::runHeaderProc(HWND hwnd, UINT Message, WPARAM wParam, LPARAM l
 {
 	switch (Message)
 	{
-		case WM_LBUTTONDOWN:
-		{
-			_isLeftButtonDown = TRUE;
-			::RedrawWindow(hwnd, NULL, NULL, TRUE);
-			break;
-		}
 		case WM_LBUTTONUP:
 		{
-			_isLeftButtonDown = FALSE;
-			::RedrawWindow(hwnd, NULL, NULL, TRUE);
-
-			/* update here the header column width */
-			if (_pExProp->bAddExtToName == FALSE)
+			if (_lMouseTrackPos != 0)
 			{
+				POINT	pt	= {0};
+				::GetCursorPos(&pt);
+
+				/* erase divider line */
+				DrawDivider(_iBltPos);
+				_iBltPos		= 0;
+
+				/* recalc position */
+				INT iWidth = ListView_GetColumnWidth(_hSelf, _iMouseTrackItem) - (_lMouseTrackPos - pt.x);
+				ListView_SetColumnWidth(_hSelf, _iMouseTrackItem, iWidth);
+				::RedrawWindow(_hSelf, NULL, NULL, TRUE);
+
+				_lMouseTrackPos = 0;
+
+				/* update here the header column width */
 				_pExProp->iColumnPosName = ListView_GetColumnWidth(_hSelf, 0);
 				_pExProp->iColumnPosExt  = ListView_GetColumnWidth(_hSelf, 1);
-				if (_pExProp->bViewLong == TRUE)
-				{
+				if (_pExProp->bViewLong == TRUE) {
 					_pExProp->iColumnPosSize = ListView_GetColumnWidth(_hSelf, 2);
 					_pExProp->iColumnPosDate = ListView_GetColumnWidth(_hSelf, 3);
 				}
-			}
-			else
-			{
-				INT	width = ListView_GetColumnWidth(_hSelf, 0) - _pExProp->iColumnPosExt;
-				_pExProp->iColumnPosName = width < 0 ? 0 : width;
-				if (_pExProp->bViewLong == TRUE)
+
+				if (hookMouse)
 				{
-					_pExProp->iColumnPosSize = ListView_GetColumnWidth(_hSelf, 1);
-					_pExProp->iColumnPosDate = ListView_GetColumnWidth(_hSelf, 2);
+					::UnhookWindowsHookEx(hookMouse);
+					hookMouse = NULL;
 				}
 			}
 			break;
 		}
 		case WM_MOUSEMOVE:
 		{
-			RECT			rc				= {0};
-			LVHITTESTINFO	hittest			= {0};
-			INT				iMouseOverOld	= _iMouseOver;
-
-			/* reset mouse over position */
-			_iMouseOver = -1;
-
-			for (UINT nSubItem = 0; nSubItem < 4; nSubItem++)
+			if (_lMouseTrackPos != 0)
 			{
+				POINT	pt		= {0};
+				::GetCursorPos(&pt);
+				::ScreenToClient(_hSelf, &pt);
 
-				ListView_GetSubItemRect(_hSelf, 0, nSubItem, LVIR_LABEL, &rc);
-				rc.left   -= 20;
-				rc.top    -= 20;
-				rc.bottom  = 20;
-
-				POINT	pt = {LOWORD(lParam), HIWORD(lParam)};
-				if (::PtInRect(&rc, pt) == TRUE)
-				{
-					if (_isLeftButtonDown == FALSE)
-					{
-						_iMouseOver = nSubItem;
-						break;
-					}
-				}
-			}
-
-			if (iMouseOverOld != _iMouseOver)
-				::RedrawWindow(hwnd, NULL, NULL, TRUE);
-
-			/* keep sure that the items for tooltip are set to default */
-			_iItem		= hittest.iItem;
-			_iSubItem	= hittest.iSubItem;
-
-			/* create notification for leaving the header */
-			if ((_isMouseOver == FALSE) && (_isLeftButtonDown == FALSE))
-			{
-				TRACKMOUSEEVENT		tme;
-				tme.cbSize		= sizeof(tme);
-				tme.hwndTrack	= hwnd;
-				tme.dwFlags		= TME_LEAVE;
-				_isMouseOver	= (BOOL)_TrackMouseEvent(&tme);
-			}
-			break;
-		}
-		case WM_MOUSELEAVE:
-		{
-			if (_isLeftButtonDown == FALSE)
-			{
-				_isMouseOver = FALSE;
-				_iMouseOver  = -1;
-				::RedrawWindow(hwnd, NULL, NULL, TRUE);
+				if (_iBltPos != 0)
+					DrawDivider(_iBltPos);
+				DrawDivider(pt.x);
+				_iBltPos = pt.x;
 			}
 			break;
 		}
 		default:
 			break;
 	}
-	
+
 	return ::CallWindowProc(_hDefaultHeaderProc, hwnd, Message, wParam, lParam);
 }
+
+void FileList::DrawDivider(UINT x)
+{
+	UINT		posTop		= 0;
+	RECT		rc			= {0};
+	HDC			hDc			= ::GetWindowDC(_hSelf);
+	HBITMAP		hBm			= NULL;
+	HBRUSH		hBrush		= NULL;
+	HANDLE		hBrushOrig	= NULL;
+
+	/* get hight of header */
+	Header_GetItemRect(_hHeader, 0, &rc);
+	posTop = rc.bottom;
+
+	/* set clip rect */
+	::GetClientRect(_hSelf, &rc);
+	::IntersectClipRect(hDc, rc.left, posTop + 2, rc.right, rc.bottom);
+
+	/* Create a brush with the appropriate bitmap pattern to draw our drag rectangle */
+	hBm = ::CreateBitmap(8, 8, 1, 1, DotPattern);
+	hBrush = ::CreatePatternBrush(hBm);
+
+	::SetBrushOrgEx(hDc, rc.left, rc.top, 0);
+	hBrushOrig = ::SelectObject(hDc, hBrush);
+
+	/* draw devider line */
+	::PatBlt(hDc, x, rc.top, 1, rc.bottom, PATINVERT);
+
+	/* destroy resources */
+	::SelectObject(hDc, hBrushOrig);
+	::DeleteObject(hBrush);
+	::DeleteObject(hBm);
+}
+
 
 /****************************************************************************
  *	Parent notification
  */
-void FileList::notify(WPARAM wParam, LPARAM lParam)
+BOOL FileList::notify(WPARAM wParam, LPARAM lParam)
 {
 	LPNMHDR	 nmhdr	= (LPNMHDR)lParam;
 
-	switch (nmhdr->code)
+	if (nmhdr->hwndFrom == _hSelf)
 	{
-		case LVN_GETDISPINFO:
+		switch (nmhdr->code)
 		{
-			LV_ITEM &lvItem = reinterpret_cast<LV_DISPINFO*>((LV_DISPINFO FAR *)lParam)->item;
-
-
-			if (lvItem.mask & LVIF_TEXT)
+			case LVN_GETDISPINFO:
 			{
-				/* must be a cont array */
-				static TCHAR	str[MAX_PATH];
+				LV_ITEM &lvItem = reinterpret_cast<LV_DISPINFO*>((LV_DISPINFO FAR *)lParam)->item;
 
-				ReadArrayToList(str, lvItem.iItem ,lvItem.iSubItem);
-				lvItem.pszText		= str;
-				lvItem.cchTextMax	= strlen(str);
-			}
-
-			if (lvItem.mask & LVIF_IMAGE)
-			{
-				INT		iOverlayed;
-				BOOL	bHidden;
-				ReadIconToList(lvItem.iItem, &lvItem.iImage, &iOverlayed, &bHidden);
-
-				if (iOverlayed != 0)
+				if (lvItem.mask & LVIF_TEXT)
 				{
-					lvItem.mask			|= LVIF_STATE;
-					lvItem.state		|= INDEXTOOVERLAYMASK(iOverlayed);
-					lvItem.stateMask	|= LVIS_OVERLAYMASK;
+					/* must be a cont array */
+					static TCHAR	str[MAX_PATH];
+
+					ReadArrayToList(str, lvItem.iItem ,lvItem.iSubItem);
+					lvItem.pszText		= str;
+					lvItem.cchTextMax	= strlen(str);
 				}
-				if (bHidden == TRUE)
-				{
-					lvItem.mask			|= LVIF_STATE;
-					lvItem.state		|= LVIS_CUT;
-					lvItem.stateMask	|= LVIS_CUT;
-				}
-			}
-			break;
-		}
-		case LVN_COLUMNCLICK:
-		{
-			UINT	uFolders	= _vFolders.size();
-			UINT	uListCnt	= uFolders + _vFiles.size();
 
-			/* store the marked items */
-			for (UINT i = 0; i < uListCnt; i++)
-			{
-				if (i < uFolders)
+				if (lvItem.mask & LVIF_IMAGE)
 				{
-					_vFolders[i].state			= ListView_GetItemState(_hSelf, i, LVIS_SELECTED);
-				}
-				else
-				{
-					_vFiles[i-uFolders].state	= ListView_GetItemState(_hSelf, i, LVIS_SELECTED);
-				}
-			}
-			
-			INT iPos  = ((LPNMLISTVIEW)lParam)->iSubItem;
+					INT		iOverlayed;
+					BOOL	bHidden;
 
-			if (iPos != _pExProp->iSortPos)
-				_pExProp->iSortPos = iPos;
-			else
-				_pExProp->bAscending ^= TRUE;
-
-			UpdateList();
-
-			/* mark old items */
-			for (UINT i = 0; i < uListCnt; i++)
-			{
-				if (i < uFolders)
-				{
-					ListView_SetItemState(_hSelf, i, _vFolders[i].state, 0xFF);
-				}
-				else
-				{
-					ListView_SetItemState(_hSelf, i, _vFiles[i-uFolders].state, 0xFF);
-				}
-			}
-			break;
-		}
-		case LVN_KEYDOWN:
-		{
-			switch (((LPNMLVKEYDOWN)lParam)->wVKey)
-			{
-				case VK_RETURN:
-				{
-					UINT	maxFolders	= _vFolders.size();
-					UINT	selRow		= ListView_GetSelectionMark(_hSelf);
-
-					if (selRow != -1)
+					if (_vFolders[lvItem.iItem].bParent == TRUE)
 					{
-						if (selRow < maxFolders)
-						{
-							::SendMessage(_hParent, EXM_OPENDIR, 0, (LPARAM)_vFolders[selRow].strName.c_str());
-						}
-						else
-						{
-							::SendMessage(_hParent, EXM_OPENFILE, 0, (LPARAM)_vFiles[selRow-maxFolders].strNameExt.c_str());
-						}
-					}
-					break;
-				}
-				case VK_BACK:
-				{
-					::SendMessage(_hParent, EXM_OPENDIR, 0, (LPARAM)"..");
-					break;
-				}
-				case VK_TAB:
-				{
-					::SetFocus(::GetNextWindow(_hSelf, (0x80 & ::GetKeyState(VK_SHIFT)) ? GW_HWNDPREV : GW_HWNDNEXT));
-					break;
-				}
-				default:
-					break;
-			}
-			break;
-		}
-		case NM_RCLICK:
-		{
-			onRMouseBtn();
-			break;
-		}
-		case NM_DBLCLK:
-		{
-			onLMouseBtnDbl();
-			break;
-		}
-		case LVN_BEGINDRAG:
-		{
-#if 0
-			WB_IDataObject		*pDataObject	= NULL;
-			WB_IDropSource		*pDropSource	= NULL;
-			HGLOBAL				hgDrop			= NULL;
-			DROPFILES*			pDrop			= NULL;
-			DWORD				dwEffect		= 0;
-			DWORD				dwResult		= 0;
-
-			FORMATETC			etc				= { CF_HDROP, NULL, DVASPECT_CONTENT, -1, TYMED_HGLOBAL };
-			STGMEDIUM			stgmed			= { TYMED_HGLOBAL, { 0 }, 0 };
-
-			UINT				uFolders		= _vFolders.size();
-			UINT				uListCnt		= uFolders + _vFiles.size();
-
-			vector<string>	data;
-
-			/* create data */
-			for (UINT uList = 0; uList < uListCnt; uList++)
-			{
-				if (ListView_GetItemState(_hSelf, uList, LVIS_SELECTED) == LVIS_SELECTED)
-				{
-					if (uList < uFolders)
-					{
-						ListView_SetItemState(_hSelf, uList, 0, 0xFF);
+						/* if it's parent up -> disable image state */
+						lvItem.mask &= ~LVIF_IMAGE;
 					}
 					else
 					{
-						data.push_back(_strCurrentPath + _vFiles[uList-uFolders].strNameExt);
+						ReadIconToList(lvItem.iItem, &lvItem.iImage, &iOverlayed, &bHidden);
+
+						if (iOverlayed != 0)
+						{
+							lvItem.mask			|= LVIF_STATE;
+							lvItem.state		|= INDEXTOOVERLAYMASK(iOverlayed);
+							lvItem.stateMask	|= LVIS_OVERLAYMASK;
+						}
+						if (bHidden == TRUE)
+						{
+							lvItem.mask			|= LVIF_STATE;
+							lvItem.state		|= LVIS_CUT;
+							lvItem.stateMask	|= LVIS_CUT;
+						}
 					}
 				}
+				break;
 			}
-
-			if( data.size() > 0 )
+			case LVN_COLUMNCLICK:
 			{
-				HGLOBAL hgDrop = GlobalAlloc(GMEM_FIXED, sizeof(DROPFILES) + data.size() + 1);
-
-				if( hgDrop != NULL )
+				/* store the marked items */
+				for (UINT i = 0; i < _uMaxElements; i++)
 				{
-					pDrop = reinterpret_cast<DROPFILES*>(hgDrop);
-					pDrop->pFiles	= sizeof(DROPFILES);
-					pDrop->fNC		= FALSE;
-					pDrop->pt.x		= 0;
-					pDrop->pt.y		= 0;
-					pDrop->fWide	= FALSE;
+					if (i < _uMaxFolders) {
+						_vFolders[i].state = ListView_GetItemState(_hSelf, i, LVIS_SELECTED);
+					} else {
+						_vFiles[i-_uMaxFolders].state	= ListView_GetItemState(_hSelf, i, LVIS_SELECTED);
+					}
+				}
+				
+				INT iPos  = ((LPNMLISTVIEW)lParam)->iSubItem;
 
-					INT nItem=-1;
-					INT Offset = sizeof(DROPFILES);
+				if (iPos != _pExProp->iSortPos)
+					_pExProp->iSortPos = iPos;
+				else
+					_pExProp->bAscending ^= TRUE;
+				SetOrder();
+				UpdateList();
 
-					for (UINT i = 0; i < data.size(); i++)
+				/* mark old items */
+				for (UINT i = 0; i < _uMaxElements; i++) {
+					if (i < _uMaxFolders) {
+						ListView_SetItemState(_hSelf, i, _vFolders[i].state, 0xFF);
+					} else {
+						ListView_SetItemState(_hSelf, i, _vFiles[i-_uMaxFolders].state, 0xFF);
+					}
+				}
+				break;
+			}
+			case LVN_KEYDOWN:
+			{
+				switch (((LPNMLVKEYDOWN)lParam)->wVKey)
+				{
+					case VK_RETURN:
 					{
-						INT len = data[i].length() + 1;
-						memcpy(reinterpret_cast<BYTE*>(hgDrop) + Offset, data[i].c_str(), len);
-						Offset += len;
+						UINT	selRow		= ListView_GetSelectionMark(_hSelf);
+
+						if (selRow != -1) {
+							if (selRow < _uMaxFolders) {
+								::SendMessage(_hParent, EXM_OPENDIR, 0, (LPARAM)_vFolders[selRow].strName.c_str());
+							} else {
+								::SendMessage(_hParent, EXM_OPENFILE, 0, (LPARAM)_vFiles[selRow-_uMaxFolders].strNameExt.c_str());
+							}
+						}
+						break;
 					}
-
-					reinterpret_cast<BYTE*>(hgDrop)[Offset] = 0;
-
-					stgmed.hGlobal = hgDrop;
-
-				}
-			}
-
-			// transfer the current selection into the IDataObject
-			stgmed.hGlobal = hgDrop;
-
-			// Create IDataObject and IDropSource COM objects
-			CreateDropSource(&pDropSource);
-			CreateDataObject(&etc, &stgmed, 1, &pDataObject);
-
-			//
-			//   ** ** ** The drag-drop operation starts here! ** ** **
-			//
-			dwResult = DoDragDrop((IDataObject*)pDataObject, (IDropSource*)pDropSource, DROPEFFECT_COPY|DROPEFFECT_MOVE, &dwEffect);
-
-			// success!
-			if(dwResult == DRAGDROP_S_DROP)
-			{
-				if(dwEffect & DROPEFFECT_MOVE)
-				{
-					// remove selection from edit control
-				}
-			}
-			// cancelled
-			else if(dwResult == DRAGDROP_S_CANCEL)
-			{
-			}
-
-			pDataObject->ido.lpVtbl->Release(pDataObject);
-			pDropSource->ids.lpVtbl->Release(pDropSource);
-#endif
-
-#if 0
-
-			/* get list element count */
-			IDropSource*	pDropSource		= NULL;
-			IDataObject*	pDataObject		= NULL;
-			HGLOBAL			hgDrop			= NULL;
-			DROPFILES*		pDrop			= NULL;
-			UINT			uFolders		= _vFolders.size();
-			UINT			uListCnt		= uFolders + _vFiles.size();
-			UINT			uBuffSize		= 0;
-			LPSTR			pszBuff			= 0;
-
-			FORMATETC		etc				= { CF_HDROP, NULL, DVASPECT_CONTENT, -1, TYMED_HGLOBAL };
-			STGMEDIUM		stgmed			= { TYMED_HGLOBAL, { 0 }, 0 };
-
-
-
-			if( data.size() > 0 )
-			{
-				HGLOBAL hgDrop = GlobalAlloc(GMEM_FIXED, sizeof(DROPFILES) + data.size() + 1);
-
-				if( hgDrop != NULL )
-				{
-					pDrop = reinterpret_cast<DROPFILES*>(hgDrop);
-					pDrop->pFiles	= sizeof(DROPFILES);
-					pDrop->fNC		= FALSE;
-					pDrop->pt.x		= 0;
-					pDrop->pt.y		= 0;
-					pDrop->fWide	= FALSE;
-
-					INT nItem=-1;
-					INT Offset = sizeof(DROPFILES);
-
-					for (UINT i = 0; i < data.size(); i++)
+					case VK_BACK:
 					{
-						INT len = data[i].length() + 1;
-						memcpy(reinterpret_cast<BYTE*>(hgDrop) + Offset, data[i].c_str(), len);
-						Offset += len;
+						::SendMessage(_hParent, EXM_OPENDIR, 0, (LPARAM)"..");
+						break;
 					}
-
-					reinterpret_cast<BYTE*>(hgDrop)[Offset] = 0;
-
-					stgmed.hGlobal = hgDrop;
-
+					case VK_TAB:
+					{
+						::SetFocus(::GetNextWindow(_hSelf, (0x80 & ::GetKeyState(VK_SHIFT)) ? GW_HWNDPREV : GW_HWNDNEXT));
+						break;
+					}
+					default:
+						break;
 				}
-            }
-#endif
+				break;
+			}
+			case NM_RCLICK:
+			{
+				onRMouseBtn();
+				break;
+			}
+			case NM_DBLCLK:
+			{
+				onLMouseBtnDbl();
+				break;
+			}
+			default:
+				break;
 		}
-		default:
-			break;
 	}
+	else if (nmhdr->hwndFrom == _hHeader)
+	{
+		switch (nmhdr->code)
+		{
+			case HDN_BEGINTRACK:
+			{
+				/* activate static change of column size */
+				POINT	pt	= {0};
+				::GetCursorPos(&pt);
+				_lMouseTrackPos = pt.x;
+				_iMouseTrackItem = ((LPNMHEADER)lParam)->iItem;
+				SetWindowLong(_hParent, DWL_MSGRESULT, TRUE);
+
+				/* start hooking */
+				if (gWinVersion < WV_NT) {
+					hookMouse = ::SetWindowsHookEx(WH_MOUSE, (HOOKPROC)hookProcMouse, _hInst, 0);
+				} else {
+					hookMouse = ::SetWindowsHookEx(WH_MOUSE_LL, (HOOKPROC)hookProcMouse, _hInst, 0);
+				}
+
+				if (!hookMouse)
+				{
+					DWORD dwError = ::GetLastError();
+					TCHAR  str[128];
+					::wsprintf(str, "GetLastError() returned %lu", dwError);
+					::MessageBox(NULL, str, "SetWindowsHookEx(MOUSE) failed", MB_OK | MB_ICONERROR);
+				}
+
+				return TRUE;
+			}
+			case HDN_ITEMCHANGING:
+			{
+				/* avoid resize when double click */
+				LPNMHEADER	pnmh = (LPNMHEADER)lParam;
+
+				UINT uWidth = ListView_GetColumnWidth(_hSelf, pnmh->iItem);
+				if ((_pExProp->bAddExtToName == TRUE) && (_lMouseTrackPos == 0) && 
+					(pnmh->iItem == 0) && (pnmh->pitem->cxy != uWidth) && (pnmh->pitem->cxy != 0))
+				{
+					TCHAR	pszItemText[MAX_PATH];
+					HDC		hDc			= ::GetDC(_hSelf);
+					SIZE	size		= {0};
+					UINT	uWidthMax	= 0;
+
+					/* get font length */
+					HFONT hDefFont = (HFONT)::SelectObject(hDc, _hFont);
+
+					for (UINT i = 0; i < _uMaxElements; i++)
+					{
+						if (i < (INT)_uMaxFolders) {
+							if (_pExProp->bViewBraces == TRUE)
+								sprintf(pszItemText, "[%s]", _vFolders[i].strName.c_str());
+							else
+								sprintf(pszItemText, "%s", _vFolders[i].strName.c_str());
+						} else {
+							strcpy(pszItemText, _vFiles[i-_uMaxFolders].strName.c_str());
+						}
+						::GetTextExtentPoint32(hDc, pszItemText, strlen(pszItemText), &size);
+
+						if (uWidthMax < size.cx)
+							uWidthMax = size.cx;
+					}
+					SelectObject(hDc, hDefFont);
+					_lMouseTrackPos = -1;
+					ListView_SetColumnWidth(_hSelf, 0, uWidthMax + 24);
+					_lMouseTrackPos = 0;
+					
+					SetWindowLong(_hParent, DWL_MSGRESULT, TRUE);
+					return TRUE;
+				}
+				break;
+			}
+			default:
+				break;
+		}
+	}
+
+	return FALSE;
 }
 
 void FileList::ReadIconToList(INT iItem, LPINT piIcon, LPINT piOverlayed, LPBOOL pbHidden)
@@ -860,25 +799,17 @@ void FileList::ReadIconToList(INT iItem, LPINT piIcon, LPINT piOverlayed, LPBOOL
 	INT		maxFolders		= _vFolders.size();
 	INT		iIconSelected	= 0;
 
-	if (iItem < maxFolders)
+	if (iItem < (INT)_uMaxFolders)
 	{
-		if (_vFolders[iItem].bParent == FALSE)
-		{
-			ExtractIcons(_strCurrentPath.c_str(), _vFolders[iItem].strNameExt.c_str(), 
-				DEVT_DIRECTORY, piIcon, &iIconSelected, piOverlayed);
-		}
-		else
-		{
-			*piIcon			= _iImageList;
-			*piOverlayed	= 0;
-		}
+		ExtractIcons(_strCurrentPath.c_str(), _vFolders[iItem].strNameExt.c_str(), 
+			DEVT_DIRECTORY, piIcon, &iIconSelected, piOverlayed);
 		*pbHidden	= _vFolders[iItem].bHidden;
 	}
 	else
 	{
-		ExtractIcons(_strCurrentPath.c_str(), _vFiles[iItem-maxFolders].strNameExt.c_str(), 
+		ExtractIcons(_strCurrentPath.c_str(), _vFiles[iItem-_uMaxFolders].strNameExt.c_str(), 
 			DEVT_FILE, piIcon, &iIconSelected, piOverlayed);
-		*pbHidden	= _vFiles[iItem-maxFolders].bHidden;
+		*pbHidden	= _vFiles[iItem-_uMaxFolders].bHidden;
 	}
 }
 
@@ -886,67 +817,61 @@ void FileList::ReadArrayToList(LPSTR szItem, INT iItem ,INT iSubItem)
 {
 	INT		maxFolders		= _vFolders.size();
 
-	if (iItem < maxFolders)
+	if (iItem < (INT)_uMaxFolders)
 	{
 		/* copy into temp */
-		if (iSubItem == 0)
+		switch (iSubItem)
 		{
-			if (_pExProp->bViewBraces == TRUE)
-				sprintf(szItem, "[%s]", _vFolders[iItem].strName.c_str());
-			else
-				sprintf(szItem, "%s", _vFolders[iItem].strName.c_str());
-		}
-		else if (iSubItem == 1)
-		{
-			if (_pExProp->bAddExtToName == FALSE)
+			case 0:
+				if (_pExProp->bAddExtToName == FALSE)
+				{
+					if (_pExProp->bViewBraces == TRUE)
+						sprintf(szItem, "[%s]", _vFolders[iItem].strName.c_str());
+					else
+						sprintf(szItem, "%s", _vFolders[iItem].strName.c_str());
+				}
+				else
+					szItem[0] = '\0';
+				break;
+			case 1:
 				strcpy(szItem, _vFolders[iItem].strExt.c_str());
-			else
+				break;
+			case 2:
 				strcpy(szItem, _vFolders[iItem].strSize.c_str());
-		}
-		else if (iSubItem == 2)
-		{
-			if (_pExProp->bAddExtToName == FALSE)
-				strcpy(szItem, _vFolders[iItem].strSize.c_str());
-			else
+				break;
+			default:
 				strcpy(szItem, _vFolders[iItem].strDate.c_str());
-		}
-		else /* iSubItem == 3 */
-		{
-			strcpy(szItem, _vFolders[iItem].strDate.c_str());
+				break;
 		}
 	}
 	else
 	{
-		if (iSubItem == 0)
+		switch (iSubItem)
 		{
-			strcpy(szItem, _vFiles[iItem-maxFolders].strName.c_str());
-		}
-		else if (iSubItem == 1)
-		{
-			if (_pExProp->bAddExtToName == FALSE)
-				strcpy(szItem, _vFiles[iItem-maxFolders].strExt.c_str());
-			else
-				strcpy(szItem, _vFiles[iItem-maxFolders].strSize.c_str());
-		}
-		else if (iSubItem == 2)
-		{
-			if (_pExProp->bAddExtToName == FALSE)
-				strcpy(szItem, _vFiles[iItem-maxFolders].strSize.c_str());
-			else
-				strcpy(szItem, _vFiles[iItem-maxFolders].strDate.c_str());
-		}
-		else /* iSubItem == 3 */
-		{
-			strcpy(szItem, _vFiles[iItem-maxFolders].strDate.c_str());
+			case 0:
+				szItem[0] = '\0';
+				break;
+			case 1:
+				if (_pExProp->bAddExtToName == FALSE)
+					strcpy(szItem, _vFiles[iItem-_uMaxFolders].strExt.c_str());
+				else
+					szItem[0] = '\0';
+				break;
+			case 2:
+				strcpy(szItem, _vFiles[iItem-_uMaxFolders].strSize.c_str());
+				break;
+			default:
+				strcpy(szItem, _vFiles[iItem-_uMaxFolders].strDate.c_str());
+				break;
 		}
 	}
 }
 
 void FileList::viewPath(LPCSTR currentPath, BOOL redraw)
 {
-	LPSTR					TEMP			= (LPSTR)new TCHAR[MAX_PATH+1];
-	LPSTR					szFilter		= (LPSTR)new TCHAR[MAX_PATH+1];
-	LPSTR					szFilterPath	= (LPSTR)new TCHAR[MAX_PATH+1];
+	TCHAR					TEMP[MAX_PATH+1];
+	TCHAR					szFilter[MAX_PATH+1];
+	TCHAR					szFilterPath[MAX_PATH+1];
 	WIN32_FIND_DATA			Find			= {0};
 	HANDLE					hFind			= NULL;
 	tFileListData			tempData;
@@ -954,9 +879,7 @@ void FileList::viewPath(LPCSTR currentPath, BOOL redraw)
 	/* add backslash if necessary */
 	strncpy(TEMP, currentPath, MAX_PATH-1);
 	if (TEMP[strlen(TEMP) - 1] != '\\')
-	{
 		strcat(TEMP, "\\");
-	}
 
 	/* clear data */
 	_vFolders.clear();
@@ -1014,7 +937,6 @@ void FileList::viewPath(LPCSTR currentPath, BOOL redraw)
 		::FindClose(hFind);
 		TEMP[strlen(TEMP)-1] = '\0';
 
-
 		/* get first filter */
 		LPSTR	ptr	= NULL;
 
@@ -1047,10 +969,7 @@ void FileList::viewPath(LPCSTR currentPath, BOOL redraw)
 						if (extBeg != NULL)
 						{
 							*extBeg = '\0';
-							if (_pExProp->bAddExtToName == FALSE)
-							{
-								tempData.strExt	= &extBeg[1];
-							}
+							tempData.strExt	= &extBeg[1];
 						}
 						else
 						{
@@ -1084,10 +1003,9 @@ void FileList::viewPath(LPCSTR currentPath, BOOL redraw)
 		::FindClose(hFind);
 	}
 
-	/* release resource */
-	delete [] TEMP;
-	delete [] szFilter;
-	delete [] szFilterPath;
+	/* set max elements in list */
+	_uMaxFolders	= _vFolders.size();
+	_uMaxElements	= _uMaxFolders + _vFiles.size();
 
 	/* save current path */
 	_strCurrentPath = currentPath;
@@ -1100,9 +1018,7 @@ void FileList::viewPath(LPCSTR currentPath, BOOL redraw)
 
 	/* select first entry */
 	if (redraw == TRUE)
-	{
 		SetFocusItem(0);
-	}
 }
 
 void FileList::filterFiles(LPSTR currentFilter)
@@ -1128,7 +1044,7 @@ void FileList::filterFiles(LPSTR currentFilter)
 
 void FileList::SelectFolder(LPSTR selFile)
 {
-	for (UINT uFolder = 0; uFolder < _vFolders.size(); uFolder++)
+	for (UINT uFolder = 0; uFolder < _uMaxFolders; uFolder++)
 	{
 		if (strcmp(_vFolders[uFolder].strName.c_str(), selFile) == 0)
 		{
@@ -1138,18 +1054,31 @@ void FileList::SelectFolder(LPSTR selFile)
 	}
 }
 
+void FileList::SelectCurFile(void)
+{
+	if (_iOpenDoc == -1)
+		return;
+
+	TCHAR	TEMP[MAX_PATH];
+	strcpy(TEMP, _vStrCurrentFiles[_iOpenDoc].c_str());
+
+	UINT	uStartName	= _vStrCurrentFiles[_iOpenDoc].rfind("\\") + 1;
+	UINT	uMaxFiles	= _uMaxElements - _uMaxFolders;
+	for (UINT uFile = 0; uFile < uMaxFiles; uFile++)
+	{
+		if (strcmp(_vFiles[uFile].strNameExt.c_str(), &TEMP[uStartName]) == 0 )
+		{
+			SetFocusItem(_uMaxFolders + uFile);
+			return;
+		}
+	}
+}
+
 void FileList::UpdateList(void)
 {
-	INT	iSortPos = _pExProp->iSortPos;
-
-	if ((_pExProp->bAddExtToName == TRUE) && (iSortPos >= 1))
-	{
-		iSortPos++;
-	}
-
-	QuickSortRecursiveCol(&_vFolders, (_strCurrentPath.size() != 3), _vFolders.size()-1, 0, TRUE);
-	QuickSortRecursiveColEx(&_vFiles, 0, _vFiles.size()-1, iSortPos, _pExProp->bAscending);
-	ListView_SetItemCountEx(_hSelf, _vFiles.size() + _vFolders.size(), LVSICF_NOSCROLL);
+	QuickSortRecursiveCol(&_vFolders, (_strCurrentPath.size() != 3), _uMaxFolders-1, 0, TRUE);
+	QuickSortRecursiveColEx(&_vFiles, 0, _uMaxElements-_uMaxFolders-1, _pExProp->iSortPos, _pExProp->bAscending);
+	ListView_SetItemCountEx(_hSelf, _uMaxElements, LVSICF_NOSCROLL);
 	::RedrawWindow(_hSelf, NULL, NULL, TRUE);
 }
 
@@ -1180,106 +1109,98 @@ void FileList::SetColumns(void)
 		_bOldViewLong = _pExProp->bViewLong;
 	}
 
-	if (_pExProp->bAddExtToName == FALSE)
-	{
-		ColSetup.mask		= LVCF_TEXT | LVCF_FMT | LVCF_WIDTH;
-		ColSetup.fmt		= LVCFMT_LEFT;
-		ColSetup.pszText	= "Name";
-		ColSetup.cchTextMax	= 4;
-		ColSetup.cx			= _pExProp->iColumnPosName;
-		ListView_InsertColumn(_hSelf, 0, &ColSetup);
-		ColSetup.fmt		= LVCFMT_LEFT;
-		ColSetup.pszText	= "Ext.";
-		ColSetup.cx			= _pExProp->iColumnPosExt;
-		ListView_InsertColumn(_hSelf, 1, &ColSetup);
+	ColSetup.mask		= LVCF_TEXT | LVCF_FMT | LVCF_WIDTH;
+	ColSetup.fmt		= LVCFMT_LEFT;
+	ColSetup.pszText	= cColumns[0];
+	ColSetup.cchTextMax = strlen(cColumns[0]);
+	ColSetup.cx			= _pExProp->iColumnPosName;
+	ListView_InsertColumn(_hSelf, 0, &ColSetup);
+	ColSetup.pszText	= cColumns[1];
+	ColSetup.cchTextMax = strlen(cColumns[1]);
+	ColSetup.cx			= _pExProp->iColumnPosExt;
+	ListView_InsertColumn(_hSelf, 1, &ColSetup);
 
-		if (_pExProp->bViewLong)
-		{
-			ColSetup.fmt		= LVCFMT_RIGHT;
-			ColSetup.pszText	= "Size";
-			ColSetup.cx			= _pExProp->iColumnPosSize;
-			ListView_InsertColumn(_hSelf, 2, &ColSetup);
-			ColSetup.fmt		= LVCFMT_LEFT;
-			ColSetup.pszText	= "Date";
-			ColSetup.cx			= _pExProp->iColumnPosDate;
-			ListView_InsertColumn(_hSelf, 3, &ColSetup);
-		}
+	if (_pExProp->bViewLong)
+	{
+		ColSetup.fmt		= LVCFMT_RIGHT;
+		ColSetup.pszText	= cColumns[2];
+		ColSetup.cchTextMax = strlen(cColumns[2]);
+		ColSetup.cx			= _pExProp->iColumnPosSize;
+		ListView_InsertColumn(_hSelf, 2, &ColSetup);
+		ColSetup.fmt		= LVCFMT_LEFT;
+		ColSetup.pszText	= cColumns[3];
+		ColSetup.cchTextMax = strlen(cColumns[3]);
+		ColSetup.cx			= _pExProp->iColumnPosDate;
+		ListView_InsertColumn(_hSelf, 3, &ColSetup);
 	}
-	else
+	SetOrder();
+}
+
+#ifndef HDF_SORTDOWN
+#define HDF_SORTDOWN	0x0200
+#define HDF_SORTUP		0x0400
+#endif
+
+void FileList::SetOrder(void)
+{
+	HDITEM	hdItem		= {0};
+	UINT	uMaxHeader	= Header_GetItemCount(_hHeader);
+
+	for (UINT i = 0; i < uMaxHeader; i++)
 	{
-		ColSetup.mask		= LVCF_TEXT | LVCF_FMT | LVCF_WIDTH;
-		ColSetup.fmt		= LVCFMT_LEFT;
-		ColSetup.pszText	= "Name";
-		ColSetup.cchTextMax	= 4;
-		ColSetup.cx			= _pExProp->iColumnPosName + _pExProp->iColumnPosExt;
-		ListView_InsertColumn(_hSelf, 0, &ColSetup);
-		if (_pExProp->bViewLong)
+		hdItem.mask	= HDI_FORMAT;
+		Header_GetItem(_hHeader, i, &hdItem);
+
+		if (gWinVersion < WV_XP)
 		{
-			ColSetup.mask		= LVCF_TEXT | LVCF_FMT | LVCF_WIDTH;
-			ColSetup.fmt		= LVCFMT_RIGHT;
-			ColSetup.pszText	= "Size";
-			ColSetup.cchTextMax	= 4;
-			ColSetup.cx			= _pExProp->iColumnPosSize;
-			ListView_InsertColumn(_hSelf, 1, &ColSetup);
-			ColSetup.fmt		= LVCFMT_LEFT;
-			ColSetup.pszText	= "Date";
-			ColSetup.cx			= _pExProp->iColumnPosDate;
-			ListView_InsertColumn(_hSelf, 2, &ColSetup);
+			hdItem.mask &= ~HDI_BITMAP;
+			hdItem.fmt  &= ~(HDF_BITMAP | HDF_BITMAP_ON_RIGHT);
+			if (i == _pExProp->iSortPos)
+			{
+				hdItem.mask |= HDI_BITMAP;
+				hdItem.fmt  |= (HDF_BITMAP | HDF_BITMAP_ON_RIGHT);
+				hdItem.hbm   = _pExProp->bAscending ? _bmpSortUp : _bmpSortDown;
+			}
 		}
-	}
-
-	/* set owner draw for each item */
-	for(INT iCol = 0; iCol < 4; iCol++)
-	{
-		HDITEM hdItem;
-
-		ZeroMemory(&hdItem, sizeof(HDITEM));
-		hdItem.mask = HDI_FORMAT;
-
-		if(Header_GetItem(_hHeader, iCol, &hdItem))
+		else
 		{
-			hdItem.mask = HDI_FORMAT;
-			hdItem.fmt |= HDF_OWNERDRAW;
-			Header_SetItem(_hHeader, iCol, &hdItem);
+			hdItem.fmt &= ~(HDF_SORTUP | HDF_SORTDOWN);
+			if (i == _pExProp->iSortPos)
+			{
+				hdItem.fmt |= _pExProp->bAscending ? HDF_SORTUP : HDF_SORTDOWN;
+			}
 		}
+		Header_SetItem(_hHeader, i, &hdItem);
 	}
 }
 
 void FileList::onRMouseBtn(void)
 {
-	/* get list element count */
-	UINT	uFolders = _vFolders.size();
-	UINT	uListCnt = uFolders + _vFiles.size();
-
 	vector<string>		data;
 
 	/* create data */
-	for (UINT uList = 0; uList < uListCnt; uList++)
+	for (UINT uList = 0; uList < _uMaxElements; uList++)
 	{
-		if (ListView_GetItemState(_hSelf, uList, LVIS_SELECTED) == LVIS_SELECTED)
+		if (ListView_GetItemState(_hSelf, uList, LVIS_SELECTED) == LVIS_SELECTED) 
 		{
-			if (uList == 0)
+			if (uList == 0) 
 			{
-				if (strcmp(_vFolders[0].strName.c_str(), "..") == 0)
+				if (strcmp(_vFolders[0].strName.c_str(), "..") == 0) 
 				{
 					ListView_SetItemState(_hSelf, uList, 0, 0xFF);
 					continue;
 				}
 			}
 
-			if (uList < uFolders)
-			{
+			if (uList < _uMaxFolders) {
 				data.push_back(_strCurrentPath + _vFolders[uList].strName + "\\");
-			}
-			else
-			{
-				data.push_back(_strCurrentPath + _vFiles[uList-uFolders].strNameExt);
+			} else {
+				data.push_back(_strCurrentPath + _vFiles[uList-_uMaxFolders].strNameExt);
 			}
 		}
 	}
 
-	if (data.size() != 0)
-	{
+	if (data.size() != 0) {
 		::SendMessage(_hParent, EXM_RIGHTCLICK, data.size(), (LPARAM)&data);
 	}
 }
@@ -1291,13 +1212,10 @@ void FileList::onLMouseBtnDbl(void)
 
 	if (selRow != -1)
 	{
-		if (selRow < maxFolders)
-		{
+		if (selRow < _uMaxFolders) {
 			::SendMessage(_hParent, EXM_OPENDIR, 0, (LPARAM)_vFolders[selRow].strName.c_str());
-		}
-		else
-		{
-			::SendMessage(_hParent, EXM_OPENFILE, 0, (LPARAM)_vFiles[selRow-maxFolders].strNameExt.c_str());
+		} else {
+			::SendMessage(_hParent, EXM_OPENFILE, 0, (LPARAM)_vFiles[selRow-_uMaxFolders].strNameExt.c_str());
 		}
 	}
 }
@@ -1305,9 +1223,9 @@ void FileList::onLMouseBtnDbl(void)
 
 BOOL FileList::FindNextItemInList(UINT maxFolder, UINT maxData, LPUINT puPos)
 {
+	TCHAR	pszFileName[MAX_PATH];
 	BOOL	bRet		= FALSE;
 	UINT	iStartPos	= *puPos;
-	LPTSTR	pszFileName	= new TCHAR[MAX_PATH];
 
 	/* search in list */
 	for (UINT i = iStartPos; i != (iStartPos-1); i++)
@@ -1342,7 +1260,6 @@ BOOL FileList::FindNextItemInList(UINT maxFolder, UINT maxData, LPUINT puPos)
 		}
 	}
 
-	delete [] pszFileName;
 	return bRet;
 }
 
@@ -1527,7 +1444,7 @@ void FileList::QuickSortRecursiveColEx(vector<tFileListData>* vList, INT d, INT 
 
 void FileList::GetSize(__int64 size, string & str)
 {
-	LPTSTR	TEMP	= (LPTSTR)new TCHAR[MAX_PATH];
+	TCHAR	TEMP[MAX_PATH];
 
 	switch (_pExProp->fmtSize)
 	{
@@ -1638,14 +1555,12 @@ void FileList::GetSize(__int64 size, string & str)
 		else
 			break;
 	}
-
-	delete [] TEMP;
 }
 
 void FileList::GetDate(FILETIME ftLastWriteTime, string & str)
 {
 	SYSTEMTIME		sysTime;
-	LPSTR			TEMP	= (LPSTR)new TCHAR[MAX_PATH];
+	TCHAR			TEMP[MAX_PATH];
 
 	FileTimeToSystemTime(&ftLastWriteTime, &sysTime);
 
@@ -1655,8 +1570,6 @@ void FileList::GetDate(FILETIME ftLastWriteTime, string & str)
 		sprintf(TEMP, "%02d.%02d.%04d %02d:%02d", sysTime.wDay, sysTime.wMonth, sysTime.wYear, sysTime.wHour, sysTime.wMinute);
 
 	str = TEMP;
-
-	delete [] TEMP;
 }
 
 
@@ -1733,6 +1646,52 @@ bool FileList::GetNextDir(LPSTR pszPath)
 		}
 	}
 	return false;
+}
+
+INT FileList::GetPrevDirs(LPSTR *pszPathes)
+{
+	INT i = 0;
+	vector<string>::iterator	itr	= _itrPos;
+
+	if (_vDirStack.size() > 1)
+	{
+		while (1) {
+			if (itr != _vDirStack.begin()) {
+				itr--;
+				if (pszPathes) strcpy(pszPathes[i], itr->c_str());
+			} else {
+				break;
+			}
+			i++;
+		}
+	}
+	return i;
+}
+
+INT FileList::GetNextDirs(LPSTR	*pszPathes)
+{
+	INT i = 0;
+	vector<string>::iterator	itr	= _itrPos;
+
+	if (_vDirStack.size() > 1)
+	{
+		while (1) {
+			if (itr != _vDirStack.end() - 1) {
+				itr++;
+				if (pszPathes) strcpy(pszPathes[i], itr->c_str());
+			} else {
+				break;
+			}
+			i++;
+		}
+	}
+	return i;
+}
+
+void FileList::OffsetItr(INT offsetItr)
+{
+	_itrPos += offsetItr;
+	UpdateToolBarElements();
 }
 
 void FileList::UpdateToolBarElements(void)
