@@ -72,7 +72,7 @@ BOOL CALLBACK NewDlg::run_dlgProc(HWND hWnd, UINT Message, WPARAM wParam, LPARAM
 		case WM_DESTROY :
 		{
 			/* deregister this dialog */
-			::SendMessage(_hParent, WM_MODELESSDIALOG, MODELESSDIALOGREMOVE, (LPARAM)_hSelf);
+			::SendMessage(_hParent, NPPM_MODELESSDIALOG, MODELESSDIALOGREMOVE, (LPARAM)_hSelf);
 			break;
 		}
 		default:
