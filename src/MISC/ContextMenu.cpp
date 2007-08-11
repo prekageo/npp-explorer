@@ -690,7 +690,7 @@ void ContextMenu::newFolder(void)
 
 void ContextMenu::findInFiles(void)
 {
-	::SendMessage(_hWndNpp, WM_LAUNCH_FINDINFILESDLG, (WPARAM)_strFirstElement.c_str(), NULL);
+	::SendMessage(_hWndNpp, NPPM_LAUNCH_FINDINFILESDLG, (WPARAM)_strFirstElement.c_str(), NULL);
 }
 
 void ContextMenu::openFile(void)
