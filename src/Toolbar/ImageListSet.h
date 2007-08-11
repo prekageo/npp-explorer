@@ -113,6 +113,8 @@ typedef struct
 	int _grayIcon;
 
 	int _uglyIcon;
+
+	UINT _uIconStyle;
 }ToolBarButtonUnit;
 
 typedef std::vector<ToolBarButtonUnit> ToolBarIconIDs;
@@ -185,6 +187,10 @@ public :
 
 	int getUglyIconAt(int i) const {
 		return _tbiis[i]._uglyIcon;
+	};
+
+	UINT getIconStyle(int i) const {
+		return _tbiis[i]._uIconStyle;
 	};
 
 	bool replaceIcon(int witchList, int iconIndex, const char *iconLocation) const {

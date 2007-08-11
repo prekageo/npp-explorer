@@ -41,7 +41,7 @@ bool ToolBar::init(HINSTANCE hInst, HWND hPere, int iconSize,
 	InitCommonControlsEx(&icex);
 
 	_hSelf = ::CreateWindowEx(
-	               WS_EX_PALETTEWINDOW ,
+	               WS_EX_PALETTEWINDOW,
 	               TOOLBARCLASSNAME,
 	               "",
 	               WS_TOOLBARSTYLE,
@@ -63,6 +63,10 @@ bool ToolBar::init(HINSTANCE hInst, HWND hPere, int iconSize,
 	// backward compatibility.
 	::SendMessage(_hSelf, TB_BUTTONSTRUCTSIZE, (WPARAM)sizeof(TBBUTTON), 0);
 	
+	/* set ext size to show button down */
+	LONG	exStyle = ::SendMessage(_hSelf, TB_GETEXTENDEDSTYLE, 0, 0);
+	::SendMessage(_hSelf, TB_SETEXTENDEDSTYLE, 0, exStyle | TBSTYLE_EX_DRAWDDARROWS);
+
 	if (!doUglyStandardIcon)
 	{
 		setDefaultImageList();
@@ -104,7 +108,7 @@ bool ToolBar::init(HINSTANCE hInst, HWND hPere, int iconSize,
 			else
 				bmpIndex = j++;
 
-			style = TBSTYLE_BUTTON;
+			style = TBSTYLE_BUTTON | _toolBarIcons.getIconStyle(i);
 		}
 		else
 		{
@@ -134,6 +138,10 @@ void ToolBar::reset()
 	setHotImageList();
 	setDisableImageList();
 
+	/* set ext size to show button down */
+	LONG	exStyle = ::SendMessage(_hSelf, TB_GETEXTENDEDSTYLE, 0, 0);
+	::SendMessage(_hSelf, TB_SETEXTENDEDSTYLE, 0, exStyle | TBSTYLE_EX_DRAWDDARROWS);
+
 	if (_state == TB_STANDARD)
 	{
 		int nbElement = _toolBarIcons.getNbCommand();
@@ -147,7 +155,7 @@ void ToolBar::reset()
 			if ((cmd = _toolBarIcons.getCommandAt(i)) != 0)
 			{
 				bmpIndex = j++;
-				style = TBSTYLE_BUTTON;
+				style = TBSTYLE_BUTTON | _toolBarIcons.getIconStyle(i);
 			}
 			else
 			{
@@ -203,6 +211,10 @@ void ToolBar::setToUglyIcons()
 	::SendMessage(_hSelf, TB_BUTTONSTRUCTSIZE, (WPARAM)sizeof(TBBUTTON), 0);
 
 	::SendMessage(_hSelf, TB_LOADIMAGES, IDB_STD_SMALL_COLOR, reinterpret_cast<LPARAM>(HINST_COMMCTRL));
+
+	/* set ext size to show button down */
+	LONG	exStyle = ::SendMessage(_hSelf, TB_GETEXTENDEDSTYLE, 0, 0);
+	::SendMessage(_hSelf, TB_SETEXTENDEDSTYLE, 0, exStyle | TBSTYLE_EX_DRAWDDARROWS);
 
 	TBADDBITMAP addbmp = {_hInst, 0};
 	if (_bmpArray)
