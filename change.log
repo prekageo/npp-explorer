@@ -2,7 +2,39 @@
 Change-log for Explorer.dll
 
 ------------------------------------------------------------------------------------
-07/08/10  v1.5 :
+07/09/19  v1.5.2 :
+------------------------------------------------------------------------------------
+    Fix: Opening of files with 0 bytes now working correctly
+	Fix: Deadlock on W2k machines while startup of Explorer dialog removed
+    Fix: Filtering the list is now case insensitive
+    Fix: Filtering the list causes folder lock (delete were not possible)
+    Change: Now automatic update on activate of Notepad is optional
+
+------------------------------------------------------------------------------------
+07/09/03  v1.5.1 :
+------------------------------------------------------------------------------------
+    Fix: Crashed on update of plug-in from v1.3 - v1.4 to this one (Favorites.dat)
+    Fix: Owner drawn file list now execute within the NM_CUSTOMDRAW notification
+    Fix: Tree in Favorites uses also NM_CUSTOMDRAW notification
+    Fix: When closing a file now the underline will be removed in any case
+    Fix: Root paths were not shown in drop down history
+    Fix: Updates only on reactivating of Notepad++
+    Fix: On using standard icons of explorer the device shell icons were wrong
+    Fix: Blue hand was shown on file selection in Favorites dialog
+    Fix: Caption in Explorer is correctly set when Folders in Favorites dialog 
+         were opened
+    New: Links *.lnk now opened correctly
+    New: Extend functionality in context menu with "DOS Prompt..."
+    New: Exclude Filter with e.g. *[^*.cpp]
+    New: Underline of open files in Favorites [Files]
+    New: Automatic fill out of name on "Add to 'Favorites'..."
+    Change: Overlay images are now updated in separate tasks
+    Change: On right click a folder now following menu items are shown
+         - Full File path(s) to document 
+         - File Name(s) to document
+
+------------------------------------------------------------------------------------
+07/08/11  v1.5 :
 ------------------------------------------------------------------------------------
     Fix: Cut/Copy of elements in Favorites caused crash
     Fix: On typing file names in list, the element has now the correct focus
@@ -14,7 +46,7 @@ Change-log for Explorer.dll
     New: File list partial owner drawn
          - parent icon is manually blitted
          - opened files now marked with an underline
-         - If "Ext. attached to Name" is enabled, extension sort is now possible
+         - if "Ext. attached to Name" is enabled, extension sort is now possible
     Change: Now using NPPM_GETPLUGINSCONFIGDIR to get *.ini file location
     Change: Support of new Notepad message notifications
     Change: Reorder of toolbar icons in Favorites dialog
@@ -114,4 +146,4 @@ Change-log for Explorer.dll
     - Open session (additional with add to current opened files) 
     - Create new session 
     - Renaming of sessions 
-    - Using of Session Manager on menu selection "File->Save Session..." 
+    - Using of Session Manager on menu selection "File->Save Session..."
