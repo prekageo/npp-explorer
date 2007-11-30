@@ -18,7 +18,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 */
 
 #include "HelpDialog.h"
-#include "PluginInterface.h"
+#include "Explorer.h"
 
 
 void HelpDlg::doDialog()
@@ -41,6 +41,9 @@ BOOL CALLBACK HelpDlg::run_dlgProc(HWND hWnd, UINT Message, WPARAM wParam, LPARA
 
             _urlNppPlugins.init(_hInst, _hSelf);
             _urlNppPlugins.create(::GetDlgItem(_hSelf, IDC_NPP_PLUGINS_URL), "http://sourceforge.net/projects/npp-plugins/");
+
+			/* change language */
+			NLChangeDialog(_hInst, _nppData._nppHandle, _hSelf, "Help");
 
 			return TRUE;
 		}

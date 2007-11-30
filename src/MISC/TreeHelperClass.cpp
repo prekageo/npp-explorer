@@ -19,18 +19,55 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 
 #include "TreeHelperClass.h"
-#include "PluginInterface.h"
+#include "Explorer.h"
 
+
+DWORD WINAPI TreeOverlayThread(LPVOID lpParam)
+{
+	tTreeIconUpdate *ptIconUpdate	= (tTreeIconUpdate*)lpParam;
+	TreeHelper		*pTree			= ptIconUpdate->pTree;
+	pTree->UpdateOverlayIcon(ptIconUpdate);
+	return 0;
+}
+
+void TreeHelper::UpdateOverlayIcon(tTreeIconUpdate* ptIconUpdate)
+{
+	TREE_LOCK();
+
+	/* insert item */
+	TCHAR		TEMP[MAX_PATH];
+	INT			iIconNormal		= 0;
+	INT			iIconSelected	= 0;
+	INT			iIconOverlayed	= 0;
+	HTREEITEM	hItem			= TreeView_GetNextItem(_hTreeCtrl, ptIconUpdate->hLastItem, TVGN_CHILD);
+
+	while (hItem != NULL)
+	{
+		/* get foler name */
+		GetItemText(hItem, TEMP, MAX_PATH);
+
+		/* get icons */
+		ExtractIcons(ptIconUpdate->strLastPath.c_str(), TEMP, DEVT_DIRECTORY, &iIconNormal, &iIconSelected, &iIconOverlayed);
+
+		/* set overlay icon */
+		SetOverlayIcon(hItem, iIconOverlayed);
+
+		hItem = TreeView_GetNextItem(_hTreeCtrl, hItem, TVGN_NEXT);
+	}
+	ptIconUpdate->hLastItem = NULL;
+
+	TREE_UNLOCK();
+}
 
 void TreeHelper::DrawChildren(HTREEITEM parentItem)
 {
-	WIN32_FIND_DATA		Find	= {0};
-	HANDLE				hFind	= NULL;
-
+	TCHAR				parentFolderPathName[MAX_PATH];
+	size_t				iCnt		= 0;
+	UINT				iThreadPos	= 0;
+	WIN32_FIND_DATA		Find		= {0};
+	HANDLE				hFind		= NULL;
 	vector<tItemList>	vFolderList;
 	tItemList			listElement;
-
-	LPTSTR	parentFolderPathName = (LPTSTR) new char[MAX_PATH];
 
 	GetFolderPathName(parentItem, parentFolderPathName);
 
@@ -44,30 +81,221 @@ void TreeHelper::DrawChildren(HTREEITEM parentItem)
 
 	/* find first file */
 	hFind = ::FindFirstFile(parentFolderPathName, &Find);
-	delete [] parentFolderPathName;
 
 	/* if not found -> exit */
-	if (hFind == INVALID_HANDLE_VALUE)
-		return;
-
-	do
+	if (hFind != INVALID_HANDLE_VALUE)
 	{
-		if (IsValidFolder(Find) == TRUE)
+		do
 		{
-			listElement.strName	= Find.cFileName;
-			vFolderList.push_back(listElement);
+			if (IsValidFolder(Find) == TRUE)
+			{
+				listElement.strName	= Find.cFileName;
+				vFolderList.push_back(listElement);
+			}
+		} while (FindNextFile(hFind, &Find));
+
+		::FindClose(hFind);
+
+		/* sort data */
+		QuickSortItems(&vFolderList, 0, vFolderList.size()-1);
+	 
+		TREE_LOCK();
+
+		for (iCnt = 0; iCnt < vFolderList.size(); iCnt++)
+		{
+			InsertChildFolder((LPTSTR)vFolderList[iCnt].strName.c_str(), parentItem);
 		}
-	} while (FindNextFile(hFind, &Find));
 
-	::FindClose(hFind);
+		/* save data for overlay thread */
+		for (; iThreadPos < ICON_UPDATE_SIZE; iThreadPos++) {
+			if (_ptIconUpdate[iThreadPos].hLastItem == NULL) {
+				_ptIconUpdate[iThreadPos].pTree			= this;
+				_ptIconUpdate[iThreadPos].hLastItem		= parentItem;
+				_ptIconUpdate[iThreadPos].strLastPath	= parentFolderPathName;
+				break;
+			}
+		}
+		TREE_UNLOCK();
 
-	/* sort data */
-	QuickSortItems(&vFolderList, 0, vFolderList.size()-1);
-
-	for (size_t i = 0; i < vFolderList.size(); i++)
-	{
-		InsertChildFolder((LPTSTR)vFolderList[i].strName.c_str(), parentItem);
+		if ((_hSemaphore) && (parentItem != TVI_ROOT)) {
+			/* start update overlay icons */
+			DWORD	dwFlags	= 0;
+			_hOverThread	= ::CreateThread(NULL, 0, TreeOverlayThread, &_ptIconUpdate[iThreadPos], 0, &dwFlags);
+		}	
 	}
+}
+
+void TreeHelper::UpdateChildren(LPTSTR pszParentPath, HTREEITEM hParentItem, BOOL doRecursive)
+{
+	static
+	UINT				iRecCount	= 0;
+
+	size_t				iCnt		= 0;
+	UINT				iThreadPos	= 0;
+	WIN32_FIND_DATA		Find		= {0};
+	HANDLE				hFind		= NULL;
+	TVITEM				item		= {0};
+	
+	vector<tItemList>	vFolderList;
+	tItemList			listElement;
+	TCHAR				pszItem[MAX_PATH];
+	TCHAR				pszPath[MAX_PATH];
+	TCHAR				pszSearch[MAX_PATH];
+	HTREEITEM			hCurrentItem	= TreeView_GetNextItem(_hTreeCtrl, hParentItem, TVGN_CHILD);
+
+	/* remove possible backslash */
+	if (pszParentPath[strlen(pszParentPath)-1] == '\\')
+		pszParentPath[strlen(pszParentPath)-1] = '\0';
+
+	/* copy path into search path */
+	strcpy(pszSearch, pszParentPath);
+
+	/* add wildcard */
+	strcat(pszSearch, "\\*");
+
+	if ((hFind = ::FindFirstFile(pszSearch, &Find)) != INVALID_HANDLE_VALUE)
+	{
+		if (iRecCount == 0)
+			TREE_LOCK();
+		iRecCount++;
+
+		/* save data for overlay thread */
+		for (; iThreadPos < ICON_UPDATE_SIZE; iThreadPos++) {
+			if (_ptIconUpdate[iThreadPos].hLastItem == NULL) {
+				_ptIconUpdate[iThreadPos].pTree			= this;
+				_ptIconUpdate[iThreadPos].hLastItem		= hParentItem;
+				_ptIconUpdate[iThreadPos].strLastPath	= pszParentPath;
+				break;
+			}
+		}
+
+		/* find folders */
+		do
+		{
+			if (IsValidFolder(Find) == TRUE)
+			{
+				listElement.strName			= Find.cFileName;
+				listElement.dwAttributes	= Find.dwFileAttributes;
+				vFolderList.push_back(listElement);
+			}
+		} while (FindNextFile(hFind, &Find));
+
+		::FindClose(hFind);
+
+		/* sort data */
+		QuickSortItems(&vFolderList, 0, vFolderList.size()-1);
+
+		/* update tree */
+		for (iCnt = 0; iCnt < vFolderList.size(); iCnt++)
+		{
+			if (GetItemText(hCurrentItem, pszItem, MAX_PATH) == TRUE)
+			{
+				/* compare current item and the current folder name */
+				while ((strcmp(pszItem, vFolderList[iCnt].strName.c_str()) != 0) && (hCurrentItem != NULL))
+				{
+					HTREEITEM	pPrevItem = NULL;
+
+					/* if it's not equal delete or add new item */
+					if (FindFolderAfter((LPTSTR)vFolderList[iCnt].strName.c_str(), hCurrentItem) == TRUE)
+					{
+						pPrevItem		= hCurrentItem;
+						hCurrentItem	= TreeView_GetNextItem(_hTreeCtrl, hCurrentItem, TVGN_NEXT);
+						TreeView_DeleteItem(_hTreeCtrl, pPrevItem);
+					}
+					else
+					{
+						pPrevItem = TreeView_GetNextItem(_hTreeCtrl, hCurrentItem, TVGN_PREVIOUS);
+
+						/* Note: If hCurrentItem is the first item in the list pPrevItem is NULL */
+						if (pPrevItem == NULL)
+							hCurrentItem = InsertChildFolder((LPTSTR)vFolderList[iCnt].strName.c_str(), hParentItem, TVI_FIRST);
+						else
+							hCurrentItem = InsertChildFolder((LPTSTR)vFolderList[iCnt].strName.c_str(), hParentItem, pPrevItem);
+					}
+
+					if (hCurrentItem != NULL)
+						GetItemText(hCurrentItem, pszItem, MAX_PATH);
+				}
+
+				/* get current path */
+				sprintf(pszPath, "%s\\%s", pszParentPath, pszItem);
+
+				/* update icons and expandable information */
+				INT					iIconNormal		= 0;
+				INT					iIconSelected	= 0;
+				INT					iIconOverlayed	= 0;
+				BOOL				haveChildren	= HaveChildren(pszPath);
+				BOOL				bHidden			= FALSE;
+
+				/* correct by HaveChildren() modified pszPath */
+				pszPath[strlen(pszPath) - 2] = '\0';
+
+				/* get icons and update item */
+				if (_hSemaphore) {
+					ExtractIcons(pszPath, NULL, DEVT_DIRECTORY, &iIconNormal, &iIconSelected, NULL);
+				} else {
+					ExtractIcons(pszPath, NULL, DEVT_DIRECTORY, &iIconNormal, &iIconSelected, &iIconOverlayed);
+				}
+				bHidden = ((vFolderList[iCnt].dwAttributes & FILE_ATTRIBUTE_HIDDEN) != 0);
+				UpdateItem(hCurrentItem, pszItem, iIconNormal, iIconSelected, iIconOverlayed, bHidden, haveChildren);
+
+				/* update recursive */
+				if ((doRecursive) && IsItemExpanded(hCurrentItem))
+				{
+					UpdateChildren(pszPath, hCurrentItem);
+				}
+
+				/* select next item */
+				hCurrentItem = TreeView_GetNextItem(_hTreeCtrl, hCurrentItem, TVGN_NEXT);
+			}
+			else
+			{
+				hCurrentItem = InsertChildFolder((LPTSTR)vFolderList[iCnt].strName.c_str(), hParentItem);
+				hCurrentItem = TreeView_GetNextItem(_hTreeCtrl, hCurrentItem, TVGN_NEXT);
+			}
+		}
+
+		/* delete possible not existed items */
+		while (hCurrentItem != NULL)
+		{
+			HTREEITEM	pPrevItem	= hCurrentItem;
+			hCurrentItem			= TreeView_GetNextItem(_hTreeCtrl, hCurrentItem, TVGN_NEXT);
+			TreeView_DeleteItem(_hTreeCtrl, pPrevItem);
+		}
+
+		iRecCount--;
+		if (iRecCount == 0)
+			TREE_UNLOCK();
+
+		if ((_hSemaphore) && (hParentItem != TVI_ROOT)) {
+			/* start update overlay icons */
+			DWORD	dwFlags	= 0;
+			_hOverThread	= ::CreateThread(NULL, 0, TreeOverlayThread, &_ptIconUpdate[iThreadPos], 0, &dwFlags);
+		}
+	}
+}
+
+BOOL TreeHelper::FindFolderAfter(LPTSTR itemName, HTREEITEM pAfterItem)
+{
+	TCHAR		pszItem[MAX_PATH];
+	BOOL		isFound			= FALSE;
+	HTREEITEM	hCurrentItem	= TreeView_GetNextItem(_hTreeCtrl, pAfterItem, TVGN_NEXT);
+
+	while (hCurrentItem != NULL)
+	{
+		GetItemText(hCurrentItem, pszItem, MAX_PATH);
+		if (strcmp(itemName, pszItem) == 0)
+		{
+			isFound = TRUE;
+			hCurrentItem = NULL;
+		}
+		else
+		{
+			hCurrentItem = TreeView_GetNextItem(_hTreeCtrl, hCurrentItem, TVGN_NEXT);
+		}
+	}
+
+	return isFound;
 }
 
 void TreeHelper::QuickSortItems(vector<tItemList>* vList, INT d, INT h)
@@ -109,7 +337,7 @@ void TreeHelper::QuickSortItems(vector<tItemList>* vList, INT d, INT h)
 HTREEITEM TreeHelper::InsertChildFolder(LPTSTR childFolderName, HTREEITEM parentItem, HTREEITEM insertAfter, BOOL bChildrenTest)
 {
 	/* We search if it already exists */
-	LPTSTR				TEMP			= (LPTSTR)new char[MAX_PATH];
+	TCHAR				TEMP[MAX_PATH];
 	HTREEITEM			pCurrentItem	= TreeView_GetNextItem(_hTreeCtrl, parentItem, TVGN_CHILD);
 	BOOL				bHidden			= FALSE;
 	WIN32_FIND_DATA		Find			= {0};
@@ -121,7 +349,7 @@ HTREEITEM TreeHelper::InsertChildFolder(LPTSTR childFolderName, HTREEITEM parent
 
 		if (strcmp(childFolderName, TEMP) == 0)
 		{
-			delete [] TEMP;
+			TREE_UNLOCK();
 			return pCurrentItem;
 		}
 	
@@ -160,14 +388,14 @@ HTREEITEM TreeHelper::InsertChildFolder(LPTSTR childFolderName, HTREEITEM parent
 	INT					iIconOverlayed	= 0;
 
 	/* get icons */
-	ExtractIcons(parentFolderPathName, NULL, DEVT_DIRECTORY, &iIconNormal, &iIconSelected, &iIconOverlayed);
+	if (_hSemaphore) {
+		ExtractIcons(parentFolderPathName, NULL, DEVT_DIRECTORY, &iIconNormal, &iIconSelected, NULL);
+	} else {
+		ExtractIcons(parentFolderPathName, NULL, DEVT_DIRECTORY, &iIconNormal, &iIconSelected, &iIconOverlayed);
+	}
 
 	/* set item */
-	pCurrentItem = InsertItem(childFolderName, iIconNormal, iIconSelected, iIconOverlayed, bHidden, parentItem, insertAfter, haveChildren);
-
-	delete [] TEMP;
-
-	return pCurrentItem;
+	return InsertItem(childFolderName, iIconNormal, iIconSelected, iIconOverlayed, bHidden, parentItem, insertAfter, haveChildren);
 }
 
 HTREEITEM TreeHelper::InsertItem(LPTSTR lpszItem, 
@@ -181,6 +409,7 @@ HTREEITEM TreeHelper::InsertItem(LPTSTR lpszItem,
 								 LPARAM lParam)
 {
 	TV_INSERTSTRUCT tvis;
+	HTREEITEM		hRetItem;
 
 	ZeroMemory(&tvis, sizeof(TV_INSERTSTRUCT));
 	tvis.hParent			 = hParent;
@@ -205,7 +434,9 @@ HTREEITEM TreeHelper::InsertItem(LPTSTR lpszItem,
 		tvis.item.stateMask |= LVIS_CUT;
 	}
 
-	return TreeView_InsertItem(_hTreeCtrl, &tvis);
+	hRetItem = TreeView_InsertItem(_hTreeCtrl, &tvis);
+
+	return hRetItem;
 }
 
 void TreeHelper::DeleteChildren(HTREEITEM parentItem)
@@ -225,21 +456,28 @@ BOOL TreeHelper::UpdateItem(HTREEITEM hItem,
 							INT nSelectedImage, 
 							INT nOverlayedImage, 
 							BOOL bHidden,
-							BOOL haveChildren, 
-							LPARAM lParam)
+							BOOL haveChildren,
+							LPARAM lParam,
+							BOOL delChildren)
 {
-	TVITEM	item;
+	TVITEM		item;
+	BOOL		bRet;
 
 	ZeroMemory(&item, sizeof(TVITEM));
 	item.hItem			 = hItem;
-	item.mask			 = TVIF_PARAM | TVIF_IMAGE | TVIF_SELECTEDIMAGE | TVIF_TEXT | TVIF_CHILDREN | TVIF_STATE;
+	item.mask			 = TVIF_PARAM | TVIF_IMAGE | TVIF_SELECTEDIMAGE | TVIF_TEXT | TVIF_CHILDREN;
 	item.pszText		 = lpszItem;
 	item.iImage			 = nImage;
 	item.iSelectedImage	 = nSelectedImage;
 	item.cChildren		 = haveChildren;
-	item.state			|= INDEXTOOVERLAYMASK(nOverlayedImage);
-	item.stateMask		|= TVIS_OVERLAYMASK;
 	item.lParam			 = lParam;
+
+	if (nOverlayedImage != 0)
+	{
+		item.mask		|= TVIF_STATE;
+		item.state		|= INDEXTOOVERLAYMASK(nOverlayedImage);
+		item.stateMask	|= TVIS_OVERLAYMASK;
+	}
 
 	if (bHidden == TRUE)
 	{
@@ -249,24 +487,42 @@ BOOL TreeHelper::UpdateItem(HTREEITEM hItem,
 	}
 
 	/* delete children items when available but not needed */
-	if ((haveChildren == FALSE) && (TreeView_GetChild(_hTreeCtrl, hItem) != NULL))
-	{
+	if ((haveChildren == FALSE) && delChildren && TreeView_GetChild(_hTreeCtrl, hItem))	{
 		DeleteChildren(hItem);
 	}
 
-	return TreeView_SetItem(_hTreeCtrl, &item);
+	bRet = TreeView_SetItem(_hTreeCtrl, &item);
+
+	return bRet;
 }
 
+void TreeHelper::SetOverlayIcon(HTREEITEM hItem, INT iOverlayIcon)
+{
+	/* Note: No LOCK */
+	TVITEM		item;
+
+	ZeroMemory(&item, sizeof(TVITEM));
+	item.hItem			 = hItem;
+	item.mask			 = TVIF_STATE;
+	item.state			|= INDEXTOOVERLAYMASK(iOverlayIcon);
+	item.stateMask		|= TVIS_OVERLAYMASK;
+
+	TreeView_SetItem(_hTreeCtrl, &item);
+}
 
 BOOL TreeHelper::GetItemText(HTREEITEM hItem, LPTSTR szBuf, INT bufSize)
 {
+	BOOL	bRet;
+
 	TVITEM			tvi;
 	tvi.mask		= TVIF_TEXT;
 	tvi.hItem		= hItem;
 	tvi.pszText		= szBuf;
 	tvi.cchTextMax	= bufSize;
-	
-	return TreeView_GetItem(_hTreeCtrl, &tvi);
+
+	bRet = TreeView_GetItem(_hTreeCtrl, &tvi);
+
+	return bRet;
 }
 
 LPARAM TreeHelper::GetParam(HTREEITEM hItem)
@@ -279,5 +535,31 @@ LPARAM TreeHelper::GetParam(HTREEITEM hItem)
 	TreeView_GetItem(_hTreeCtrl, &tvi);
 
 	return tvi.lParam;
+}
+
+BOOL TreeHelper::GetItemIcons(HTREEITEM hItem, LPINT piIcon, LPINT piSelected, LPINT piOverlay)
+{
+	if ((piIcon == NULL) || (piSelected == NULL) || (piOverlay == NULL))
+		return FALSE;
+
+	TVITEM			tvi;
+	tvi.mask		= TVIF_STATE | TVIF_IMAGE | TVIF_SELECTEDIMAGE;
+	tvi.hItem		= hItem;
+	tvi.stateMask	= TVIS_OVERLAYMASK;
+
+	BOOL bRet = TreeView_GetItem(_hTreeCtrl, &tvi);
+
+	if (bRet) {
+		*piIcon			= tvi.iImage;
+		*piSelected		= tvi.iSelectedImage;
+		*piOverlay		= (tvi.state >> 8) & 0xFF;
+	}
+
+	return bRet;
+}
+
+BOOL TreeHelper::IsItemExpanded(HTREEITEM hItem)
+{
+	return (BOOL)(TreeView_GetItemState(_hTreeCtrl, hItem, TVIS_EXPANDED) & TVIS_EXPANDED);
 }
 

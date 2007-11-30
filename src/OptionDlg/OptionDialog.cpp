@@ -19,7 +19,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 
 #include "OptionDialog.h"
-#include "PluginInterface.h"
+#include "Explorer.h"
 #include <Commctrl.h>
 #include <shlobj.h>
 
@@ -52,6 +52,12 @@ BOOL CALLBACK OptionDlg::run_dlgProc(HWND hwnd, UINT Message, WPARAM wParam, LPA
 			
 			SetParams();
 			LongUpdate();
+
+			/* change language */
+			NLChangeDialog(_hInst, _nppData._nppHandle, _hSelf, "Options");
+			NLChangeCombo(_hInst, _nppData._nppHandle, ::GetDlgItem(_hSelf, IDC_COMBO_SIZE_FORMAT), "ComboSize", SFMT_MAX);
+			NLChangeCombo(_hInst, _nppData._nppHandle, ::GetDlgItem(_hSelf, IDC_COMBO_DATE_FORMAT), "ComboDate", DFMT_MAX);
+
 			break;
 		}
 		case WM_COMMAND : 
@@ -105,16 +111,9 @@ void OptionDlg::SetParams(void)
 	::SendDlgItemMessage(_hSelf, IDC_COMBO_SIZE_FORMAT, CB_SETCURSEL, (WPARAM)_pProp->fmtSize, 0);
 	::SendDlgItemMessage(_hSelf, IDC_COMBO_DATE_FORMAT, CB_SETCURSEL, (WPARAM)_pProp->fmtDate, 0);
 
-	if (_pProp->bAddExtToName)
-	{
-		::SendDlgItemMessage(_hSelf, IDC_RADIO_ATTACHED, BM_SETCHECK, BST_CHECKED, 0); 
-	}
-	else
-	{
-		::SendDlgItemMessage(_hSelf, IDC_RADIO_SEPARATE, BM_SETCHECK, BST_CHECKED, 0); 
-	}
-
+	::SendDlgItemMessage(_hSelf, IDC_CHECK_SEPEXT, BM_SETCHECK, _pProp->bAddExtToName?BST_UNCHECKED:BST_CHECKED, 0);
 	::SendDlgItemMessage(_hSelf, IDC_CHECK_BRACES, BM_SETCHECK, _pProp->bViewBraces?BST_CHECKED:BST_UNCHECKED, 0);
+	::SendDlgItemMessage(_hSelf, IDC_CHECK_AUTO, BM_SETCHECK, _pProp->bAutoUpdate?BST_CHECKED:BST_UNCHECKED, 0);
 	::SendDlgItemMessage(_hSelf, IDC_CHECK_HIDDEN, BM_SETCHECK, _pProp->bShowHidden?BST_CHECKED:BST_UNCHECKED, 0);
 	::SendDlgItemMessage(_hSelf, IDC_CHECK_USEICON, BM_SETCHECK, _pProp->bUseSystemIcons?BST_CHECKED:BST_UNCHECKED, 0);
 
@@ -135,10 +134,15 @@ BOOL OptionDlg::GetParams(void)
 	_pProp->fmtSize = (eSizeFmt)::SendDlgItemMessage(_hSelf, IDC_COMBO_SIZE_FORMAT, CB_GETCURSEL, 0, 0);
 	_pProp->fmtDate = (eDateFmt)::SendDlgItemMessage(_hSelf, IDC_COMBO_DATE_FORMAT, CB_GETCURSEL, 0, 0);
 
-	if (::SendDlgItemMessage(_hSelf, IDC_RADIO_ATTACHED, BM_GETCHECK, 0, 0) == BST_CHECKED)
-		_pProp->bAddExtToName = TRUE;
-	else
+	if (::SendDlgItemMessage(_hSelf, IDC_CHECK_SEPEXT, BM_GETCHECK, 0, 0) == BST_CHECKED)
 		_pProp->bAddExtToName = FALSE;
+	else
+		_pProp->bAddExtToName = TRUE;
+
+	if (::SendDlgItemMessage(_hSelf, IDC_CHECK_AUTO, BM_GETCHECK, 0, 0) == BST_CHECKED)
+		_pProp->bAutoUpdate = TRUE;
+	else
+		_pProp->bAutoUpdate = FALSE;
 
 	if (::SendDlgItemMessage(_hSelf, IDC_CHECK_BRACES, BM_GETCHECK, 0, 0) == BST_CHECKED)
 		_pProp->bViewBraces = TRUE;

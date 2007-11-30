@@ -28,7 +28,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #ifndef	CONTEXTMENU_DEFINE_H
 #define CONTEXTMENU_DEFINE_H
 
-#include "PluginInterface.h"
+#include "Explorer.h"
 #include "ExplorerResource.h"
 #include "NewDlg.h"
 #include "window.h"
@@ -56,6 +56,27 @@ typedef struct
 	FILETIME ftLastModified;
 } OBJECT_DATA;
 
+#define CTX_MIN 1
+#define CTX_MAX 10000
+
+typedef enum
+{
+	CTX_DELETE			= 18,
+	CTX_RENAME			= 19,
+	CTX_CUT				= 25,
+	CTX_COPY			= 26,
+	CTX_PASTE			= 27,
+	CTX_NEW_FILE		= CTX_MAX,
+	CTX_NEW_FOLDER,
+	CTX_FIND_IN_FILES,
+	CTX_OPEN,
+	CTX_OPEN_DIFF_VIEW,
+	CTX_OPEN_NEW_INST,
+	CTX_OPEN_CMD,
+	CTX_ADD_TO_FAVES,
+	CTX_FULL_PATH,
+	CTX_FULL_FILES
+} eContextMenuID;
 
 class ContextMenu  
 {
@@ -68,7 +89,7 @@ public:
 
 	void SetObjects(string strObject);
 	void SetObjects(vector<string> strArray);
-	UINT ShowContextMenu(HWND hWndNpp, HWND hWndParent, POINT pt, bool normal = true);
+	UINT ShowContextMenu(HINSTANCE hInst, HWND hWndNpp, HWND hWndParent, POINT pt, bool normal = true);
 
 private:
 	static LRESULT CALLBACK HookWndProc (HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam);
@@ -91,11 +112,13 @@ private:
 	void	openFile(void);
 	void	openFileInOtherView(void);
 	void	openFileInNewInstance(void);
+	void	openPrompt(void);
 	void	addToFaves(bool isFolder);
 	void	addFullPaths(void);
 	void	addFileNames(void);
 
 private:
+	HINSTANCE				_hInst;
 	HWND					_hWndNpp;
 	HWND					_hWndParent;
 
