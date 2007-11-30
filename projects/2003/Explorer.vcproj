@@ -22,7 +22,7 @@
 			<Tool
 				Name="VCCLCompilerTool"
 				Optimization="0"
-				AdditionalIncludeDirectories="..\..\src\NewDlg\,..\..\src\PropDlg\,..\..\src\Toolbar\,..\..\src\FileDlg\,..\..\src\FileList\,.,..\..\src\,..\..\src\MISC\,..\..\src\HelpDlg\,..\..\src\OptionDlg\"
+				AdditionalIncludeDirectories="..\..\src\NewDlg\,..\..\src\PropDlg\,..\..\src\Toolbar\,..\..\src\FileDlg\,..\..\src\FileList\,.,..\..\src\,..\..\src\MISC\,..\..\src\HelpDlg\,..\..\src\OptionDlg\,..\..\..\Common\Ccpp,..\..\..\NativeLang\src"
 				PreprocessorDefinitions="WIN32;_DEBUG;_WINDOWS;_USRDLL;EXPLORER_EXPORTS"
 				BasicRuntimeChecks="3"
 				RuntimeLibrary="1"
@@ -39,7 +39,7 @@
 				Name="VCCustomBuildTool"/>
 			<Tool
 				Name="VCLinkerTool"
-				AdditionalDependencies="odbc32.lib odbccp32.lib shlwapi.lib Mpr.lib comctl32.lib"
+				AdditionalDependencies="odbc32.lib odbccp32.lib shlwapi.lib Mpr.lib comctl32.lib Msimg32.lib"
 				OutputFile="C:/Programme/Notepad++/plugins/Explorer.dll"
 				LinkIncremental="0"
 				SuppressStartupBanner="TRUE"
@@ -83,7 +83,7 @@
 				Optimization="3"
 				InlineFunctionExpansion="1"
 				FavorSizeOrSpeed="2"
-				AdditionalIncludeDirectories="..\..\src\NewDlg\,..\..\src\PropDlg\,..\..\src\Toolbar\,..\..\src\FileDlg\,..\..\src\FileList\,.,..\..\src\,..\..\src\MISC\,..\..\src\HelpDlg\,..\..\src\OptionDlg\"
+				AdditionalIncludeDirectories="..\..\src\NewDlg\,..\..\src\PropDlg\,..\..\src\Toolbar\,..\..\src\FileDlg\,..\..\src\FileList\,.,..\..\src\,..\..\src\MISC\,..\..\src\HelpDlg\,..\..\src\OptionDlg\,..\..\..\Common\Ccpp,..\..\..\NativeLang\src"
 				PreprocessorDefinitions="WIN32;_WINDOWS;_USRDLL;EXPLORER_EXPORTS"
 				StringPooling="TRUE"
 				RuntimeLibrary="0"
@@ -101,7 +101,7 @@
 				Name="VCCustomBuildTool"/>
 			<Tool
 				Name="VCLinkerTool"
-				AdditionalDependencies="odbc32.lib odbccp32.lib shlwapi.lib Mpr.lib comctl32.lib"
+				AdditionalDependencies="odbc32.lib odbccp32.lib shlwapi.lib Mpr.lib comctl32.lib Msimg32.lib"
 				OutputFile="C:/Programme/Notepad++/plugins/Explorer.dll"
 				LinkIncremental="1"
 				SuppressStartupBanner="TRUE"
@@ -143,6 +143,9 @@
 				RelativePath="..\..\src\MISC\ContextMenu.cpp">
 			</File>
 			<File
+				RelativePath="..\..\src\Explorer.cpp">
+			</File>
+			<File
 				RelativePath="..\..\src\ExplorerDialog.cpp">
 			</File>
 			<File
@@ -170,16 +173,7 @@
 				RelativePath="..\..\src\OptionDlg\OptionDialog.cpp">
 			</File>
 			<File
-				RelativePath="..\..\src\PluginInterface.cpp">
-			</File>
-			<File
 				RelativePath="..\..\src\PropDlg\PropDlg.cpp">
-			</File>
-			<File
-				RelativePath="..\..\src\StaticDialog.cpp">
-			</File>
-			<File
-				RelativePath="..\..\src\SysMsg.cpp">
 			</File>
 			<File
 				RelativePath="..\..\src\Toolbar\ToolBar.cpp">
@@ -193,9 +187,19 @@
 			<File
 				RelativePath="..\..\src\HelpDlg\URLCtrl.cpp">
 			</File>
-			<File
-				RelativePath="..\..\src\stdafx.cpp">
-			</File>
+			<Filter
+				Name="Common"
+				Filter="">
+				<File
+					RelativePath="..\..\..\Common\Ccpp\StaticDialog.cpp">
+				</File>
+				<File
+					RelativePath="..\..\..\Common\Ccpp\SysMsg.cpp">
+				</File>
+				<File
+					RelativePath="..\..\..\Common\Ccpp\stdafx.cpp">
+				</File>
+			</Filter>
 		</Filter>
 		<Filter
 			Name="Header-Dateien"
@@ -207,10 +211,7 @@
 				RelativePath="..\..\src\MISC\ContextMenu.h">
 			</File>
 			<File
-				RelativePath="..\..\src\Docking.h">
-			</File>
-			<File
-				RelativePath="..\..\src\DockingDlgInterface.h">
+				RelativePath="..\..\src\Explorer.h">
 			</File>
 			<File
 				RelativePath="..\..\src\ExplorerDialog.h">
@@ -240,19 +241,7 @@
 				RelativePath="..\..\src\OptionDlg\OptionDialog.h">
 			</File>
 			<File
-				RelativePath="..\..\src\PluginInterface.h">
-			</File>
-			<File
 				RelativePath="..\..\src\PropDlg\PropDlg.h">
-			</File>
-			<File
-				RelativePath="..\..\src\Scintilla.h">
-			</File>
-			<File
-				RelativePath="..\..\src\StaticDialog.h">
-			</File>
-			<File
-				RelativePath="..\..\src\SysMsg.h">
 			</File>
 			<File
 				RelativePath="..\..\src\Toolbar\ToolBar.h">
@@ -267,63 +256,53 @@
 				RelativePath="..\..\src\HelpDlg\URLCtrl.h">
 			</File>
 			<File
-				RelativePath="..\..\src\Window.h">
-			</File>
-			<File
-				RelativePath="..\..\src\rcNotepad.h">
-			</File>
-			<File
 				RelativePath="..\..\src\resource.h">
 			</File>
-			<File
-				RelativePath="..\..\src\stdafx.h">
-			</File>
+			<Filter
+				Name="Common"
+				Filter="">
+				<File
+					RelativePath="..\..\..\Common\Ccpp\Docking.h">
+				</File>
+				<File
+					RelativePath="..\..\..\Common\Ccpp\DockingDlgInterface.h">
+				</File>
+				<File
+					RelativePath="..\..\..\Common\Ccpp\Notepad_plus_msgs.h">
+				</File>
+				<File
+					RelativePath="..\..\..\Common\Ccpp\Notepad_plus_rc.h">
+				</File>
+				<File
+					RelativePath="..\..\..\Common\Ccpp\PluginInterface.h">
+				</File>
+				<File
+					RelativePath="..\..\..\Common\Ccpp\Scintilla.h">
+				</File>
+				<File
+					RelativePath="..\..\..\Common\Ccpp\StaticDialog.h">
+				</File>
+				<File
+					RelativePath="..\..\..\Common\Ccpp\SysMsg.h">
+				</File>
+				<File
+					RelativePath="..\..\..\Common\Ccpp\Window.h">
+				</File>
+				<File
+					RelativePath="..\..\..\Common\Ccpp\stdafx.h">
+				</File>
+			</Filter>
+			<Filter
+				Name="NativeLang"
+				Filter="">
+				<File
+					RelativePath="..\..\..\NativeLang\src\NativeLang_def.h">
+				</File>
+			</Filter>
 		</Filter>
 		<Filter
 			Name="Ressourcendateien"
 			Filter="ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe">
-			<File
-				RelativePath="..\..\res\ColumnHeaderEndHighXP.bmp">
-			</File>
-			<File
-				RelativePath="..\..\res\ColumnHeaderEndNorm.bmp">
-			</File>
-			<File
-				RelativePath="..\..\res\ColumnHeaderEndNormXP.bmp">
-			</File>
-			<File
-				RelativePath="..\..\res\ColumnHeaderSortDownHighXP.bmp">
-			</File>
-			<File
-				RelativePath="..\..\res\ColumnHeaderSortDownNorm.bmp">
-			</File>
-			<File
-				RelativePath="..\..\res\ColumnHeaderSortDownNormXP.bmp">
-			</File>
-			<File
-				RelativePath="..\..\res\ColumnHeaderSortUpHighXP.bmp">
-			</File>
-			<File
-				RelativePath="..\..\res\ColumnHeaderSortUpNorm.bmp">
-			</File>
-			<File
-				RelativePath="..\..\res\ColumnHeaderSortUpNormXP.bmp">
-			</File>
-			<File
-				RelativePath="..\..\res\ColumnHeaderSpanHighXP.bmp">
-			</File>
-			<File
-				RelativePath="..\..\res\ColumnHeaderSpanNorm.bmp">
-			</File>
-			<File
-				RelativePath="..\..\res\ColumnHeaderSpanNormXP.bmp">
-			</File>
-			<File
-				RelativePath="..\..\res\ColumnHeaderStartHighXP.bmp">
-			</File>
-			<File
-				RelativePath="..\..\res\ColumnHeaderStartNorm.bmp">
-			</File>
 			<File
 				RelativePath="..\..\res\Heart.bmp">
 			</File>
