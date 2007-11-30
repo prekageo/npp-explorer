@@ -21,15 +21,16 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #ifndef FILELIST_DEFINE_H
 #define FILELIST_DEFINE_H
 
-#include "PluginInterface.h"
+#include "Explorer.h"
 #include "ExplorerResource.h"
 #include "ToolBar.h"
 #include "ToolTip.h"
 #include "window.h"
-#include <vector>
-#include <string>
 #include <commctrl.h>
 #include <shlwapi.h>
+#include <shlobj.h>
+#include <vector>
+#include <string>
 
 using namespace std;
 
@@ -45,6 +46,8 @@ static const WORD DotPattern[] =
 
 typedef struct {
 	BOOL		bParent;
+	INT			iIcon;
+	INT			iOverlay;
 	BOOL		bHidden;
 	string		strName;
 	string		strExt;
@@ -72,20 +75,13 @@ public:
 
 	BOOL notify(WPARAM wParam, LPARAM lParam);
 
-	void filterFiles(LPSTR currentFilter);
+	void filterFiles(LPCTSTR currentFilter);
 	void SelectCurFile(void);
 	void SelectFolder(LPSTR selFolder);
 
-	void UpdateDocs(const char** pFiles, UINT numFiles, INT openDoc) {
-		_iOpenDoc = openDoc;
-		_vStrCurrentFiles.clear();
-		for (UINT i = 0; i < numFiles; i++)
-			_vStrCurrentFiles.push_back(pFiles[i]);
-	};
-
 	virtual void destroy() {};
 	virtual void redraw(void) {
-		::SendMessage(_hSelf, LVM_SETIMAGELIST, LVSIL_SMALL, (LPARAM)GetSmallImageList(_pExProp->bUseSystemIcons));
+		HIMAGELIST _hImlListSys = GetSmallImageList(_pExProp->bUseSystemIcons);
 		SetColumns();
 		Window::redraw();
 	};
@@ -98,6 +94,8 @@ public:
 	INT  GetPrevDirs(LPSTR *pszPathes);			// get previous directorys
 	INT  GetNextDirs(LPSTR *pszPathes);			// get next directorys
 	void OffsetItr(INT offsetItr);
+
+	void UpdateOverlayIcon(void);
 
 protected:
 
@@ -113,13 +111,14 @@ protected:
 		return (lpFileListClass->runHeaderProc(hwnd, Message, wParam, lParam));
 	};
 
-	void ReadIconToList(INT iItem, LPINT iIcon, LPINT iOverlayed, LPBOOL pbHidden);
+	void ReadIconToList(INT iItem, LPINT piIcon, LPINT piOverlayed, LPBOOL pbHidden);
 	void ReadArrayToList(LPSTR szItem, INT iItem ,INT iSubItem);
 
 	void DrawDivider(UINT x);
 	void UpdateList(void);
 	void SetColumns(void);
 	void SetOrder(void);
+	void SetFilter(LPCTSTR pszNewFilter);
 
 	BOOL FindNextItemInList(UINT maxFolder, UINT maxData, LPUINT puPos);
 
@@ -148,18 +147,41 @@ protected:
 	void GetSize(__int64 size, string & str);
 	void GetDate(FILETIME ftLastWriteTime, string & str);
 
+	void GetFilterLists(LPSTR pszFilter, LPSTR pszExFilter);
+	BOOL DoFilter(LPCSTR pszFileName, LPSTR pszFilter, LPSTR pszExFilter);
+	INT  WildCmp(LPCSTR string, LPCSTR wild);
+
+private:	/* for thread */
+
+	void LIST_LOCK(void) {
+		while (_hSemaphore) {
+			if (::WaitForSingleObject(_hSemaphore, 50) == WAIT_OBJECT_0)
+				return;
+		}
+	};
+	void LIST_UNLOCK(void) {
+		if (_hSemaphore) {
+			::ReleaseSemaphore(_hSemaphore, 1, NULL);
+		}
+	};
+
 private:
 	HWND						_hHeader;
+	HIMAGELIST					_hImlListSys;
 	WNDPROC						_hDefaultListProc;
 	WNDPROC						_hDefaultHeaderProc;
 
 	tExProp*					_pExProp;
 
 	/* file list owner drawn */
-	RECT						_rcClip;
 	HFONT						_hFont;
 	HFONT						_hFontUnder;
 	HIMAGELIST					_hImlParent;
+
+	enum eOverThEv { FL_EVT_EXIT, FL_EVT_INT, FL_EVT_START, FL_EVT_NEXT, FL_EVT_MAX };
+	HANDLE						_hEvent[FL_EVT_MAX];
+	HANDLE						_hOverThread;
+	HANDLE						_hSemaphore;
 
 	/* header values */
 	HBITMAP						_bmpSortUp;
@@ -180,13 +202,9 @@ private:
 	/* Note: _vFolder will not be sorted    */
 	UINT						_uMaxFolders;
 	UINT						_uMaxElements;
+	UINT						_uMaxElementsOld;
 	vector<tFileListData>		_vFolders;
 	vector<tFileListData>		_vFiles;
-
-	/* current open docs */
-	string						_strCurrentPath;
-	INT							_iOpenDoc;
-	vector<string>				_vStrCurrentFiles;
 
 	/* search in list by typing of characters */
 	BOOL						_bSearchFile;

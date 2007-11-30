@@ -20,11 +20,8 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 #include "FileList.h"
 #include "resource.h"
+#include "NativeLang_def.h"
 #include <windows.h>
-#include <commctrl.h>
-#include <shlobj.h>
-#include <shlwapi.h>
-#include <shellapi.h>
 
 
 #ifndef LVM_SETSELECTEDCOLUMN
@@ -41,6 +38,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 static HWND		hWndServer		= NULL;
 static HHOOK	hookMouse		= NULL;
+
 
 static LRESULT CALLBACK hookProcMouse(INT nCode, WPARAM wParam, LPARAM lParam)
 {
@@ -64,8 +62,17 @@ static LRESULT CALLBACK hookProcMouse(INT nCode, WPARAM wParam, LPARAM lParam)
 }
 
 
+DWORD WINAPI FileOverlayThread(LPVOID lpParam)
+{
+	FileList	*pFileList	= (FileList*)lpParam;
+	pFileList->UpdateOverlayIcon();
+	return 0;
+}
+
+
 FileList::FileList(void)
 {
+	_hOverThread		= NULL;
 	_hFont				= NULL;
 	_hFontUnder			= NULL;
 	_hHeader			= NULL;
@@ -74,30 +81,23 @@ FileList::FileList(void)
 	_iMouseTrackItem	= 0;
 	_lMouseTrackPos		= 0;
 	_iBltPos			= 0;
-	_strCurrentPath		= "";
 	_isStackRec			= TRUE;
 	_iItem				= 0;
 	_iSubItem			= 0;
 	_bOldAddExtToName	= FALSE;
 	_bOldViewLong		= FALSE;
 	_bSearchFile		= FALSE;
+	_uMaxFolders		= 0;
+	_uMaxElements		= 0;
+	_uMaxElementsOld	= 0;
 	strcpy(_strSearchFile, "");
 	strcpy(_szFileFilter, "*.*");
+	_vFolders.clear();
+	_vFiles.clear();
 }
 
 FileList::~FileList(void)
 {
-	if (gWinVersion < WV_XP)
-	{
-		::DeleteObject(_bmpSortUp);
-		::DeleteObject(_bmpSortDown);
-	}
-	ImageList_Destroy(_hImlParent);
-	::DeleteObject(_hFontUnder);
-
-	_vDirStack.clear();
-	_vFolders.clear();
-	_vFiles.clear();
 }
 
 void FileList::init(HINSTANCE hInst, HWND hParent, HWND hParentList)
@@ -105,6 +105,17 @@ void FileList::init(HINSTANCE hInst, HWND hParent, HWND hParentList)
 	/* this is the list element */
 	Window::init(hInst, hParent);
 	_hSelf = hParentList;
+
+	/* create semaphore for thead */
+	_hSemaphore = ::CreateSemaphore(NULL, 1, 1, NULL);
+
+	/* create events for thread */
+	for (INT i = 0; i < FL_EVT_MAX; i++) 
+		_hEvent[i] = ::CreateEvent(NULL, FALSE, FALSE, NULL);
+
+	/* create thread */
+	DWORD	dwFlags	= 0;
+	_hOverThread = ::CreateThread(NULL, 0, FileOverlayThread, this, 0, &dwFlags);
 
 	/* get font for drawing */
 	_hFont		= (HFONT)::SendMessage(_hParent, WM_GETFONT, 0, 0);
@@ -136,7 +147,8 @@ void FileList::init(HINSTANCE hInst, HWND hParent, HWND hParentList)
 
 	/* set image list and icon */
 	_hImlParent = GetSmallImageList(FALSE);
-	::SendMessage(_hSelf, LVM_SETIMAGELIST, LVSIL_SMALL, (LPARAM)GetSmallImageList(_pExProp->bUseSystemIcons));
+	_hImlListSys = GetSmallImageList(_pExProp->bUseSystemIcons);
+	ListView_SetImageList(_hSelf, _hImlListSys, LVSIL_SMALL);
 
 	/* get header control and subclass it */
 	hWndServer = _hHeader = ListView_GetHeader(_hSelf);
@@ -149,7 +161,8 @@ void FileList::init(HINSTANCE hInst, HWND hParent, HWND hParentList)
 void FileList::initProp(tExProp* prop)
 {
 	/* set properties */
-	_pExProp	= prop;
+	_pExProp		= prop;
+	SetFilter(_pExProp->strLastFilter.c_str());
 }
 
 
@@ -302,107 +315,55 @@ LRESULT FileList::runListProc(HWND hwnd, UINT Message, WPARAM wParam, LPARAM lPa
 			_iSubItem	= hittest.iSubItem;
 			break;
 		}
-		case WM_SIZE:
+		case WM_DESTROY:
 		{
-			RECT	rc			= {0};
-			UINT	uListBegin	= ListView_GetTopIndex(_hSelf);
-
-			::GetClientRect(_hHeader, &rc);
-			::GetClientRect(hwnd, &_rcClip);
-			_rcClip.top = rc.bottom + 2;
-			break;
-		}
-		case WM_PAINT:
-		{
-			/* buffer for string to draw */
-			static char	szDrawItem[MAX_PATH];
-
-			/* when no elments in list return */
-			if (_uMaxElements == 0)
-				break;
-
-			/* paint the background */
-			LRESULT	lpRet = ::CallWindowProc(_hDefaultListProc, hwnd, Message, wParam, lParam);
-
-			/* declaration */
-			RECT	rc			= {0};
-			RECT	rcExt		= {0};
-			HDC		hDc			= ::GetWindowDC(hwnd);
-			HFONT	hDefFont	= NULL;
-
-			/* set clip rect */
-			::IntersectClipRect(hDc, _rcClip.left, _rcClip.top, _rcClip.right, _rcClip.bottom);
-
-			/* set transparent background */
-			::SetBkMode(hDc, TRANSPARENT);
-
-			/* calculate number of items to draw */
-			UINT	uListBegin	= ListView_GetTopIndex(_hSelf);
-			UINT	uListCnt	= uListBegin + ListView_GetCountPerPage(_hSelf) + 1;
-			for (UINT i = uListBegin; (i < uListCnt) && (i < _uMaxElements); i++)
+			if (gWinVersion < WV_XP)
 			{
-				/* test if element is selected */
-				bool isSel = (bool)
-					((ListView_GetItemState(_hSelf, i, LVIS_SELECTED) & LVIS_SELECTED) && (::GetFocus() == _hSelf));
-
-				/* draw parent up icon */
-				if ((i == 0) && (_vFolders[i].bParent == TRUE))
-				{
-					ListView_GetSubItemRect(_hSelf, 0, 0, LVIR_ICON, &rc);
-					ImageList_Draw(_hImlParent, ICON_PARENT, hDc, rc.left+2, rc.top+2, ILD_NORMAL | (isSel ? ILD_SELECTED : 0));
-				}
-
-				/* calculate complete rect */
-				ListView_GetSubItemRect(_hSelf, i, 0, LVIR_LABEL, &rc);
-				rc.left += 4;
-				if (_pExProp->bAddExtToName == TRUE)
-				{
-					/* get extension rect offset */
-					ListView_GetSubItemRect(_hSelf, i, 1, LVIR_LABEL, &rcExt);
-					rc.right = rcExt.right;
-				}
-
-				/* set text color */
-				if (isSel)
-					::SetTextColor(hDc, RGB(255,255,255));
-
-				if (i < _uMaxFolders)
-				{
-					if (_pExProp->bViewBraces == TRUE)
-						sprintf(szDrawItem, "[%s]", _vFolders[i].strName.c_str());
-					else
-						sprintf(szDrawItem, "%s", _vFolders[i].strName.c_str());
-					hDefFont = (HFONT)::SelectObject(hDc, _hFont);
-				}
-				else
-				{
-					/* copy string */
-					strcpy(szDrawItem, _vFiles[i-_uMaxFolders].strName.c_str());
-					string	strFilePath	= _strCurrentPath + _vFiles[i-_uMaxFolders].strNameExt;
-					for (UINT iCurFiles = 0; iCurFiles < _vStrCurrentFiles.size(); iCurFiles++)
-					{
-						if (_vStrCurrentFiles[iCurFiles] == strFilePath)
-						{
-							hDefFont = (HFONT)::SelectObject(hDc, _hFontUnder);
-							goto drawText;
-						}
-					}
-					hDefFont = (HFONT)::SelectObject(hDc, _hFont);
-				}
-
-drawText:		/* draw text */					
-				::DrawText(hDc, szDrawItem, strlen(szDrawItem), &rc, DT_LEFT | DT_SINGLELINE | DT_BOTTOM | DT_END_ELLIPSIS);
-				::SetTextColor(hDc, RGB(0,0,0));
-				::SelectObject(hDc, hDefFont);
+				::DeleteObject(_bmpSortUp);
+				::DeleteObject(_bmpSortDown);
 			}
 
-			return lpRet;
+			ImageList_Destroy(_hImlParent);
+			::DeleteObject(_hFontUnder);
+
+			if (_hSemaphore) {
+				::SetEvent(_hEvent[FL_EVT_EXIT]);
+				::CloseHandle(_hOverThread);
+				for (INT i = 0; i < FL_EVT_MAX; i++)
+					::CloseHandle(_hEvent[i]);
+				::CloseHandle(_hSemaphore);
+			}
+
+			_vDirStack.clear();
+			_vFolders.clear();
+			_vFiles.clear();
+			break;
 		}
 		case WM_TIMER:
 		{
 			::KillTimer(_hSelf, EXT_SEARCHFILE);
 			_bSearchFile = FALSE;
 			strcpy(_strSearchFile, "");
+			break;
+		}
+		case EXM_UPDATE_OVERICON:
+		{
+			INT				iIcon			= 0;
+			INT				iSelected		= 0;
+			INT				iOverlay		= 0;
+			RECT			rcIcon			= {0};
+			tFileListData*	pFileListData	= (tFileListData*)lParam;
+
+			ExtractIcons(_pExProp->szCurrentPath, pFileListData->strNameExt.c_str(), 
+				DEVT_FILE, &iIcon, &iSelected, &iOverlay);
+			pFileListData->iOverlay = iOverlay;
+
+			/* get icon position and redraw */
+			if (iOverlay != 0) {
+				ListView_GetSubItemRect(_hSelf, (UINT)wParam, 0, LVIR_ICON, &rcIcon);
+				::RedrawWindow(_hSelf, &rcIcon, NULL, TRUE);
+			}
+			::SetEvent(_hEvent[FL_EVT_NEXT]);
 			break;
 		}
 		case EXM_TOOLTIP:
@@ -581,7 +542,6 @@ void FileList::DrawDivider(UINT x)
 	::DeleteObject(hBm);
 }
 
-
 /****************************************************************************
  *	Parent notification
  */
@@ -605,35 +565,6 @@ BOOL FileList::notify(WPARAM wParam, LPARAM lParam)
 					ReadArrayToList(str, lvItem.iItem ,lvItem.iSubItem);
 					lvItem.pszText		= str;
 					lvItem.cchTextMax	= strlen(str);
-				}
-
-				if (lvItem.mask & LVIF_IMAGE)
-				{
-					INT		iOverlayed;
-					BOOL	bHidden;
-
-					if (_vFolders[lvItem.iItem].bParent == TRUE)
-					{
-						/* if it's parent up -> disable image state */
-						lvItem.mask &= ~LVIF_IMAGE;
-					}
-					else
-					{
-						ReadIconToList(lvItem.iItem, &lvItem.iImage, &iOverlayed, &bHidden);
-
-						if (iOverlayed != 0)
-						{
-							lvItem.mask			|= LVIF_STATE;
-							lvItem.state		|= INDEXTOOVERLAYMASK(iOverlayed);
-							lvItem.stateMask	|= LVIS_OVERLAYMASK;
-						}
-						if (bHidden == TRUE)
-						{
-							lvItem.mask			|= LVIF_STATE;
-							lvItem.state		|= LVIS_CUT;
-							lvItem.stateMask	|= LVIS_CUT;
-						}
-					}
 				}
 				break;
 			}
@@ -659,7 +590,7 @@ BOOL FileList::notify(WPARAM wParam, LPARAM lParam)
 				UpdateList();
 
 				/* mark old items */
-				for (UINT i = 0; i < _uMaxElements; i++) {
+				for (i = 0; i < _uMaxElements; i++) {
 					if (i < _uMaxFolders) {
 						ListView_SetItemState(_hSelf, i, _vFolders[i].state, 0xFF);
 					} else {
@@ -708,6 +639,158 @@ BOOL FileList::notify(WPARAM wParam, LPARAM lParam)
 			case NM_DBLCLK:
 			{
 				onLMouseBtnDbl();
+				break;
+			}
+			case NM_CUSTOMDRAW:
+			{
+				static char text[MAX_PATH];
+
+				LPNMLVCUSTOMDRAW lpCD = (LPNMLVCUSTOMDRAW)lParam;
+
+				switch (lpCD->nmcd.dwDrawStage)
+				{
+					case CDDS_PREPAINT:
+					{
+						SetWindowLong(_hParent, DWL_MSGRESULT, (LONG)(CDRF_NOTIFYITEMDRAW));
+						return TRUE;
+					}
+					case CDDS_ITEMPREPAINT:
+					{
+						SetWindowLong(_hParent, DWL_MSGRESULT, (LONG)(CDRF_NOTIFYSUBITEMDRAW));
+						return TRUE;
+					}
+					case CDDS_ITEMPREPAINT | CDDS_SUBITEM:
+					{
+						if (((lpCD->iSubItem > 1) && (_pExProp->bAddExtToName == TRUE)) ||
+							((lpCD->iSubItem > 0) && (_pExProp->bAddExtToName == FALSE)))
+							return FALSE;
+
+						INT		iItem		= (INT)lpCD->nmcd.dwItemSpec;
+						RECT	rc			= {0};
+						RECT	rcDc		= {0};
+
+						/* get state of element */
+						UINT state = ListView_GetItemState(_hSelf, iItem, 0xFF);
+						BOOL isSel = ((state & LVIS_SELECTED) && (::GetFocus() == _hSelf));
+
+						/* get window rect */
+						::GetWindowRect(_hSelf, &rcDc);
+
+						/* create memory DC for flicker free paint */
+						HDC		hMemDc		= ::CreateCompatibleDC(lpCD->nmcd.hdc);
+						HBITMAP	hBmp		= ::CreateCompatibleBitmap(lpCD->nmcd.hdc, rcDc.right - rcDc.left, rcDc.bottom - rcDc.top);
+						HBITMAP hOldBmp		= (HBITMAP)::SelectObject(hMemDc, hBmp);
+
+						/* get text rect */
+						ListView_GetSubItemRect(_hSelf, iItem, lpCD->iSubItem, LVIR_LABEL, &rc);
+
+						/* draw background color of item */
+						HBRUSH	hBrush = NULL;
+						if (state & LVIS_SELECTED) {
+							hBrush = ::CreateSolidBrush(::GetSysColor(isSel ? COLOR_HIGHLIGHT : COLOR_BTNFACE));
+							::FillRect(hMemDc, &rc, hBrush);
+							::DeleteObject(hBrush);
+						} else {
+							hBrush = ::CreateSolidBrush(::GetSysColor(COLOR_WINDOW));
+							::FillRect(hMemDc, &rc, hBrush);
+						}
+
+						/* set transparent mode */
+						::SetBkMode(hMemDc, TRANSPARENT);
+
+						/* calculate correct position */
+						static RECT	rcName		= {0};
+						if (lpCD->iSubItem == 0) {
+							ListView_GetItemText(_hSelf, iItem, 0, text, MAX_PATH);
+							if (_pExProp->bAddExtToName == TRUE) {
+								ListView_GetSubItemRect(_hSelf, iItem, 1, LVIR_LABEL, &rcName);
+								rcName.left = rc.left;
+							} else {
+								rcName = rc;
+							}
+							rcName.left += 2;
+						}
+
+						/* get correct font */
+						HFONT	hDefFont	= NULL;
+						if (iItem >= _uMaxFolders) {
+							string	strFilePath	= _pExProp->szCurrentPath + _vFiles[iItem-_uMaxFolders].strNameExt;
+							if (IsFileOpen(strFilePath.c_str()) == TRUE) {
+								hDefFont = (HFONT)::SelectObject(hMemDc, _hFontUnder);
+							}
+						}
+						if (hDefFont == NULL) {
+							hDefFont = (HFONT)::SelectObject(hMemDc, _hFont);
+						}
+
+						/* set font color */
+						if (isSel == TRUE)
+							::SetTextColor(hMemDc, ::GetSysColor(COLOR_WINDOW));
+						else
+							::SetTextColor(hMemDc, ::GetSysColor(COLOR_BTNTEXT));
+
+						/* draw text to memory */
+						::DrawText(hMemDc, text, strlen(text), &rcName, DT_LEFT | DT_SINGLELINE | DT_VCENTER | DT_END_ELLIPSIS);
+
+						/* blit text */
+						::BitBlt(lpCD->nmcd.hdc, rc.left, rc.top, rc.right - rc.left, rc.bottom - rc.top, hMemDc, rc.left, rc.top, SRCCOPY);
+
+						/* blit icon sequence */
+						if (lpCD->iSubItem == 0) {
+							/* get icon position */
+							ListView_GetSubItemRect(_hSelf, iItem, 0, LVIR_ICON, &rc);
+
+							/* clear background */
+							::FillRect(hMemDc, &rc, hBrush);
+
+							/* first is parent up icon, second folder and file icons with overlay */
+							if ((iItem == 0) && (_vFolders.size() != 0) && (_vFolders[0].bParent == TRUE)) {
+								ImageList_Draw(_hImlParent, ICON_PARENT, hMemDc, rc.left, rc.top, ILD_NORMAL | (isSel ? ILD_SELECTED : 0));
+							} else {
+								INT		iIcon		= 0;
+								INT		iOverlay	= 0;
+								BOOL	isHidden	= FALSE;
+								UINT	fStyle		= (isSel == TRUE ? ILD_SELECTED : ILD_NORMAL);
+
+								/* get current list, read info and draw icon */
+								HIMAGELIST	hImgLstCur = (_pExProp->bUseSystemIcons ? _hImlListSys : _hImlParent);
+								ReadIconToList(iItem, &iIcon, &iOverlay, &isHidden);
+								ImageList_Draw(hImgLstCur, iIcon, hMemDc, rc.left, rc.top, fStyle | INDEXTOOVERLAYMASK(iOverlay));
+
+								/* mark as hidden -- with 50% opacity of backgroud */
+								if (isHidden == TRUE)
+								{
+									HDC		hAlphaDc		= ::CreateCompatibleDC(lpCD->nmcd.hdc);
+									HBITMAP hAlphaBmp		= ::CreateCompatibleBitmap(lpCD->nmcd.hdc, rcDc.right - rcDc.left, rcDc.bottom - rcDc.top);
+									HBITMAP hOldAlphaBmp	= (HBITMAP)::SelectObject(hAlphaDc, hAlphaBmp);
+									::FillRect(hAlphaDc, &rc, hBrush);
+									BLENDFUNCTION	bFunc = {0, 0, 0x7F, AC_SRC_OVER};
+									::AlphaBlend(hMemDc, 
+										rc.left, rc.top, rc.right - rc.left, rc.bottom - rc.top, 
+										hAlphaDc, 
+										rc.left, rc.top, rc.right - rc.left, rc.bottom - rc.top, bFunc);
+									::SelectObject(hAlphaDc, hOldAlphaBmp);
+									::DeleteObject(hAlphaBmp);
+									::DeleteDC(hAlphaDc);
+								}
+							}
+
+							/* blit icon */
+							::BitBlt(lpCD->nmcd.hdc, rc.left, rc.top, rc.right - rc.left, rc.bottom - rc.top, hMemDc, rc.left, rc.top, SRCCOPY);
+						}
+
+						::SelectObject(hMemDc, hOldBmp);
+						::SelectObject(hMemDc, hDefFont);
+						::DeleteObject(hBrush);
+						::DeleteObject(hBmp);
+						::DeleteDC(hMemDc);
+
+						SetWindowLong(_hParent, DWL_MSGRESULT, (LONG)(CDRF_SKIPDEFAULT));
+						return TRUE;
+					}
+					default:
+						return FALSE;
+				}
 				break;
 			}
 			default:
@@ -794,21 +877,76 @@ BOOL FileList::notify(WPARAM wParam, LPARAM lParam)
 	return FALSE;
 }
 
-void FileList::ReadIconToList(INT iItem, LPINT piIcon, LPINT piOverlayed, LPBOOL pbHidden)
+void FileList::UpdateOverlayIcon(void)
 {
-	INT		maxFolders		= _vFolders.size();
-	INT		iIconSelected	= 0;
+	UINT	i = 0;
 
+	while (1)
+	{
+		DWORD	dwCase = ::WaitForMultipleObjects(FL_EVT_MAX, _hEvent, FALSE, INFINITE);
+
+		switch (dwCase)
+		{
+			case FL_EVT_EXIT:
+			{
+				LIST_UNLOCK();
+				return;
+			}
+			case FL_EVT_INT:
+			{
+				i = _uMaxElements;
+				LIST_UNLOCK();
+				break;
+			}
+			case FL_EVT_START:
+			{
+				i = 0;
+				if (_uMaxElements == 0)
+					break;
+
+				LIST_LOCK();
+
+				/* step over parent icon */
+				if ((_uMaxFolders != 0) && (_vFolders[0].bParent == FALSE)) {
+					i = 1;
+				}
+
+				::SetEvent(_hEvent[FL_EVT_NEXT]);
+				break;
+			}
+			case FL_EVT_NEXT:
+			{
+				if (::WaitForSingleObject(_hEvent[FL_EVT_INT], 1) == WAIT_TIMEOUT)
+				{
+					if (i < _vFolders.size()) {
+						::PostMessage(_hSelf, EXM_UPDATE_OVERICON, i, (LPARAM)&_vFolders[i]);
+					} else if ((i - _uMaxFolders) < _vFiles.size()) {
+						::PostMessage(_hSelf, EXM_UPDATE_OVERICON, i, (LPARAM)&_vFiles[i-_uMaxFolders]);
+					} else {
+						LIST_UNLOCK();
+					}
+					i++;
+				} else {
+					::SetEvent(_hEvent[FL_EVT_INT]);
+				}
+				break;
+			}
+		}
+	}
+}
+
+void FileList::ReadIconToList(INT iItem, LPINT piIcon, LPINT piOverlay, LPBOOL pbHidden)
+{
 	if (iItem < (INT)_uMaxFolders)
 	{
-		ExtractIcons(_strCurrentPath.c_str(), _vFolders[iItem].strNameExt.c_str(), 
-			DEVT_DIRECTORY, piIcon, &iIconSelected, piOverlayed);
+		*piIcon		= _vFolders[iItem].iIcon;
+		*piOverlay	= _vFolders[iItem].iOverlay;
 		*pbHidden	= _vFolders[iItem].bHidden;
 	}
 	else
 	{
-		ExtractIcons(_strCurrentPath.c_str(), _vFiles[iItem-_uMaxFolders].strNameExt.c_str(), 
-			DEVT_FILE, piIcon, &iIconSelected, piOverlayed);
+		*piIcon		= _vFiles[iItem-_uMaxFolders].iIcon;
+		*piOverlay	= _vFiles[iItem-_uMaxFolders].iOverlay;
 		*pbHidden	= _vFiles[iItem-_uMaxFolders].bHidden;
 	}
 }
@@ -823,15 +961,10 @@ void FileList::ReadArrayToList(LPSTR szItem, INT iItem ,INT iSubItem)
 		switch (iSubItem)
 		{
 			case 0:
-				if (_pExProp->bAddExtToName == FALSE)
-				{
-					if (_pExProp->bViewBraces == TRUE)
-						sprintf(szItem, "[%s]", _vFolders[iItem].strName.c_str());
-					else
-						sprintf(szItem, "%s", _vFolders[iItem].strName.c_str());
-				}
+				if (_pExProp->bViewBraces == TRUE)
+					sprintf(szItem, "[%s]", _vFolders[iItem].strName.c_str());
 				else
-					szItem[0] = '\0';
+					sprintf(szItem, "%s", _vFolders[iItem].strName.c_str());
 				break;
 			case 1:
 				strcpy(szItem, _vFolders[iItem].strExt.c_str());
@@ -849,7 +982,7 @@ void FileList::ReadArrayToList(LPSTR szItem, INT iItem ,INT iSubItem)
 		switch (iSubItem)
 		{
 			case 0:
-				szItem[0] = '\0';
+				strcpy(szItem, _vFiles[iItem-_uMaxFolders].strName.c_str());
 				break;
 			case 1:
 				if (_pExProp->bAddExtToName == FALSE)
@@ -869,12 +1002,15 @@ void FileList::ReadArrayToList(LPSTR szItem, INT iItem ,INT iSubItem)
 
 void FileList::viewPath(LPCSTR currentPath, BOOL redraw)
 {
-	TCHAR					TEMP[MAX_PATH+1];
-	TCHAR					szFilter[MAX_PATH+1];
-	TCHAR					szFilterPath[MAX_PATH+1];
+	TCHAR					TEMP[MAX_PATH];
 	WIN32_FIND_DATA			Find			= {0};
 	HANDLE					hFind			= NULL;
 	tFileListData			tempData;
+	vector<tFileListData>	vFoldersTemp;
+	vector<tFileListData>	vFilesTemp;
+
+	/* end thread if it is in run mode */
+	::SetEvent(_hEvent[FL_EVT_INT]);
 
 	/* add backslash if necessary */
 	strncpy(TEMP, currentPath, MAX_PATH-1);
@@ -882,21 +1018,31 @@ void FileList::viewPath(LPCSTR currentPath, BOOL redraw)
 		strcat(TEMP, "\\");
 
 	/* clear data */
-	_vFolders.clear();
-	_vFiles.clear();
+	_uMaxElementsOld = _uMaxElements;
+	vFoldersTemp.clear();
+	vFilesTemp.clear();
 
-	/* find folders */
+	/* find every element in folder */
 	strcat(TEMP, "*");
 	hFind = ::FindFirstFile(TEMP, &Find);
 
 	if (hFind != INVALID_HANDLE_VALUE)
 	{
+		INT		iIconSelected			= 0;
+
+		/* get current filters */
+		TCHAR	szFilter[MAX_PATH]		= "\0";
+		TCHAR	szExFilter[MAX_PATH]	= "\0";
+		GetFilterLists(szFilter, szExFilter);
+
 		do 
 		{
 			if (IsValidFolder(Find) == TRUE)
 			{
 				/* get data in order of list elements */
 				tempData.bParent	= FALSE;
+				ExtractIcons(currentPath, Find.cFileName, DEVT_DIRECTORY, &tempData.iIcon, &iIconSelected, NULL);
+				tempData.iOverlay	= 0;
 				tempData.bHidden	= ((Find.dwFileAttributes & FILE_ATTRIBUTE_HIDDEN) != 0);
 				tempData.strName	= Find.cFileName;
 				tempData.strNameExt	= Find.cFileName;
@@ -910,7 +1056,42 @@ void FileList::viewPath(LPCSTR currentPath, BOOL redraw)
 					tempData.i64Date	= 0;
 				}
 
-				_vFolders.push_back(tempData);
+				vFoldersTemp.push_back(tempData);
+			}
+			else if ((IsValidFile(Find) == TRUE) && (DoFilter(Find.cFileName, szFilter, szExFilter) == TRUE))
+			{
+				/* store for correct sorting the complete name (with extension) */
+				tempData.strNameExt	= Find.cFileName;
+				tempData.bParent	= FALSE;
+				ExtractIcons(currentPath, Find.cFileName, DEVT_FILE, &tempData.iIcon, &iIconSelected, NULL);
+				tempData.iOverlay	= 0;
+				tempData.bHidden	= ((Find.dwFileAttributes & FILE_ATTRIBUTE_HIDDEN) != 0);
+
+				/* extract name and extension */
+				LPSTR	extBeg = strrchr(&Find.cFileName[1], '.');
+
+				if (extBeg != NULL) {
+					*extBeg = '\0';
+					tempData.strExt	= &extBeg[1];
+				} else {
+					tempData.strExt		= "";
+				}
+
+				if ((_pExProp->bAddExtToName == TRUE) && (extBeg != NULL)) {
+					*extBeg = '.';
+				}
+				tempData.strName	= Find.cFileName;
+
+
+				if (_pExProp->bViewLong == TRUE)
+				{
+					tempData.i64Size = (((__int64)Find.nFileSizeHigh) << 32) + Find.nFileSizeLow;
+					GetSize(tempData.i64Size, tempData.strSize);
+					tempData.i64Date = (((__int64)Find.ftLastWriteTime.dwHighDateTime) << 32) + Find.ftLastWriteTime.dwLowDateTime;
+					GetDate(Find.ftLastWriteTime, tempData.strDate);
+				}
+
+				vFilesTemp.push_back(tempData);
 			}
 			else if (IsValidParentFolder(Find) == TRUE)
 			{
@@ -929,89 +1110,28 @@ void FileList::viewPath(LPCSTR currentPath, BOOL redraw)
 					tempData.i64Date	= 0;
 				}
 
-				_vFolders.push_back(tempData);
+				vFoldersTemp.push_back(tempData);
 			}
 		} while (FindNextFile(hFind, &Find));
 
 		/* close file search */
 		::FindClose(hFind);
-		TEMP[strlen(TEMP)-1] = '\0';
-
-		/* get first filter */
-		LPSTR	ptr	= NULL;
-
-		strncpy(szFilter, _szFileFilter, MAX_PATH);
-		ptr = strtok(szFilter, ";");
-
-		while (ptr != NULL)
-		{
-			/* find files with wildcard information */
-			strncpy(szFilterPath, TEMP, MAX_PATH);
-			strncat(szFilterPath, ptr, MAX_PATH - strlen(szFilterPath));
-
-			hFind = ::FindFirstFile(szFilterPath, &Find);
-
-			if ((strlen(szFilterPath) < MAX_PATH) && (hFind != INVALID_HANDLE_VALUE))
-			{
-				do 
-				{
-					/* extract file data */
-					if (IsValidFile(Find) == TRUE)
-					{
-						/* store for correct sorting the complete name (with extension) */
-						tempData.strNameExt	= Find.cFileName;
-						tempData.bParent	= FALSE;
-						tempData.bHidden	= ((Find.dwFileAttributes & FILE_ATTRIBUTE_HIDDEN) != 0);
-
-						/* extract name and extension */
-						LPSTR	extBeg = strrchr(&Find.cFileName[1], '.');
-
-						if (extBeg != NULL)
-						{
-							*extBeg = '\0';
-							tempData.strExt	= &extBeg[1];
-						}
-						else
-						{
-							tempData.strExt		= "";
-						}
-
-						if ((_pExProp->bAddExtToName == TRUE) && (extBeg != NULL))
-						{
-							*extBeg = '.';
-						}
-						tempData.strName	= Find.cFileName;
-
-
-						if (_pExProp->bViewLong == TRUE)
-						{
-							tempData.i64Size = (((__int64)Find.nFileSizeHigh) << 32) + Find.nFileSizeLow;
-							GetSize(tempData.i64Size, tempData.strSize);
-							tempData.i64Date = (((__int64)Find.ftLastWriteTime.dwHighDateTime) << 32) + Find.ftLastWriteTime.dwLowDateTime;
-							GetDate(Find.ftLastWriteTime, tempData.strDate);
-						}
-
-						_vFiles.push_back(tempData);
-					}
-				} while (FindNextFile(hFind, &Find));
-			}
-
-			/* get next filter */
-			ptr = strtok(NULL, ";");
-		}
-
-		::FindClose(hFind);
 	}
+
+	/* save current path */
+	strcpy(_pExProp->szCurrentPath, currentPath);
+
+	/* add current dir to stack */
+	PushDir(currentPath);
+
+	LIST_LOCK();
+	/* set temporal list as global */
+	_vFiles		= vFilesTemp;
+	_vFolders	= vFoldersTemp;
 
 	/* set max elements in list */
 	_uMaxFolders	= _vFolders.size();
 	_uMaxElements	= _uMaxFolders + _vFiles.size();
-
-	/* save current path */
-	_strCurrentPath = currentPath;
-
-	/* add current dir to stack */
-	PushDir(currentPath);
 
 	/* update list content */
 	UpdateList();
@@ -1019,27 +1139,36 @@ void FileList::viewPath(LPCSTR currentPath, BOOL redraw)
 	/* select first entry */
 	if (redraw == TRUE)
 		SetFocusItem(0);
+
+	LIST_UNLOCK();
+
+	/* start with update of overlay icons */
+	::SetEvent(_hEvent[FL_EVT_START]);
 }
 
-void FileList::filterFiles(LPSTR currentFilter)
+void FileList::filterFiles(LPCTSTR currentFilter)
 {
-	LPSTR	ptr = NULL;
+	SetFilter(currentFilter);
+	viewPath(_pExProp->szCurrentPath, TRUE);
+}
+
+void FileList::SetFilter(LPCTSTR pszNewFilter)
+{
+	TCHAR	szTempFilter[MAX_PATH];
 
 	/* delete current filter */
 	_szFileFilter[0] = '\0';
 
-	/* get new filter (remove spaces) */
-	ptr = strtok(currentFilter, " ");
+	/* copy new filter into buffer for tok */
+	strcpy(szTempFilter, pszNewFilter);
 
-	while (ptr != NULL)
-	{
+	/* get new filter (remove spaces) */
+	LPSTR	ptr = strtok(szTempFilter, " ");
+
+	while (ptr != NULL) {
 		strcat(_szFileFilter, ptr);
 		ptr = strtok(NULL, " ");
 	}
-
-	/* !!!!!!! temporary value necessary !!!!!! */
-	string str = _strCurrentPath;
-	viewPath(str.c_str(), TRUE);
 }
 
 void FileList::SelectFolder(LPSTR selFile)
@@ -1056,17 +1185,12 @@ void FileList::SelectFolder(LPSTR selFile)
 
 void FileList::SelectCurFile(void)
 {
-	if (_iOpenDoc == -1)
-		return;
+	extern TCHAR g_currentFile[MAX_PATH];
 
-	TCHAR	TEMP[MAX_PATH];
-	strcpy(TEMP, _vStrCurrentFiles[_iOpenDoc].c_str());
-
-	UINT	uStartName	= _vStrCurrentFiles[_iOpenDoc].rfind("\\") + 1;
 	UINT	uMaxFiles	= _uMaxElements - _uMaxFolders;
 	for (UINT uFile = 0; uFile < uMaxFiles; uFile++)
 	{
-		if (strcmp(_vFiles[uFile].strNameExt.c_str(), &TEMP[uStartName]) == 0 )
+		if (strstr(g_currentFile, _vFiles[uFile].strNameExt.c_str()) != NULL )
 		{
 			SetFocusItem(_uMaxFolders + uFile);
 			return;
@@ -1076,10 +1200,15 @@ void FileList::SelectCurFile(void)
 
 void FileList::UpdateList(void)
 {
-	QuickSortRecursiveCol(&_vFolders, (_strCurrentPath.size() != 3), _uMaxFolders-1, 0, TRUE);
+	QuickSortRecursiveCol(&_vFolders, _pExProp->szCurrentPath[3] != '\0', _uMaxFolders-1, 0, TRUE);
 	QuickSortRecursiveColEx(&_vFiles, 0, _uMaxElements-_uMaxFolders-1, _pExProp->iSortPos, _pExProp->bAscending);
-	ListView_SetItemCountEx(_hSelf, _uMaxElements, LVSICF_NOSCROLL);
-	::RedrawWindow(_hSelf, NULL, NULL, TRUE);
+
+	/* avoid flickering */
+	if (_uMaxElementsOld != _uMaxElements) {
+		ListView_SetItemCountEx(_hSelf, _uMaxElements, LVSICF_NOSCROLL);
+	} else {
+		::RedrawWindow(_hSelf, NULL, NULL, TRUE);
+	}
 }
 
 void FileList::SetColumns(void)
@@ -1193,9 +1322,9 @@ void FileList::onRMouseBtn(void)
 			}
 
 			if (uList < _uMaxFolders) {
-				data.push_back(_strCurrentPath + _vFolders[uList].strName + "\\");
+				data.push_back(_pExProp->szCurrentPath + _vFolders[uList].strName + "\\");
 			} else {
-				data.push_back(_strCurrentPath + _vFiles[uList-_uMaxFolders].strNameExt);
+				data.push_back(_pExProp->szCurrentPath + _vFiles[uList-_uMaxFolders].strNameExt);
 			}
 		}
 	}
@@ -1572,6 +1701,106 @@ void FileList::GetDate(FILETIME ftLastWriteTime, string & str)
 	str = TEMP;
 }
 
+void FileList::GetFilterLists(LPSTR pszFilter, LPSTR pszExFilter)
+{
+	LPSTR	ptr			= _szFileFilter;
+	LPSTR	exc_beg		= NULL;
+	LPSTR	exc_end		= NULL;
+
+	do
+	{
+		exc_beg = strstr(ptr, "[^");
+
+		if (exc_beg == NULL)
+		{
+			strcat(pszFilter, ptr);
+		}
+		else
+		{
+			exc_end = strstr(exc_beg, "]");
+
+			if (exc_end > exc_beg)
+			{
+				strncat(pszFilter, ptr, exc_beg-ptr);
+				strncat(pszExFilter, &exc_beg[2], exc_end-exc_beg-2);
+				ptr = exc_end+1;
+			}
+		}
+	} while (exc_beg != NULL);
+}
+
+BOOL FileList::DoFilter(LPCSTR pszFileName, LPSTR pszFilter, LPSTR pszExFilter)
+{
+	TCHAR	TEMP[256];
+	LPSTR	ptr		= NULL;
+
+	if ((pszFileName == NULL) || (pszFilter == NULL) || (pszExFilter == NULL))
+		return FALSE;
+
+	if (strcmp(pszFilter, "*.*") == 0)
+		return TRUE;
+	
+	if (pszExFilter[0] != '\0')
+	{
+		strncpy(TEMP, pszExFilter, 256);
+
+		ptr		= strtok(TEMP, ";");
+		while (ptr != NULL)
+		{
+			if (WildCmp(pszFileName, ptr) != NULL)
+				return FALSE;
+			ptr = strtok(NULL, ";");
+		}
+	}
+
+	strncpy(TEMP, pszFilter, 256);
+
+	ptr		= strtok(TEMP, ";");
+	while (ptr != NULL)
+	{
+		if (WildCmp(pszFileName, ptr) != NULL)
+			return TRUE;
+		ptr = strtok(NULL, ";");
+	}
+	return FALSE;
+}
+
+INT FileList::WildCmp(LPCSTR string, LPCSTR wild)
+{
+	// Written by Jack Handy - jakkhandy@hotmail.com
+	// See: http://www.codeproject.com/string/wildcmp.asp
+	LPCSTR		cp = NULL;
+	LPCSTR		mp = NULL;
+
+	while ((*string) && (*wild != '*')) {
+		if ((tolower(*wild) != tolower(*string)) && (*wild != '?')) {
+			return 0;
+		}
+		wild++;
+		string++;
+	}
+
+	while (*string) {
+		if (*wild == '*') {
+			if (!*++wild) {
+				return 1;
+			}
+			mp = wild;
+			cp = string+1;
+		} else if ((tolower(*wild) == tolower(*string)) || (*wild == '?')) {
+			wild++;
+			string++;
+		} else {
+			wild = mp;
+			string = cp++;
+		}
+	}
+
+	while (*wild == '*') {
+		wild++;
+	}
+	return !*wild;
+}
 
 /**************************************************************************************
  *	Stack functions
