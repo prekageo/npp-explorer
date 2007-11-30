@@ -58,7 +58,6 @@ LRESULT ComboOrgi::runProc(HWND hwnd, UINT Message, WPARAM wParam, LPARAM lParam
 
 				getText(pszText);
 				addText(pszText);
-				::SendMessage(::GetParent(_hCombo), EXM_CHANGECOMBO, 0, 0);
 
 				delete [] pszText;
 
