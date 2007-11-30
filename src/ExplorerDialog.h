@@ -31,7 +31,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include <algorithm>
 #include <shlwapi.h>
 
-#include "PluginInterface.h"
+#include "Explorer.h"
 #include "ExplorerResource.h"
 
 using namespace std;
@@ -42,6 +42,7 @@ typedef enum {
 	EID_UPDATE_USER,
 	EID_UPDATE_DEVICE,
 	EID_UPDATE_ACTIVATE,
+	EID_UPDATE_ACTIVATEPATH,
 	EID_THREAD_END,
 	EID_GET_VOLINFO,
 	EID_MAX
@@ -66,6 +67,7 @@ public:
 	virtual void redraw(void) {
 		/* possible new imagelist -> update the window */
 		::SendMessage(_hTreeCtrl, TVM_SETIMAGELIST, TVSIL_NORMAL, (LPARAM)GetSmallImageList(_pExProp->bUseSystemIcons));
+		::SetTimer(_hSelf, EXT_UPDATEDEVICE, 0, NULL);
 		_FileList.redraw();
 		/* and only when dialog is visible, select item again */
 		SelectItem(_pExProp->szCurrentPath);
@@ -84,10 +86,6 @@ public:
 
 	void NotifyEvent(DWORD event);
 
-	void UpdateDocs(const char** pFiles, UINT numFiles, INT openDoc) {
-		_FileList.UpdateDocs(pFiles, numFiles, openDoc);
-	};
-
 protected:
 
 	/* Subclassing splitter */
@@ -98,19 +96,16 @@ protected:
 
 	virtual BOOL CALLBACK run_dlgProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam);
 
-	void GetNameStrFromCmd(UINT idButton, LPTSTR* tip);
+	void GetNameStrFromCmd(UINT idButton, LPTSTR tip, UINT count);
 
 	void InitialDialog(void);
 
 	void UpdateDevices(void);
 	void UpdateFolders(void);
-	void UpdateFolderRecursive(LPTSTR pszParentPath, HTREEITEM pCurrentItem);
-	BOOL FindFolderAfter(LPTSTR itemName, HTREEITEM pAfterItem);
-
-	void SetCaption(LPTSTR path);
+	void UpdatePath(void);
 
 	void SelectItem(POINT pt);
-	BOOL SelectItem(LPTSTR path);
+	BOOL SelectItem(LPCTSTR path);
 
 	void tb_cmd(UINT message);
 	void tb_not(LPNMTOOLBAR lpnmtb);
@@ -123,7 +118,6 @@ private:
 	NppData					_nppData;
 	tTbData					_data;
 	BOOL					_bStartupFinish;
-	BOOL					_bInitFinish;
 
 	/* splitter control process */
 	WNDPROC					_hDefaultSplitterProc;
