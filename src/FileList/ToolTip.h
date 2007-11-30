@@ -21,7 +21,7 @@ Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 #define __TOOLTIP_H__
 
 #include <string>
-#include "PluginInterface.h"
+#include "Explorer.h"
 #include "Window.h"
 #include <commctrl.h>
 

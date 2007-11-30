@@ -21,7 +21,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #ifndef COMBOORGI_DEFINE_H
 #define COMBOORGI_DEFINE_H
 
-#include "PluginInterface.h"
+#include "Explorer.h"
 #include <vector>
 #include <string>
 using namespace std;
