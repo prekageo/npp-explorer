@@ -37,6 +37,9 @@ BOOL CALLBACK NewDlg::run_dlgProc(HWND hWnd, UINT Message, WPARAM wParam, LPARAM
 		{
 			TCHAR	szDesc[MAX_PATH];
 
+			/* change language previously to avoid change of dynamic texts */
+			NLChangeDialog(_hInst, _hParent, _hSelf, "New");
+
 			if (_pszWndName != NULL)
 				::SetWindowText(_hSelf, _pszWndName);
 

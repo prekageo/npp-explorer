@@ -42,8 +42,6 @@ PropDlg::PropDlg() : StaticDialog()
 	_fileMustExist	= NULL;
 	_seeDetails		= FALSE;
 	_pElem			= NULL;
-	_hImageList		= NULL;
-	_iUImgPos		= 0;
 }
 
 
@@ -64,11 +62,25 @@ BOOL CALLBACK PropDlg::run_dlgProc(HWND hWnd, UINT Message, WPARAM wParam, LPARA
 	{
 		case WM_INITDIALOG:
 		{
-			TCHAR	szDesc[256];
+			/* set discription */
+			TCHAR	szBuffer[256];
 
-			sprintf(szDesc, "%s:", _pDesc);
-			::SetWindowText(::GetDlgItem(_hSelf, IDC_STATIC_FAVES_DESC), szDesc);
+			/* change language previously to avoid change of dynamic text*/
+			NLChangeDialog(_hInst, _hParent, _hSelf, "FavProp");
 
+			sprintf(szBuffer, "%s:", _pDesc);
+			::SetWindowText(::GetDlgItem(_hSelf, IDC_STATIC_FAVES_DESC), szBuffer);
+
+			/* if name is not defined extract from link */
+			strcpy(szBuffer, _pLink);
+			if ((_pName[0] == '\0') && (szBuffer[0] != '\0')) {
+				if (szBuffer[strlen(szBuffer)-1] == '\\') {
+					szBuffer[strlen(szBuffer)-1] = '\0';
+				}
+				strcpy(_pName, (strrchr(szBuffer, '\\')+1));
+			}
+
+			/* set name and link */
 			::SetWindowText(::GetDlgItem(_hSelf, IDC_EDIT_NAME), _pName);
 			::SetWindowText(::GetDlgItem(_hSelf, IDC_EDIT_LINK), _pLink);
 
@@ -114,10 +126,16 @@ BOOL CALLBACK PropDlg::run_dlgProc(HWND hWnd, UINT Message, WPARAM wParam, LPARA
 				UINT	iIconPos	= _pElem->uParam & FAVES_PARAM;
 
 				/* set image list */
-				::SendMessage(_hTreeCtrl, TVM_SETIMAGELIST, TVSIL_NORMAL, (LPARAM)_hImageList);
+				::SendMessage(_hTreeCtrl, TVM_SETIMAGELIST, TVSIL_NORMAL, (LPARAM)GetSmallImageList(FALSE));
 
-				HTREEITEM hItem = InsertItem(_pElem->pszName, _iUImgPos + iIconPos, _iUImgPos + iIconPos, 0, 0, TVI_ROOT, TVI_LAST, TRUE, (LPARAM)_pElem);
+				HTREEITEM hItem = InsertItem(_pElem->pszName, iIconPos, _iUImgPos, 0, 0, TVI_ROOT, TVI_LAST, TRUE, (LPARAM)_pElem);
 				TreeView_SelectItem(_hTreeCtrl, hItem);
+
+				if (!NLGetText(_hInst, _hParent, "Details", _szDetails, 20)) {
+					_tcscpy(_szDetails, "Details %s");
+				}
+				sprintf(szBuffer, _szDetails, _T("<<"));
+				::SetWindowText(::GetDlgItem(_hSelf, IDC_BUTTON_DETAILS), szBuffer);
 			}
 
 			break;
@@ -129,6 +147,7 @@ BOOL CALLBACK PropDlg::run_dlgProc(HWND hWnd, UINT Message, WPARAM wParam, LPARA
 				case IDC_BUTTON_DETAILS:
 				{
 					RECT	rc	= {0};
+					TCHAR	szBuffer[20];
 
 					/* toggle visibility state */
 					_seeDetails ^= TRUE;
@@ -141,7 +160,8 @@ BOOL CALLBACK PropDlg::run_dlgProc(HWND hWnd, UINT Message, WPARAM wParam, LPARA
 						::ShowWindow(::GetDlgItem(_hSelf, IDC_TREE_SELECT), SW_HIDE);
 						::ShowWindow(::GetDlgItem(_hSelf, IDC_STATIC_SELECT), SW_HIDE);
 
-						::SetWindowText(::GetDlgItem(_hSelf, IDC_BUTTON_DETAILS), "Details >>");
+						sprintf(szBuffer, _szDetails, _T(">>"));
+						::SetWindowText(::GetDlgItem(_hSelf, IDC_BUTTON_DETAILS), szBuffer);
 
 						rc.bottom	-= 148;
 					}
@@ -150,7 +170,8 @@ BOOL CALLBACK PropDlg::run_dlgProc(HWND hWnd, UINT Message, WPARAM wParam, LPARA
 						::ShowWindow(::GetDlgItem(_hSelf, IDC_TREE_SELECT), SW_SHOW);
 						::ShowWindow(::GetDlgItem(_hSelf, IDC_STATIC_SELECT), SW_SHOW);
 
-						::SetWindowText(::GetDlgItem(_hSelf, IDC_BUTTON_DETAILS), "Details <<");
+						sprintf(szBuffer, _szDetails, _T("<<"));
+						::SetWindowText(::GetDlgItem(_hSelf, IDC_BUTTON_DETAILS), szBuffer);
 
 						rc.bottom	+= 148;
 					}
@@ -364,6 +385,8 @@ BOOL CALLBACK PropDlg::run_dlgProc(HWND hWnd, UINT Message, WPARAM wParam, LPARA
 						}
 						break;
 					}
+					default:
+						break;
 				}
 			}
 			break;
@@ -380,10 +403,9 @@ BOOL CALLBACK PropDlg::run_dlgProc(HWND hWnd, UINT Message, WPARAM wParam, LPARA
 	return FALSE;
 }
 
-void PropDlg::setTreeElements(PELEM pElem, HIMAGELIST hImageList, INT iUImgPos, BOOL bWithLink)
+void PropDlg::setTreeElements(PELEM pElem, INT iUImgPos, BOOL bWithLink)
 {
 	_pElem		= pElem;
-	_hImageList	= hImageList;
 	_iUImgPos	= iUImgPos;
 	_bWithLink	= bWithLink;
 
@@ -398,8 +420,11 @@ LPCTSTR PropDlg::getGroupName(void)
 
 void PropDlg::DrawChildrenOfItem(HTREEITEM hParentItem)
 {
+	INT			iIconNormal		= 0;
+	INT			iIconSelected	= 0;
+	INT			iIconOverlayed	= 0;
 	BOOL		haveChildren	= FALSE;
-	int			root			= 0;
+	INT			root			= 0;
 	LPTSTR		TEMP			= (LPTSTR)new TCHAR[MAX_PATH];
 	HTREEITEM	pCurrentItem	= TreeView_GetNextItem(_hTreeCtrl, hParentItem, TVGN_CHILD);
 
@@ -429,13 +454,14 @@ void PropDlg::DrawChildrenOfItem(HTREEITEM hParentItem)
 					}
 				}
 				/* add new item */
-				pCurrentItem = InsertItem(pElem->pszName, _iUImgPos + 4, _iUImgPos + 4, 0, 0, hParentItem, TVI_LAST, haveChildren, (LPARAM)pElem);
+				pCurrentItem = InsertItem(pElem->pszName, ICON_GROUP, ICON_GROUP, 0, 0, hParentItem, TVI_LAST, haveChildren, (LPARAM)pElem);
 			}
 
-			if ((pElem->uParam & FAVES_PARAM_LINK) || (_bWithLink == TRUE))
+			if ((pElem->uParam & FAVES_PARAM_LINK) && (_bWithLink == TRUE))
 			{
 				/* add new item */
-				pCurrentItem = InsertItem(pElem->pszName, _iUImgPos + 3, _iUImgPos + 3, 0, 0, hParentItem, TVI_LAST, haveChildren, (LPARAM)pElem);
+				ExtractIcons(pElem->pszName, NULL, DEVT_FILE, &iIconNormal, &iIconSelected, &iIconOverlayed);
+				pCurrentItem = InsertItem(pElem->pszName, _iUImgPos, _iUImgPos, 0, 0, hParentItem, TVI_LAST, haveChildren, (LPARAM)pElem);
 			}
 		}
 	}
@@ -469,3 +495,4 @@ void PropDlg::GetFolderPathName(HTREEITEM hItem, LPTSTR name)
 	delete [] TEMP;
 	delete [] szName;
 }
+

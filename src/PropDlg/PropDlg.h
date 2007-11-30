@@ -24,7 +24,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include <windows.h>
 #include <commctrl.h>
 #include "StaticDialog.h"
-#include "PluginInterface.h"
+#include "Explorer.h"
 #include "FileDlg.h"
 #include "ExplorerResource.h"
 #include "TreeHelperClass.h"
@@ -55,7 +55,7 @@ public:
 
     virtual void destroy() {};
 
-	void setTreeElements(PELEM pElem, HIMAGELIST hImageList, INT iUserImagePos, BOOL bWithLink = FALSE);
+	void setTreeElements(PELEM pElem, INT iUserImagePos, BOOL bWithLink = FALSE);
 	LPCTSTR getGroupName(void);
 
 protected :
@@ -75,9 +75,9 @@ private:
 	BOOL			_bWithLink;
 	BOOL			_seeDetails;
 	PELEM			_pElem;
-	HIMAGELIST		_hImageList;
 	INT				_iUImgPos;
 	string			_strGroupName;
+	TCHAR			_szDetails[20];
 };
 
 

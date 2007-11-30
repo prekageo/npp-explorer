@@ -22,7 +22,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #define NEW_DLG_DEFINE_H
 
 #include "StaticDialog.h"
-#include "PluginInterface.h"
+#include "Explorer.h"
 #include "ExplorerResource.h"
 
 
