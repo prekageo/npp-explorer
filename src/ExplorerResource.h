@@ -100,22 +100,37 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 	#define IDC_STATIC_SELECT               (IDD_PROP_DLG + 5)
 	#define IDC_TREE_SELECT                 (IDD_PROP_DLG + 6)
 	#define IDC_BUTTON_DETAILS              (IDD_PROP_DLG + 7)
-
+	#define IDC_STATIC_NAME                 (IDD_PROP_DLG + 8)
+	#define IDC_STATIC_LINK                 (IDD_PROP_DLG + 9)
+                                        
 #define		IDD_OPTION_DLG   30650
 	#define IDC_CHECK_BRACES                (IDD_OPTION_DLG + 1)
-	#define IDC_CHECK_LONG                  (IDD_OPTION_DLG + 2)
-	#define IDC_COMBO_SIZE_FORMAT           (IDD_OPTION_DLG + 3)
-	#define IDC_COMBO_DATE_FORMAT           (IDD_OPTION_DLG + 4)
-	#define IDC_RADIO_SEPARATE              (IDD_OPTION_DLG + 5)
-	#define IDC_RADIO_ATTACHED              (IDD_OPTION_DLG + 6)
+	#define IDC_CHECK_AUTO                  (IDD_OPTION_DLG + 2)
+	#define IDC_CHECK_LONG                  (IDD_OPTION_DLG + 3)
+	#define IDC_COMBO_SIZE_FORMAT           (IDD_OPTION_DLG + 4)
+	#define IDC_COMBO_DATE_FORMAT           (IDD_OPTION_DLG + 5)
+	#define IDC_CHECK_SEPEXT                (IDD_OPTION_DLG + 6)
 	#define IDC_CHECK_HIDDEN                (IDD_OPTION_DLG + 7)
 	#define IDC_STATIC_LONG                 (IDD_OPTION_DLG + 8)
 	#define IDC_CHECK_USEICON               (IDD_OPTION_DLG + 9)
 	#define IDC_EDIT_TIMEOUT                (IDD_OPTION_DLG + 10)
+	#define IDC_STATIC_SIZE                 (IDD_OPTION_DLG + 11)
+	#define IDC_STATIC_DATE                 (IDD_OPTION_DLG + 12)
+	#define IDC_STATIC_FILELIST             (IDD_OPTION_DLG + 13)
+	#define IDC_STATIC_GENOPT               (IDD_OPTION_DLG + 14)
+	#define IDC_STATIC_TMO                  (IDD_OPTION_DLG + 15)
 
-#define    IDD_HELP_DLG	     30700
+#define    IDD_HELP_DLG	     30700         
     #define IDC_EMAIL_LINK                  (IDD_HELP_DLG + 1)
 	#define IDC_NPP_PLUGINS_URL				(IDD_HELP_DLG + 2)
+	#define IDC_STATIC_AUTHOR               (IDD_HELP_DLG + 3)
+	#define IDC_STATIC_MAIL                 (IDD_HELP_DLG + 4)
+	#define IDC_STATIC_THXTO                (IDD_HELP_DLG + 5)
+	#define IDC_STATIC_MENU                 (IDD_HELP_DLG + 6)
+	#define IDC_STATIC_EXP                  (IDD_HELP_DLG + 7)
+	#define IDC_STATIC_FAV                  (IDD_HELP_DLG + 8)
+	#define IDC_STATIC_OPT                  (IDD_HELP_DLG + 9)
+	#define IDC_STATIC_HELP                 (IDD_HELP_DLG + 10)
 
 
 /* Explorer messages */
@@ -127,13 +142,15 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 	#define EXM_RIGHTCLICK					(EXX_MESSAGES + 4)
 	#define EXM_TOOLTIP						(EXX_MESSAGES + 5)
 	#define EXM_UPDATE_PATH					(EXX_MESSAGES + 6)
+	#define EXM_UPDATE_OVERICON				(EXX_MESSAGES + 7)
 
 #define	   EXX_TIMERS		 30820
 	#define EXT_UPDATEDEVICE				(EXX_TIMERS + 1)
-	#define EXT_UPDATEPATH					(EXX_TIMERS + 2)
+	#define EXT_SELCHANGE					(EXX_TIMERS + 2)
 	#define	EXT_OPENLINK					(EXX_TIMERS + 3)
-	#define EXT_UPDATE						(EXX_TIMERS + 4)
-	#define EXT_SEARCHFILE					(EXX_TIMERS + 5)
+	#define EXT_UPDATEACTIVATE				(EXX_TIMERS + 4)
+	#define	EXT_UPDATEACTIVATEPATH			(EXX_TIMERS + 5)
+	#define EXT_SEARCHFILE					(EXX_TIMERS + 6)
 
 
 #ifndef IDC_STATIC

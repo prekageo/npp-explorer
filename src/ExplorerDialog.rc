@@ -35,19 +35,26 @@ FONT 8, "MS Shell Dlg", 0, 0, 0x1
 BEGIN
     DEFPUSHBUTTON   "&Ok",IDOK,89,158,50,14
     LTEXT           "jens.plugin.npp@gmx.de",IDC_EMAIL_LINK,65,41,80,8
-    LTEXT           "Author:\t\tJens Lorenz",IDC_STATIC,12,31,183,9
-    GROUPBOX        "Menu entries",IDC_STATIC,7,96,216,56
-    LTEXT           "eMail:",IDC_STATIC,12,41,21,8
+    LTEXT           "Author:",IDC_STATIC_AUTHOR,12,31,51,9
+    GROUPBOX        "Menu entries",IDC_STATIC_MENU,7,96,216,56
+    LTEXT           "eMail:",IDC_STATIC_MAIL,12,41,51,8
     CTEXT           "At first, I would like to thank Don for his great program and his support to create this plugin.",
-                    IDC_STATIC,7,71,216,18
-    LTEXT           "Explorer...\t\tViews the Explorer dialog.\nFavorites...\t\tViews the Favorites dialog.\nExplorer Options...\tAllows you to personalize the\n\t\t\tsettings for explorers file list.\nHelp...\t\t\tShows this help dialog.",
-                    IDC_STATIC,15,108,203,42
-    CTEXT           "Explorer Plugin for Notepad++ v4.2                                v1.5",
+                    IDC_STATIC_THXTO,7,67,216,25
+    LTEXT           "Options...\t\tAllows you to personalize the\n\t\t\tsettings for explorers file list.",
+                    IDC_STATIC_OPT,17,121,197,16
+    CTEXT           "Explorer Plugin for Notepad++ v4.3                                  v1.6",
                     IDC_STATIC,7,7,216,17,SS_CENTERIMAGE,WS_EX_DLGMODALFRAME | 
                     WS_EX_TRANSPARENT
     LTEXT           "http://sourceforge.net/projects/npp-plugins/",
                     IDC_NPP_PLUGINS_URL,65,52,158,8
-    LTEXT           "URL:",IDC_STATIC,12,52,21,8
+    LTEXT           "URL:",IDC_STATIC,12,52,51,8
+    LTEXT           "Jens Lorenz",IDC_STATIC,65,31,39,8
+    LTEXT           "Explorer...\t\tViews the Explorer dialog.",
+                    IDC_STATIC_EXP,17,105,197,8
+    LTEXT           "Favorites...\t\tViews the Favorites dialog.",
+                    IDC_STATIC_FAV,17,113,197,8
+    LTEXT           "Help...\t\t\tShows this help dialog.",IDC_STATIC_HELP,
+                    17,137,197,8
 END
 
 IDD_EXPLORER_DLG DIALOGEX 64536, 0, 164, 267
@@ -82,10 +89,11 @@ BEGIN
     GROUPBOX        "New file:",IDC_STATIC_NEW_DESC,7,7,240,30
 END
 
-IDD_PROP_DLG DIALOG  0, 0, 254, 171
-STYLE DS_SETFONT | DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
+IDD_PROP_DLG DIALOGEX 0, 0, 254, 171
+STYLE DS_SETFONT | DS_MODALFRAME | DS_FIXEDSYS | WS_POPUP | WS_CAPTION | 
+    WS_SYSMENU
 CAPTION "Favorites"
-FONT 8, "MS Shell Dlg"
+FONT 8, "MS Shell Dlg", 0, 0, 0x0
 BEGIN
     EDITTEXT        IDC_EDIT_NAME,42,20,199,12,ES_AUTOHSCROLL
     EDITTEXT        IDC_EDIT_LINK,42,35,183,12,ES_AUTOHSCROLL
@@ -97,43 +105,44 @@ BEGIN
                     228,74
     DEFPUSHBUTTON   "&Ok",IDOK,139,150,50,14
     PUSHBUTTON      "&Cancel",IDCANCEL,197,150,50,14
-    LTEXT           "Name",IDC_STATIC,13,20,20,12,SS_CENTERIMAGE
-    LTEXT           "Link",IDC_STATIC,13,35,14,12,SS_CENTERIMAGE
+    LTEXT           "Name:",IDC_STATIC_NAME,13,20,20,12,SS_CENTERIMAGE
+    LTEXT           "Link:",IDC_STATIC_LINK,13,35,14,12,SS_CENTERIMAGE
     GROUPBOX        "Properties of file:",IDC_STATIC_FAVES_DESC,7,7,240,138
-    LTEXT           "Select a group",IDC_STATIC_SELECT,13,55,47,8
+    LTEXT           "Select a group",IDC_STATIC_SELECT,13,55,228,8
 END
 
-IDD_OPTION_DLG DIALOGEX 0, 0, 253, 114
+IDD_OPTION_DLG DIALOGEX 0, 0, 298, 114
 STYLE DS_SETFONT | DS_MODALFRAME | DS_FIXEDSYS | WS_POPUP | WS_CAPTION | 
     WS_SYSMENU
 CAPTION "Explorer Options"
 FONT 8, "MS Shell Dlg", 0, 0, 0x0
 BEGIN
-    CONTROL         "Extensions in &Separate Column",IDC_RADIO_SEPARATE,
-                    "Button",BS_AUTORADIOBUTTON,14,19,112,10
-    CONTROL         "Extensions &Attached To Name",IDC_RADIO_ATTACHED,"Button",
-                    BS_AUTORADIOBUTTON,14,31,112,10
-    GROUPBOX        "      &View 'Long' List",IDC_STATIC_LONG,7,52,124,55
-    COMBOBOX        IDC_COMBO_SIZE_FORMAT,35,70,89,59,CBS_DROPDOWNLIST | 
-                    WS_VSCROLL | WS_TABSTOP
-    COMBOBOX        IDC_COMBO_DATE_FORMAT,35,86,89,51,CBS_DROPDOWNLIST | 
-                    WS_VSCROLL | WS_TABSTOP
     CONTROL         "&Folder With Braces",IDC_CHECK_BRACES,"Button",
-                    BS_AUTOCHECKBOX | WS_TABSTOP,146,19,76,10
+                    BS_AUTOCHECKBOX | WS_TABSTOP,14,19,126,10
+    CONTROL         "Separate &Extensions",IDC_CHECK_SEPEXT,"Button",
+                    BS_AUTOCHECKBOX | WS_TABSTOP,14,31,126,10
+    GROUPBOX        "      &View 'Long' List",IDC_STATIC_LONG,7,52,137,55
+    COMBOBOX        IDC_COMBO_SIZE_FORMAT,47,70,90,59,CBS_DROPDOWNLIST | 
+                    WS_VSCROLL | WS_TABSTOP
+    COMBOBOX        IDC_COMBO_DATE_FORMAT,47,86,90,51,CBS_DROPDOWNLIST | 
+                    WS_VSCROLL | WS_TABSTOP
+    CONTROL         "Automatic &Update on Focus",IDC_CHECK_AUTO,"Button",
+                    BS_AUTOCHECKBOX | WS_TABSTOP,157,19,124,8
     CONTROL         "Show &Hidden Files",IDC_CHECK_HIDDEN,"Button",
-                    BS_AUTOCHECKBOX | WS_TABSTOP,146,31,75,10
-    DEFPUSHBUTTON   "&Ok",IDOK,138,93,50,14
-    PUSHBUTTON      "&Cancel",IDCANCEL,196,93,50,14
+                    BS_AUTOCHECKBOX | WS_TABSTOP,157,31,124,8
+    CONTROL         "Use Windows &Icons",IDC_CHECK_USEICON,"Button",
+                    BS_AUTOCHECKBOX | WS_TABSTOP,157,43,124,8
+    EDITTEXT        IDC_EDIT_TIMEOUT,157,68,40,12,ES_AUTOHSCROLL | ES_NUMBER
+    DEFPUSHBUTTON   "&Ok",IDOK,183,93,51,14
+    PUSHBUTTON      "&Cancel",IDCANCEL,240,93,51,14
     CONTROL         "&V",IDC_CHECK_LONG,"Button",BS_AUTOCHECKBOX | 
-                    WS_TABSTOP,13,53,9,8
-    GROUPBOX        "File List",IDC_STATIC,7,7,124,100
-    LTEXT           "Size:",IDC_STATIC,13,70,16,12,SS_CENTERIMAGE
-    LTEXT           "Date:",IDC_STATIC,13,86,18,12,SS_CENTERIMAGE
-    GROUPBOX        "General Options",IDC_STATIC,137,7,109,80
-    CONTROL         "Use Windows Icons",IDC_CHECK_USEICON,"Button",
-                    BS_AUTOCHECKBOX | WS_TABSTOP,146,43,75,10
-    EDITTEXT        IDC_EDIT_TIMEOUT,145,68,40,12,ES_AUTOHSCROLL | ES_NUMBER
-    LTEXT           "Timeout Missed Drives (ms):",IDC_STATIC,146,57,90,8
+                    WS_TABSTOP,14,53,9,8
+    GROUPBOX        "File List",IDC_STATIC_FILELIST,7,7,137,100
+    LTEXT           "Size:",IDC_STATIC_SIZE,13,70,32,12,SS_CENTERIMAGE
+    LTEXT           "Date:",IDC_STATIC_DATE,13,86,32,12,SS_CENTERIMAGE
+    GROUPBOX        "General Options",IDC_STATIC_GENOPT,149,7,142,80
+    LTEXT           "Timeout Missed Drives (ms):",IDC_STATIC_TMO,157,57,124,
+                    8
 END
 
 
@@ -208,7 +217,7 @@ BEGIN
     IDD_OPTION_DLG, DIALOG
     BEGIN
         LEFTMARGIN, 7
-        RIGHTMARGIN, 246
+        RIGHTMARGIN, 291
         TOPMARGIN, 7
         BOTTOMMARGIN, 107
     END
@@ -269,8 +278,8 @@ IDC_LEFTRIGHT           CURSOR                  "..\\res\\leftright.cur"
 //
 
 VS_VERSION_INFO VERSIONINFO
- FILEVERSION 1,5,0,0
- PRODUCTVERSION 1,5,0,0
+ FILEVERSION 1,6,0,0
+ PRODUCTVERSION 1,6,0,0
  FILEFLAGSMASK 0x3fL
 #ifdef _DEBUG
  FILEFLAGS 0x1L
@@ -288,12 +297,12 @@ BEGIN
             VALUE "Comments", "Visit https://sourceforge.net/projects/npp-plugins"
             VALUE "CompanyName", "Jens Lorenz"
             VALUE "FileDescription", "Notepad++ Explorer Plugin : a free (GNU) source code file explorer"
-            VALUE "FileVersion", "1, 5, 0, 0"
+            VALUE "FileVersion", "1, 6, 0, 0"
             VALUE "InternalName", "Explorer"
             VALUE "LegalCopyright", "Copyright © 2006-2007"
             VALUE "OriginalFilename", "Explorer.dll"
             VALUE "ProductName", "Jens Lorenz Explorer"
-            VALUE "ProductVersion", "1, 5, 0, 0"
+            VALUE "ProductVersion", "1, 6, 0, 0"
         END
     END
     BLOCK "VarFileInfo"
