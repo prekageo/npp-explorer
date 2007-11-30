@@ -35,7 +35,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include <windowsx.h>
 #include <commctrl.h>
 
-#include "PluginInterface.h"
+#include "Explorer.h"
 #include "ExplorerResource.h"
 
 using namespace std;
@@ -68,7 +68,6 @@ public:
 
 	virtual void redraw(void) {
 		ExpandElementsRecursive(TVI_ROOT);
-		DockingDlgInterface::redraw();
 	};
 
 	void destroy(void)
@@ -85,7 +84,7 @@ protected:
 
 	virtual BOOL CALLBACK run_dlgProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam);
 
-	void GetNameStrFromCmd(UINT idButton, LPTSTR* tip);
+	void GetNameStrFromCmd(UINT idButton, LPTSTR tip, UINT count);
 	void tb_cmd(UINT message);
 
 	void InitialDialog(void);
@@ -143,15 +142,16 @@ private:
 	NppData					_nppData;
 	tTbData					_data;
 
-	BOOL					_isImlChanging;
-	BOOL					_isNotSysIml;
+	/* Current active font in [Files] */
+	HFONT					_hFont;
+	HFONT					_hFontUnder;
+
+	/* different imagelists */
 	HIMAGELIST				_hImageList;
 	HIMAGELIST				_hImageListSys;
 
 	BOOL					_isCut;
 	HTREEITEM				_hTreeCutCopy;
-	
-	BOOL					_isSelNotifyEnable;
 	
 	LPTSTR					_pCurrentElement;
 
