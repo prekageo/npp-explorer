@@ -1356,7 +1356,7 @@ void FavesDialog::OpenContext(HTREEITEM hItem, POINT pt)
 				case FM_OPENOTHERVIEW:
 				{
 					::SendMessage(_hParent, NPPM_DOOPEN, 0, (LPARAM)pElem->pszLink);
-					::SendMessage(_hParent, WM_COMMAND, IDC_DOC_GOTO_ANOTHER_VIEW, 0);
+					::SendMessage(_hParent, WM_COMMAND, IDM_DOC_GOTO_ANOTHER_VIEW, 0);
 					break;
 				}
 				case FM_OPENNEWINSTANCE:
