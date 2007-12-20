@@ -732,7 +732,7 @@ void ContextMenu::openFileInOtherView(void)
 		::SendMessage(_hWndNpp, NPPM_DOOPEN, 0, (LPARAM)_strArray[i].c_str());
 		if (i == 0)
 		{
-			::SendMessage(_hWndNpp, NPPM_DOOPEN, IDC_DOC_GOTO_ANOTHER_VIEW, 0);
+			::SendMessage(_hWndNpp, WM_COMMAND, IDM_DOC_GOTO_ANOTHER_VIEW, 0);
 		}
 	}
 }
@@ -756,13 +756,13 @@ void ContextMenu::openFileInNewInstance(void)
 
 	for (UINT i = 0; i < _strArray.size(); i++)
 	{
-		if (i == 0)
-			args2Exec = "-multiInst " + _strArray[i];
-		else
-			args2Exec = _strArray[i];
-
-		::ShellExecute(_hWndNpp, "open", szNpp, args2Exec.c_str(), ".", SW_SHOW);
+		if (i == 0) {
+			args2Exec = "-multiInst \"" + _strArray[i] + "\"";
+		} else {
+			args2Exec += " \"" + _strArray[i] + "\"";
+		}
 	}
+	::ShellExecute(_hWndNpp, "open", szNpp, args2Exec.c_str(), ".", SW_SHOW);
 }
 
 void ContextMenu::openPrompt(void)
