@@ -66,15 +66,13 @@ void ToolTip::Show(RECT rectTitle, char* pszTitle, int iXOff, int iWidthOff)
 	_ti.rect.right	= rectTitle.right;
 	_ti.rect.bottom	= rectTitle.bottom;
 
-	::SendMessage(_hSelf, TTM_ADDTOOL, 0, (LPARAM) (LPTOOLINFO) &_ti);
-	::SendMessage(_hSelf, TTM_TRACKPOSITION, 0, (LPARAM)(DWORD) MAKELONG(_ti.rect.left + iXOff, _ti.rect.top + iWidthOff));
-	::SendMessage(_hSelf, TTM_TRACKACTIVATE, true, (LPARAM)(LPTOOLINFO) &_ti);
-
 	HFONT	_hFont = (HFONT)::SendMessage(_hParent, WM_GETFONT, 0, 0);	
 	::SendMessage(_hSelf, WM_SETFONT, reinterpret_cast<WPARAM>(_hFont), TRUE);
 
 	_ti.lpszText	= pszTitle;
-    ::SendMessage(_hSelf, TTM_UPDATETIPTEXT, 0, (LPARAM)(LPTOOLINFO) &_ti);
+	::SendMessage(_hSelf, TTM_ADDTOOL, 0, (LPARAM) (LPTOOLINFO) &_ti);
+	::SendMessage(_hSelf, TTM_TRACKPOSITION, 0, (LPARAM)(DWORD) MAKELONG(_ti.rect.left + iXOff, _ti.rect.top + iWidthOff));
+	::SendMessage(_hSelf, TTM_TRACKACTIVATE, true, (LPARAM)(LPTOOLINFO) &_ti);
 }
 
 
