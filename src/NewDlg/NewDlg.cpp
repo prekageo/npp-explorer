@@ -38,12 +38,12 @@ BOOL CALLBACK NewDlg::run_dlgProc(HWND hWnd, UINT Message, WPARAM wParam, LPARAM
 			TCHAR	szDesc[MAX_PATH];
 
 			/* change language previously to avoid change of dynamic texts */
-			NLChangeDialog(_hInst, _hParent, _hSelf, "New");
+			NLChangeDialog(_hInst, _hParent, _hSelf, _T("New"));
 
 			if (_pszWndName != NULL)
 				::SetWindowText(_hSelf, _pszWndName);
 
-			sprintf(szDesc, "%s:", _pDesc);
+			_stprintf(szDesc, _T("%s:"), _pDesc);
 			::SetWindowText(::GetDlgItem(_hSelf, IDC_STATIC_NEW_DESC), szDesc);
 
 			::SetWindowText(::GetDlgItem(_hSelf, IDC_EDIT_NEW), _pFileName);

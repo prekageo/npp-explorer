@@ -66,18 +66,18 @@ BOOL CALLBACK PropDlg::run_dlgProc(HWND hWnd, UINT Message, WPARAM wParam, LPARA
 			TCHAR	szBuffer[256];
 
 			/* change language previously to avoid change of dynamic text*/
-			NLChangeDialog(_hInst, _hParent, _hSelf, "FavProp");
+			NLChangeDialog(_hInst, _hParent, _hSelf, _T("FavProp"));
 
-			sprintf(szBuffer, "%s:", _pDesc);
+			_stprintf(szBuffer, _T("%s:"), _pDesc);
 			::SetWindowText(::GetDlgItem(_hSelf, IDC_STATIC_FAVES_DESC), szBuffer);
 
 			/* if name is not defined extract from link */
-			strcpy(szBuffer, _pLink);
+			_tcscpy(szBuffer, _pLink);
 			if ((_pName[0] == '\0') && (szBuffer[0] != '\0')) {
-				if (szBuffer[strlen(szBuffer)-1] == '\\') {
-					szBuffer[strlen(szBuffer)-1] = '\0';
+				if (szBuffer[_tcslen(szBuffer)-1] == '\\') {
+					szBuffer[_tcslen(szBuffer)-1] = '\0';
 				}
-				strcpy(_pName, (strrchr(szBuffer, '\\')+1));
+				_tcscpy(_pName, (_tcsrchr(szBuffer, '\\')+1));
 			}
 
 			/* set name and link */
@@ -115,7 +115,6 @@ BOOL CALLBACK PropDlg::run_dlgProc(HWND hWnd, UINT Message, WPARAM wParam, LPARA
 				::GetWindowRect(_hSelf, &rc);
 				rc.top		+= 74;
 				rc.bottom	-= 74;
-				ScreenToClient(_hParent, &rc);
 
 				/* resize window and keep sure to resize correct */
 				::SetWindowPos(_hSelf, NULL, rc.left, rc.top, rc.right-rc.left, rc.bottom-rc.top, SWP_NOZORDER);
@@ -131,10 +130,10 @@ BOOL CALLBACK PropDlg::run_dlgProc(HWND hWnd, UINT Message, WPARAM wParam, LPARA
 				HTREEITEM hItem = InsertItem(_pElem->pszName, iIconPos, _iUImgPos, 0, 0, TVI_ROOT, TVI_LAST, TRUE, (LPARAM)_pElem);
 				TreeView_SelectItem(_hTreeCtrl, hItem);
 
-				if (!NLGetText(_hInst, _hParent, "Details", _szDetails, 20)) {
-					_tcscpy(_szDetails, "Details %s");
+				if (!NLGetText(_hInst, _hParent, _T("Details"), _szDetails, 20)) {
+					_tcscpy(_szDetails, _T("Details %s"));
 				}
-				sprintf(szBuffer, _szDetails, _T("<<"));
+				_stprintf(szBuffer, _szDetails, _T("<<"));
 				::SetWindowText(::GetDlgItem(_hSelf, IDC_BUTTON_DETAILS), szBuffer);
 			}
 
@@ -160,7 +159,7 @@ BOOL CALLBACK PropDlg::run_dlgProc(HWND hWnd, UINT Message, WPARAM wParam, LPARA
 						::ShowWindow(::GetDlgItem(_hSelf, IDC_TREE_SELECT), SW_HIDE);
 						::ShowWindow(::GetDlgItem(_hSelf, IDC_STATIC_SELECT), SW_HIDE);
 
-						sprintf(szBuffer, _szDetails, _T(">>"));
+						_stprintf(szBuffer, _szDetails, _T(">>"));
 						::SetWindowText(::GetDlgItem(_hSelf, IDC_BUTTON_DETAILS), szBuffer);
 
 						rc.bottom	-= 148;
@@ -170,7 +169,7 @@ BOOL CALLBACK PropDlg::run_dlgProc(HWND hWnd, UINT Message, WPARAM wParam, LPARA
 						::ShowWindow(::GetDlgItem(_hSelf, IDC_TREE_SELECT), SW_SHOW);
 						::ShowWindow(::GetDlgItem(_hSelf, IDC_STATIC_SELECT), SW_SHOW);
 
-						sprintf(szBuffer, _szDetails, _T("<<"));
+						_stprintf(szBuffer, _szDetails, _T("<<"));
 						::SetWindowText(::GetDlgItem(_hSelf, IDC_BUTTON_DETAILS), szBuffer);
 
 						rc.bottom	+= 148;
@@ -200,7 +199,7 @@ BOOL CALLBACK PropDlg::run_dlgProc(HWND hWnd, UINT Message, WPARAM wParam, LPARA
 							info.hwndOwner			= _hParent;
 							info.pidlRoot			= NULL;
 							info.pszDisplayName		= (LPTSTR)new TCHAR[MAX_PATH];
-							info.lpszTitle			= "Select a folder:";
+							info.lpszTitle			= _T("Select a folder:");
 							info.ulFlags			= BIF_RETURNONLYFSDIRS;
 							info.lpfn				= BrowseCallbackProc;
 							info.lParam				= (LPARAM)_pLink;
@@ -232,9 +231,9 @@ BOOL CALLBACK PropDlg::run_dlgProc(HWND hWnd, UINT Message, WPARAM wParam, LPARA
 						FileDlg dlg(_hInst, _hParent);
 
 						dlg.setDefFileName(_pLink);
-						if (strstr(_pDesc, "Session") != NULL)
-							dlg.setExtFilter("Session file", ".session", NULL);
-						dlg.setExtFilter("All types", ".*", NULL);
+						if (_tcsstr(_pDesc, _T("Session")) != NULL)
+							dlg.setExtFilter(_T("Session file"), _T(".session"), NULL);
+						dlg.setExtFilter(_T("All types"), _T(".*"), NULL);
 						
 						if (_fileMustExist == TRUE)
 						{
@@ -248,7 +247,7 @@ BOOL CALLBACK PropDlg::run_dlgProc(HWND hWnd, UINT Message, WPARAM wParam, LPARA
 						if (pszLink != NULL)
 						{
 							// Set edit control to the directory path.
-							strcpy(_pLink, pszLink);
+							_tcscpy(_pLink, pszLink);
 							::SetWindowText(::GetDlgItem(_hSelf, IDC_EDIT_LINK), _pLink);
 						}
 					}
@@ -268,21 +267,20 @@ BOOL CALLBACK PropDlg::run_dlgProc(HWND hWnd, UINT Message, WPARAM wParam, LPARA
 					SendDlgItemMessage(_hSelf, IDC_EDIT_NAME, WM_GETTEXT, lengthName, (LPARAM)_pName);
 					SendDlgItemMessage(_hSelf, IDC_EDIT_LINK, WM_GETTEXT, lengthLink, (LPARAM)_pLink);
 
-					if ((strlen(_pName) != 0) && (strlen(_pLink) != 0))
+					if ((_tcslen(_pName) != 0) && (_tcslen(_pLink) != 0))
 					{
-						LPTSTR	pszGroupName = (LPTSTR)new TCHAR[MAX_PATH];
+						TCHAR	pszGroupName[MAX_PATH];
 
 						GetFolderPathName(TreeView_GetSelection(_hTreeCtrl), pszGroupName);
 						_strGroupName = pszGroupName;
-
-						delete [] pszGroupName;
 
 						::EndDialog(_hSelf, TRUE);
 						return TRUE;
 					}
 					else
 					{
-						::MessageBox(_hSelf, "Fill out all fields", "Error", MB_OK);
+						if (NLMessageBox(_hInst, _hParent, _T("MsgBox AllFields"), MB_OK) == FALSE)
+							::MessageBox(_hParent, _T("Fill out all fields!"), _T("Error"), MB_OK);
 					}
 					break;
 				}
@@ -377,8 +375,8 @@ BOOL CALLBACK PropDlg::run_dlgProc(HWND hWnd, UINT Message, WPARAM wParam, LPARA
 									}
 									else
 									{
-										::SetDlgItemText(_hSelf, IDC_EDIT_NAME, "");
-										::SetDlgItemText(_hSelf, IDC_EDIT_LINK, "");
+										::SetDlgItemText(_hSelf, IDC_EDIT_NAME, _T(""));
+										::SetDlgItemText(_hSelf, IDC_EDIT_LINK, _T(""));
 									}
 								}
 							}
@@ -425,7 +423,6 @@ void PropDlg::DrawChildrenOfItem(HTREEITEM hParentItem)
 	INT			iIconOverlayed	= 0;
 	BOOL		haveChildren	= FALSE;
 	INT			root			= 0;
-	LPTSTR		TEMP			= (LPTSTR)new TCHAR[MAX_PATH];
 	HTREEITEM	pCurrentItem	= TreeView_GetNextItem(_hTreeCtrl, hParentItem, TVGN_CHILD);
 
 	/* get element list */
@@ -476,23 +473,19 @@ void PropDlg::GetFolderPathName(HTREEITEM hItem, LPTSTR name)
 		return;
 	}
 
+	TCHAR	TEMP[MAX_PATH];
+	TCHAR	szName[MAX_PATH];
+
 	/* delete folder path name */
 	name[0]	= '\0';
-
-	/* create temp resources */
-	LPTSTR	TEMP	= (LPTSTR)new TCHAR[MAX_PATH];
-	LPTSTR	szName	= (LPTSTR)new TCHAR[MAX_PATH];
 
 	/* join elements together */
 	while (hItem != NULL)
 	{
 		GetItemText(hItem, szName, MAX_PATH);
-		sprintf(TEMP, "%s %s", szName, name);
-		strcpy(name, TEMP);
+		_stprintf(TEMP, _T("%s %s"), szName, name);
+		_tcscpy(name, TEMP);
 		hItem = TreeView_GetNextItem(_hTreeCtrl, hItem, TVGN_PARENT);
 	}
-
-	delete [] TEMP;
-	delete [] szName;
 }
 
