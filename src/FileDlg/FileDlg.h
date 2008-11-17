@@ -25,6 +25,10 @@
 #include <vector>
 #include <string>
 
+#ifdef _UNICODE
+#define string	wstring
+#endif
+
 const int nbExtMax = 10;
 const int extLenMax = 10;
 

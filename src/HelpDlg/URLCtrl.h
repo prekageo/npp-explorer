@@ -19,6 +19,7 @@
 #define URLCTRL_INCLUDED
 
 #include <windows.h>
+#include <tchar.h>
 #include "Window.h"
 
 /* XOR mask for hand cursor */

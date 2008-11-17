@@ -71,26 +71,26 @@ void FileDlg::setExtFilter(LPCTSTR extText, LPCTSTR ext, ...)
     std::string exts;
 
 	if (ext[0] == '.')
-		exts += "*";
+		exts += _T("*");
     exts += ext;
-    exts += ";";
+    exts += _T(";");
 
     LPCTSTR ext2Concat;
 
     while ((ext2Concat = va_arg(pArg, LPCTSTR)))
 	{
         if (ext2Concat[0] == '.')
-            exts += "*";
+            exts += _T("*");
         exts += ext2Concat;
-        exts += ";";
+        exts += _T(";");
 	}
 	va_end(pArg);
 
 	// remove the last ';'
     exts = exts.substr(0, exts.length()-1);
 
-    extFilter += " (";
-    extFilter += exts + ")";
+    extFilter += _T(" (");
+    extFilter += exts + _T(")");
     
     LPTSTR pFileExt = _fileExt + _nbCharFileExt;
     memcpy(pFileExt, extFilter.c_str(), extFilter.length() + 1);
