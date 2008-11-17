@@ -2,6 +2,88 @@
 Change-log for Explorer.dll
 
 ------------------------------------------------------------------------------------
+08/11/15  v1.8.0 :
+------------------------------------------------------------------------------------
+    New: UNICODE support for Notepad++ 5.1
+    Fix: Sorting over header in file list works again
+    Fix: Doubleclick on a tooltip in file list makes trouble
+    Fix: Using of drop down history doesn't select the last items
+    Fix: Right mouse click context menu "New File..." doesn't work
+    New: Explorer path can be direct selected over a new menu item
+    New: Network folder convert, e.g. \\my_home_net\folder1\ is 
+    New: Reset of file filter can be done over a new menu item
+    New: Support for NppExec scripts (NppExec 2.5 or later needed):
+          - In right click context menu a new item appears when NppExec supports
+            external start of scripts.
+          - The scripts with extension *.exec are listed in a submenu.
+          - In first line a rule for Explorer needs to be defined:
+             //Explorer: NPPEXEX_DLL_NAME EXP_XXX[0] EXP_XXX[1] ...
+          - Following params are possible ( 'x' is file/folder 0-n ):
+                * EXP_FULL_PATH[x]          C:\Notepad++\plugins\Explorer.dll
+                * EXP_ROOT_PATH[x]          C:
+                * EXP_PARENT_FULL_DIR[x]    C:\Notepad++\plugins
+                * EXP_PARENT_DIR[x]         plugins
+                * EXP_FULL_FILE[x]          Explorer.dll
+                * EXP_FILE_NAME[x]          Explorer
+                * EXP_FILE_EXT[x]           dll
+    Change: "Previous/Next Folder" shows the first selected item in any case
+
+------------------------------------------------------------------------------------
+08/07/11  v1.7.3 :
+------------------------------------------------------------------------------------
+    Fix: Non active closed files were still shown underlined in file list
+    Fix: On Vista hidden linked folder icons were not marked as linked
+    Fix: Crash on startup with Npp v5.0 when Favorites are active
+    Fix: Double click in list view on a tooltip causes a copy of file
+    Fix: Drag and drop over tooltip in list view fails
+    Fix: Faves sessions tree were not updated on add or save new items
+    Fix: Double click on sessions tree toggles the expand state
+    New: "Previous/Next Folder" stores now the last selected files
+    New: Request dialog when copy or move files/folders by DnD as well as shortcuts
+    New: Shortcut ALT + Left/Right Arrow does "Previous/Next Folder"
+    New: Shortcut Ctrl + R or F5 does "Refresh"
+    
+------------------------------------------------------------------------------------
+08/02/18  v1.7.2 :
+------------------------------------------------------------------------------------
+    Fix: Filtering of huge file lists caused a crash
+
+------------------------------------------------------------------------------------
+08/02/09  v1.7.1 :
+------------------------------------------------------------------------------------
+    Fix: Cut & Copy of Faves items caused a crash of explorer
+    Change: Double click on a session in Faves closes now the current session first
+    Change: Context menu item behaviour of sessions
+         - "Open" does now the same as double click on the item do
+         - "Reopen" is changed to "Add to Current Session" and does the same thing
+           as the old behaviour of "Open"
+
+------------------------------------------------------------------------------------
+08/02/04  v1.7 :
+------------------------------------------------------------------------------------
+    Fix: If user closes Notepad with opened Explorer during startup, crash occurred
+    Fix: Tree refresh doesn't happen anymore when Explorer is hidden
+    Fix: File local time now correct displayed
+    Fix: If config folder of Notepad++ doesn't exists it will be created correctly
+    New: Context menu in file list is also displayed when user clicks on [..] or 
+         empty space
+    New: Drag and Drop of files and folder in Explorer pane supported
+    New: In Explorer standard shortcuts CTRL + A (select all), CTRL + X (cut),
+         CTRL + C (copy), CTRL + V (paste) and CTRL + D, (SHIFT +) DEL (delete) are
+         supported now except CTRL + A in tree view
+    Change: Context menu item behaviours
+         - "Full File path(s) to document" to "Full File path(s) to clipboard"
+         - "File Name(s) to document"      to "File Name(s) to clipboard"
+    
+------------------------------------------------------------------------------------
+08/01/15  v1.6.2 :
+------------------------------------------------------------------------------------
+    Fix: Displays mnemonic-prefix character & as a directive to underscore in list
+    Fix: Not active files were still underlined after closing in list and favorites
+    Change: Performance improvement in code to display file list
+    Change: Update of file list issued now after 200ms instead of 1s
+
+------------------------------------------------------------------------------------
 07/12/20  v1.6.1 :
 ------------------------------------------------------------------------------------
     Fix: Context Menu functions 'Show in New Instance' and 'Show in Other View'
@@ -19,7 +101,7 @@ Change-log for Explorer.dll
 07/09/19  v1.5.2 :
 ------------------------------------------------------------------------------------
     Fix: Opening of files with 0 bytes now working correctly
-	Fix: Deadlock on W2k machines while startup of Explorer dialog removed
+    Fix: Deadlock on W2k machines while startup of Explorer dialog removed
     Fix: Filtering the list is now case insensitive
     Fix: Filtering the list causes folder lock (delete were not possible)
     Change: Now automatic update on activate of Notepad is optional
