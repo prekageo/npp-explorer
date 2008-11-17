@@ -27,6 +27,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include "stdafx.h"
 #include "FavesDialog.h"
 #include "ContextMenu.h"
+#include "nppexec_msgs.h"
 
 
 
@@ -35,13 +36,16 @@ IContextMenu3 * g_IContext3		= NULL;
 
 WNDPROC			g_OldWndProc	= NULL;
 
+/* global explorer params */
+extern tExProp	exProp;
+
 
 ContextMenu::ContextMenu()
 {
 	_psfFolder			= NULL;
 	_pidlArray			= NULL;
 	_hMenu				= NULL;
-	_strFirstElement	= "";
+	_strFirstElement	= _T("");
 }
 
 ContextMenu::~ContextMenu()
@@ -130,6 +134,8 @@ LRESULT CALLBACK ContextMenu::HookWndProc(HWND hWnd, UINT message, WPARAM wParam
 
 UINT ContextMenu::ShowContextMenu(HINSTANCE hInst, HWND hWndNpp, HWND hWndParent, POINT pt, bool normal)
 {
+	TCHAR	szText[64];
+
 	/* store notepad handle */
 	_hInst		= hInst;
 	_hWndNpp	= hWndNpp;
@@ -163,7 +169,7 @@ UINT ContextMenu::ShowContextMenu(HINSTANCE hInst, HWND hWndNpp, HWND hWndParent
 		g_OldWndProc	= NULL;
 		if (iMenuType > 1)	// only subclass if its version 2 or 3
 		{
-			g_OldWndProc = (WNDPROC)::SetWindowLong (hWndParent, GWL_WNDPROC, (DWORD) HookWndProc);
+			g_OldWndProc = (WNDPROC)::SetWindowLongPtr (hWndParent, GWL_WNDPROC, (DWORD) HookWndProc);
 			if (iMenuType == 2)
 				g_IContext2 = (LPCONTEXTMENU2) pContextMenu;
 			else	// version 3
@@ -172,34 +178,92 @@ UINT ContextMenu::ShowContextMenu(HINSTANCE hInst, HWND hWndNpp, HWND hWndParent
 	}
 
 	/************************************* modification for notepad ***********************************/
-	HMENU			hMainMenu	= ::CreatePopupMenu();
-	bool			isFolder	= (_strFirstElement[_strFirstElement.size()-1] == '\\');
+	HMENU		hMainMenu		= ::CreatePopupMenu();
+	HMENU		hMenuNppExec	= ::CreatePopupMenu();
+	bool		isFolder		= (_strFirstElement[_strFirstElement.size()-1] == '\\');
+	DWORD		dwExecVer		= 0;
+	DWORD		dwExecState		= 0;
+
+	TCHAR		szPath[MAX_PATH];
+	::GetModuleFileName((HMODULE)hInst, szPath, MAX_PATH);
+
+	/* get version information */
+	CommunicationInfo	ci;
+	ci.srcModuleName	= PathFindFileName(szPath);
+	ci.internalMsg		= NPEM_GETVERDWORD;
+	ci.info				= &dwExecVer;
+	::SendMessage(hWndNpp, NPPM_MSGTOPLUGIN, (WPARAM)exProp.nppExecProp.szAppName, (LPARAM)&ci);
+	
+	/* get acivity state of NppExec */
+	ci.srcModuleName	= PathFindFileName(szPath);
+	ci.internalMsg		= NPEM_GETSTATE;
+	ci.info				= &dwExecState;
+	::SendMessage(hWndNpp, NPPM_MSGTOPLUGIN, (WPARAM)exProp.nppExecProp.szAppName, (LPARAM)&ci);
 
 	/* Add notepad menu items */
 	if (isFolder)
 	{
-		::AppendMenu(hMainMenu, MF_STRING, CTX_NEW_FILE, "New File...");
-		::AppendMenu(hMainMenu, MF_STRING, CTX_NEW_FOLDER, "New Folder...");
-		::AppendMenu(hMainMenu, MF_STRING, CTX_FIND_IN_FILES, "Find in Files...");
+		::AppendMenu(hMainMenu, MF_STRING, CTX_NEW_FILE, _T("New File..."));
+		::AppendMenu(hMainMenu, MF_STRING, CTX_NEW_FOLDER, _T("New Folder..."));
+		::AppendMenu(hMainMenu, MF_STRING, CTX_FIND_IN_FILES, _T("Find in Files..."));
 	}
 	else
 	{
-		::AppendMenu(hMainMenu, MF_STRING, CTX_OPEN, "Open");
-		::AppendMenu(hMainMenu, MF_STRING, CTX_OPEN_DIFF_VIEW, "Open in Other View");
-		::AppendMenu(hMainMenu, MF_STRING, CTX_OPEN_NEW_INST, "Open in New Instance");
+		::AppendMenu(hMainMenu, MF_STRING, CTX_OPEN, _T("Open"));
+		::AppendMenu(hMainMenu, MF_STRING, CTX_OPEN_DIFF_VIEW, _T("Open in Other View"));
+		::AppendMenu(hMainMenu, MF_STRING, CTX_OPEN_NEW_INST, _T("Open in New Instance"));
 	}
 
-	::AppendMenu(hMainMenu, MF_STRING, CTX_OPEN_CMD, "DOS Prompt...");
+	if (dwExecVer >= 0x02F5)
+	{
+		TCHAR					TEMP[MAX_PATH];
+		WIN32_FIND_DATA			Find			= {0};
+		HANDLE					hFind			= NULL;
+
+		/* initialize scripts */
+		_strNppScripts.clear();
+
+		/* add backslash if necessary */
+		_tcsncpy(TEMP, exProp.nppExecProp.szScriptPath, MAX_PATH-1);
+		if (TEMP[_tcslen(TEMP) - 1] != '\\')
+			_tcscat(TEMP, _T("\\"));
+
+		/* find every element in folder */
+		_tcscat(TEMP, _T("*.exec"));
+		hFind = ::FindFirstFile(TEMP, &Find);
+
+		if (hFind != INVALID_HANDLE_VALUE)
+		{
+			do 
+			{
+				::AppendMenu(hMenuNppExec, MF_STRING, CTX_START_SCRIPT + _strNppScripts.size(), Find.cFileName);
+				_strNppScripts.push_back(Find.cFileName);
+			} while (FindNextFile(hFind, &Find));
+
+			/* close file search */
+			::FindClose(hFind);
+		}
+		if (_strNppScripts.size() != 0)
+			::AppendMenu(hMenuNppExec, MF_SEPARATOR, 0, NULL);
+		::AppendMenu(hMenuNppExec, MF_STRING, CTX_GOTO_SCRIPT_PATH, _T("Go to script folder"));
+		::AppendMenu(hMainMenu, MF_STRING | MF_POPUP | (dwExecState == NPE_STATEREADY ? 0 : MF_DISABLED), (UINT)hMenuNppExec, _T("NppExec Script(s)"));
+	}
+	else
+	{
+		/* version not supported */
+		::DestroyMenu(hMenuNppExec);
+	}
+	::AppendMenu(hMainMenu, MF_STRING, CTX_OPEN_CMD, _T("DOS Prompt..."));
+
 	::InsertMenu(hMainMenu, 3, MF_BYPOSITION | MF_SEPARATOR, 0, 0);
-	::AppendMenu(hMainMenu, MF_STRING, CTX_ADD_TO_FAVES, "Add to 'Favorites'...");
-	::AppendMenu(hMainMenu, MF_STRING, CTX_FULL_PATH, "Full File Path(s) to Document");
-	::AppendMenu(hMainMenu, MF_STRING, CTX_FULL_FILES, "File Name(s) to Document");
+	::AppendMenu(hMainMenu, MF_STRING, CTX_ADD_TO_FAVES, _T("Add to 'Favorites'..."));
+	::AppendMenu(hMainMenu, MF_STRING, CTX_FULL_PATH, _T("Full File Path(s) to Clipboard"));
+	::AppendMenu(hMainMenu, MF_STRING, CTX_FULL_FILES, _T("File Name(s) to Clipboard"));
 
 	if (_pidlArray != NULL)
 	{
 		int				copyAt		= -1;
 		int				items		= ::GetMenuItemCount(_hMenu);
-		char*			szText		= (char*)new char[256];
 		MENUITEMINFO	info		= {0};
 
 		info.cbSize		= sizeof(MENUITEMINFO);
@@ -238,7 +302,7 @@ UINT ContextMenu::ShowContextMenu(HINSTANCE hInst, HWND hWndNpp, HWND hWndParent
 				_tcscpy(szMenuName, _T("Standard Menu"));
 			}
 			::InsertMenu(hMainMenu, 4, MF_BYPOSITION | MF_STRING | MF_POPUP, (UINT)_hMenu, szMenuName);
-			::InsertMenu(hMainMenu, 6, MF_BYPOSITION | MF_SEPARATOR, 0, 0);
+			::InsertMenu(hMainMenu, (dwExecVer >= 0x02F5 ? 7 : 6), MF_BYPOSITION | MF_SEPARATOR, 0, 0);
 		}
 		else
 		{
@@ -260,27 +324,26 @@ UINT ContextMenu::ShowContextMenu(HINSTANCE hInst, HWND hWndNpp, HWND hWndParent
 			}
 			::DeleteMenu(hMainMenu, ::GetMenuItemCount(hMainMenu) - 1, MF_BYPOSITION);
 		}
-
-		delete [] szText;
 	}
 
 	/*****************************************************************************************************/
 
 	/* change language */
-	NLChangeMenu(_hInst, _hWndNpp, hMainMenu, "ContextMenu", MF_BYCOMMAND);
+	NLChangeMenu(_hInst, _hWndNpp, hMainMenu, _T("ContextMenu"), MF_BYCOMMAND);
 
 	UINT idCommand = ::TrackPopupMenu(hMainMenu, TPM_RETURNCMD, pt.x, pt.y, 0, hWndParent, NULL);
 
 	/* free resources */
 	::DestroyMenu(hMainMenu);
+	::DestroyMenu(hMenuNppExec);
 
 	if ((_pidlArray != NULL) && (g_OldWndProc != NULL)) // unsubclass
 	{
-		::SetWindowLong(hWndParent, GWL_WNDPROC, (DWORD) g_OldWndProc);
+		::SetWindowLongPtr(hWndParent, GWL_WNDPROC, (DWORD) g_OldWndProc);
 	}
 
 	// see if returned idCommand belongs to shell menu entries but not for renaming (19)
-	if ((idCommand >= CTX_MIN) && (idCommand <= CTX_MAX) && (idCommand != CTX_RENAME))	
+	if ((idCommand >= CTX_MIN) && (idCommand < CTX_MAX) && (idCommand != CTX_RENAME))	
 	{
 		InvokeCommand (pContextMenu, idCommand - CTX_MIN);	// execute related command
 	}
@@ -338,16 +401,27 @@ UINT ContextMenu::ShowContextMenu(HINSTANCE hInst, HWND hWndNpp, HWND hWndParent
 			}
 			case CTX_FULL_PATH:
 			{
-				addFullPaths();
+				addFullPathsCB();
 				break;
 			}
 			case CTX_FULL_FILES:
 			{
-				addFileNames();
+				addFileNamesCB();
 				break;
 			}
-			default:
+			case CTX_GOTO_SCRIPT_PATH:
+			{
+				openScriptPath();
 				break;
+			}
+			default: /* and greater */
+			{
+				if ((idCommand >= CTX_START_SCRIPT) && (idCommand <= (CTX_START_SCRIPT + _strNppScripts.size())))
+				{
+					startNppExec(idCommand - CTX_START_SCRIPT);
+				}
+				break;
+			}
 		}
 
 	/*****************************************************************************************************/
@@ -415,7 +489,7 @@ void ContextMenu::SetObjects(vector<string> strArray)
 	psfDesktop->ParseDisplayName (NULL, 0, olePath, NULL, &pidl, NULL);
 	free (olePath);
 #else
-	psfDesktop->ParseDisplayName (NULL, 0, strArray[0].c_str(), NULL, &pidl, NULL);
+	psfDesktop->ParseDisplayName (NULL, 0, (LPOLESTR)strArray[0].c_str(), NULL, &pidl, NULL);
 #endif
 
 	if (pidl != NULL)
@@ -443,7 +517,7 @@ void ContextMenu::SetObjects(vector<string> strArray)
 			psfDesktop->ParseDisplayName (NULL, 0, olePath, NULL, &pidl, NULL);
 			free (olePath);
 #else
-			psfDesktop->ParseDisplayName (NULL, 0, strArray[i].c_str(), NULL, &pidl, NULL);
+			psfDesktop->ParseDisplayName (NULL, 0, (LPOLESTR)strArray[i].c_str(), NULL, &pidl, NULL);
 #endif
 			_pidlArray = (LPITEMIDLIST *) realloc (_pidlArray, (i + 1) * sizeof (LPITEMIDLIST));
 			// get relative pidl via SHBindToParent
@@ -604,52 +678,49 @@ void ContextMenu::Rename(void)
 {
 	NewDlg				dlg;
 	extern	HANDLE		g_hModule;
-	char*				newFirstElement	= (char*)new char[MAX_PATH];
-	char*				szNewName		= (char*)new char[MAX_PATH];
-	char*				szComment		= (char*)new char[MAX_PATH];
+	TCHAR				newFirstElement[MAX_PATH];
+	TCHAR				szNewName[MAX_PATH];
+	TCHAR				szComment[MAX_PATH];
 
 	/* copy current element information */
-	strcpy(newFirstElement, _strFirstElement.c_str());
+	_tcscpy(newFirstElement, _strFirstElement.c_str());
 
 	/* when it is folder, remove the last backslash */
-	if (newFirstElement[strlen(newFirstElement) - 1] == '\\')
+	if (newFirstElement[_tcslen(newFirstElement) - 1] == '\\')
 	{
-		newFirstElement[strlen(newFirstElement) - 1] = 0;
+		newFirstElement[_tcslen(newFirstElement) - 1] = 0;
 	}
 
 	/* init field to current selected item */
-	strcpy(szNewName, &strrchr(newFirstElement, '\\')[1]);
+	_tcscpy(szNewName, &_tcsrchr(newFirstElement, '\\')[1]);
 
-	(strrchr(newFirstElement, '\\')[1]) = 0;
+	(_tcsrchr(newFirstElement, '\\')[1]) = 0;
 
 	/* rename comment */
-	if (NLGetText(_hInst, _hWndNpp, "Rename", szComment, MAX_PATH) == 0) {
+	if (NLGetText(_hInst, _hWndNpp, _T("Rename"), szComment, MAX_PATH) == 0) {
 		_tcscpy(szComment, _T("Rename"));
 	}
 
 	dlg.init((HINSTANCE)g_hModule, _hWndNpp);
 	if (dlg.doDialog(szNewName, szComment) == TRUE)
 	{
-		strcat(newFirstElement, szNewName);
+		_tcscat(newFirstElement, szNewName);
 		::MoveFile(_strFirstElement.c_str(), newFirstElement);
 	}
-	delete [] newFirstElement;
-	delete [] szNewName;
-	delete [] szComment;
 }
 
 void ContextMenu::newFile(void)
 {
 	NewDlg		dlg;
-	extern		HANDLE			g_hModule;
+	extern		HANDLE		g_hModule;
 	BOOL		bLeave		= FALSE;
-	LPTSTR		szFileName	= (LPTSTR)new TCHAR[MAX_PATH];
-	LPTSTR		szComment	= (LPTSTR)new TCHAR[MAX_PATH];
+	TCHAR		szFileName[MAX_PATH];
+	TCHAR		szComment[MAX_PATH];
 
 	szFileName[0] = '\0';
 
 	/* rename comment */
-	if (NLGetText(_hInst, _hWndNpp, "New file", szComment, MAX_PATH) == 0) {
+	if (NLGetText(_hInst, _hWndNpp, _T("New file"), szComment, MAX_PATH) == 0) {
 		_tcscpy(szComment, _T("New file"));
 	}
 
@@ -671,22 +742,20 @@ void ContextMenu::newFile(void)
 		else
 			bLeave = TRUE;
 	}
-	delete [] szFileName;
-	delete [] szComment;
 }
 
 void ContextMenu::newFolder(void)
 {
 	NewDlg		dlg;
-	extern		HANDLE			g_hModule;
-	BOOL		bLeave			= FALSE;
-	LPTSTR		szFolderName	= (LPTSTR)new TCHAR[MAX_PATH];
-	LPTSTR		szComment		= (LPTSTR)new TCHAR[MAX_PATH];
+	extern		HANDLE		g_hModule;
+	BOOL		bLeave		= FALSE;
+	TCHAR		szFolderName[MAX_PATH];
+	TCHAR		szComment[MAX_PATH];
 
 	szFolderName[0] = '\0';
 
 	/* rename comment */
-	if (NLGetText(_hInst, _hWndNpp, "New folder", szComment, MAX_PATH) == 0) {
+	if (NLGetText(_hInst, _hWndNpp, _T("New folder"), szComment, MAX_PATH) == 0) {
 		_tcscpy(szComment, _T("New folder"));
 	}
 
@@ -700,7 +769,8 @@ void ContextMenu::newFolder(void)
 			{
 				string		newFolder = _strFirstElement + szFolderName;
 				if (::CreateDirectory(newFolder.c_str(), NULL) == FALSE) {
-					::MessageBox(_hWndNpp, "Folder couldn't be created.", "Error", MB_OK);
+					if (NLMessageBox(_hInst, _hWndNpp, _T("MsgBox FolderCreateError"), MB_OK) == FALSE)
+						::MessageBox(_hWndNpp, _T("Folder couldn't be created."), _T("Error"), MB_OK);
 				}
 				bLeave = TRUE;
 			}
@@ -708,8 +778,6 @@ void ContextMenu::newFolder(void)
 		else
 			bLeave = TRUE;
 	}
-	delete [] szFolderName;
-	delete [] szComment;
 }
 
 void ContextMenu::findInFiles(void)
@@ -732,7 +800,7 @@ void ContextMenu::openFileInOtherView(void)
 		::SendMessage(_hWndNpp, NPPM_DOOPEN, 0, (LPARAM)_strArray[i].c_str());
 		if (i == 0)
 		{
-			::SendMessage(_hWndNpp, WM_COMMAND, IDM_DOC_GOTO_ANOTHER_VIEW, 0);
+			::SendMessage(_hWndNpp, WM_COMMAND, IDM_VIEW_GOTO_ANOTHER_VIEW, 0);
 		}
 	}
 }
@@ -751,18 +819,18 @@ void ContextMenu::openFileInNewInstance(void)
 	PathRemoveFileSpec(szNpp);
 
 	/* add notepad as default program */
-	strcat(szNpp, "\\");
-	strcat(szNpp, "notepad++.exe");
+	_tcscat(szNpp, _T("\\"));
+	_tcscat(szNpp, _T("notepad++.exe"));
 
 	for (UINT i = 0; i < _strArray.size(); i++)
 	{
 		if (i == 0) {
-			args2Exec = "-multiInst \"" + _strArray[i] + "\"";
+			args2Exec = _T("-multiInst \"") + _strArray[i] + _T("\"");
 		} else {
-			args2Exec += " \"" + _strArray[i] + "\"";
+			args2Exec += _T(" \"") + _strArray[i] + _T("\"");
 		}
 	}
-	::ShellExecute(_hWndNpp, "open", szNpp, args2Exec.c_str(), ".", SW_SHOW);
+	::ShellExecute(_hWndNpp, _T("open"), szNpp, args2Exec.c_str(), _T("."), SW_SHOW);
 }
 
 void ContextMenu::openPrompt(void)
@@ -772,10 +840,10 @@ void ContextMenu::openPrompt(void)
 		/* is file */
 		if (_strArray[i][_strArray[i].size()-1] != '\\')
 		{
-			UINT	pos		= _strArray[i].rfind("\\", _strArray[i].size()-1);
+			UINT	pos		= _strArray[i].rfind(_T("\\"), _strArray[i].size()-1);
 			_strArray[i].erase(pos, _strArray[i].size());
 		}
-		::ShellExecute(_hWndNpp, "open", "cmd.exe", NULL, _strArray[i].c_str(), SW_SHOW);
+		::ShellExecute(_hWndNpp, _T("open"), _T("cmd.exe"), NULL, _strArray[i].c_str(), SW_SHOW);
 	}
 }
 
@@ -784,49 +852,160 @@ void ContextMenu::addToFaves(bool isFolder)
 	/* test if only one file is selected */
 	if (_strArray.size() > 1)
 	{
-		::MessageBox(_hWndNpp, "Only one file could be added!", "Error", MB_OK);
+		if (NLMessageBox(_hInst, _hWndNpp, _T("MsgBox OneFileToFaves"), MB_OK) == FALSE)
+			::MessageBox(_hWndNpp, _T("Only one file could be added!"), _T("Error"), MB_OK);
 	}
 	else
 	{
 		extern FavesDialog	favesDlg;
-		favesDlg.AddToFavorties((WPARAM)isFolder, (char*)_strArray[0].c_str());
+		favesDlg.AddToFavorties((WPARAM)isFolder, (LPTSTR)_strArray[0].c_str());
 	}
 }
 
-void ContextMenu::addFullPaths(void)
+void ContextMenu::addFullPathsCB(void)
 {
-	ScintillaMsg(SCI_BEGINUNDOACTION);
-	for (UINT i = 0; i < _strArray.size(); i++)
-	{
-		string temp = (i > 0 ? "\n" : "") + _strArray[i];
-		ScintillaMsg(SCI_REPLACESEL, 0, (LPARAM)temp.c_str());
+	string temp;
+	for (UINT i = 0; i < _strArray.size(); i++) {
+		if (i != 0) temp += _T("\n");
+		temp += _strArray[i];
 	}
-	ScintillaMsg(SCI_ENDUNDOACTION);
-	::SetFocus(_hWndNpp);
+	Str2CB(temp.c_str());
 }
 
-void ContextMenu::addFileNames(void)
+void ContextMenu::addFileNamesCB(void)
 {
-	ScintillaMsg(SCI_BEGINUNDOACTION);
+	string	temp;
 	for (UINT i = 0; i < _strArray.size(); i++)
 	{
-		UINT	pos		= _strArray[i].rfind("\\", _strArray[i].size()-1);
+		UINT	pos		= _strArray[i].rfind(_T("\\"), _strArray[i].size()-1);
 
 		if (pos != -1)
 		{
+			if (i != 0) temp += _T("\n");
+
 			/* is folder */
 			if (_strArray[i][_strArray[i].size()-1] == '\\') {
-				pos	= _strArray[i].rfind("\\", pos-1);
+				pos	= _strArray[i].rfind(_T("\\"), pos-1);
 				_strArray[i].erase(0, pos);
 				_strArray[i].erase(_strArray[i].size()-1);
 			} else {
 				_strArray[i].erase(0, pos + 1);
 			}
-			string	temp = (i > 0 ? "\n" : "") + _strArray[i];
-			ScintillaMsg(SCI_REPLACESEL, 0, (LPARAM)temp.c_str());
+			temp += _strArray[i];
 		}
 	}
-	ScintillaMsg(SCI_ENDUNDOACTION);
-	::SetFocus(_hWndNpp);
+	Str2CB(temp.c_str());
+}
+
+void ContextMenu::openScriptPath(void)
+{
+	::SendMessage(_hWndParent, EXM_OPENDIR, 0, (LPARAM)exProp.nppExecProp.szScriptPath);
+}
+
+void ContextMenu::startNppExec(UINT cmdID)
+{
+	TCHAR	szScriptPath[MAX_PATH];
+
+	/* concatinate execute command */
+	_tcscpy(szScriptPath, exProp.nppExecProp.szScriptPath);
+	if (szScriptPath[_tcslen(szScriptPath) - 1] != '\\')
+		_tcscat(szScriptPath, _T("\\"));
+	_tcscat(szScriptPath, _strNppScripts[cmdID].c_str());
+
+	/* get arguments and convert */
+	HANDLE	hFile = ::CreateFile(szScriptPath, GENERIC_READ, 0, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+
+	if (hFile != INVALID_HANDLE_VALUE)
+	{
+		DWORD	dwSize = ::GetFileSize(hFile, NULL);
+
+		if (dwSize != -1)
+		{
+			TCHAR		szAppName[MAX_PATH];
+			DWORD		hasRead	= 0;
+			LPTSTR		pszPtr	= NULL;
+			LPTSTR		pszArg	= NULL;
+			LPTSTR		pszData	= (LPTSTR)new TCHAR[dwSize+1];
+
+			if (pszData != NULL)
+			{
+				/* read data from file */
+				::ReadFile(hFile, pszData, dwSize, &hasRead, NULL);
+
+				/* get argument string to convert */
+				pszPtr = _tcstok(pszData, _T("\n"));
+
+				if (ConvertCall(pszPtr, szAppName, &pszArg, _strArray) == TRUE)
+				{
+					TCHAR	szPath[MAX_PATH];
+					::GetModuleFileName((HMODULE)_hInst, szPath, MAX_PATH);
+
+					NpeNppExecParam			npep;
+					npep.szScriptName		= szScriptPath;
+					npep.szScriptArguments	= pszArg;
+					npep.dwResult			= 1;
+
+					/* get version information */
+					CommunicationInfo		ci;
+					ci.srcModuleName		= PathFindFileName(szPath);
+					ci.internalMsg			= NPEM_NPPEXEC;
+					ci.info					= &npep;
+
+					::SendMessage(_hWndNpp, NPPM_MSGTOPLUGIN, (WPARAM)szAppName, (LPARAM)&ci);
+
+					if (npep.dwResult != NPE_NPPEXEC_OK)
+					{
+						if (NLMessageBox(_hInst, _hWndNpp, _T("MsgBox NppExecBusy"), MB_OK) == FALSE)
+							::MessageBox(_hWndNpp, _T("NppExec currently in use!"), _T("Error"), MB_OK);
+					}
+					
+					delete [] pszArg;
+				}
+				delete [] pszData;
+			}
+		}
+
+		::CloseHandle(hFile);
+	}
+}
+
+/******************************************************************************************
+ *	Sets a string to clipboard
+ */
+bool ContextMenu::Str2CB(LPCTSTR str2cpy)
+{
+	if (!str2cpy)
+		return false;
+		
+	if (!::OpenClipboard(_hWndNpp)) 
+		return false; 
+		
+	::EmptyClipboard();
+	
+#ifdef _UNICODE
+	HGLOBAL hglbCopy = ::GlobalAlloc(GMEM_MOVEABLE, _tcslen(str2cpy) * 2 + 2);
+#else
+	HGLOBAL hglbCopy = ::GlobalAlloc(GMEM_MOVEABLE, _tcslen(str2cpy) + 1);
+#endif
+	
+	if (hglbCopy == NULL) 
+	{ 
+		::CloseClipboard(); 
+		return false; 
+	} 
+
+	// Lock the handle and copy the text to the buffer. 
+	LPTSTR pStr = (LPTSTR)::GlobalLock(hglbCopy);
+	_tcscpy(pStr, str2cpy);
+	::GlobalUnlock(hglbCopy); 
+
+	// Place the handle on the clipboard. 
+#ifdef _UNICODE
+	::SetClipboardData(CF_UNICODETEXT, hglbCopy);
+#else
+	::SetClipboardData(CF_TEXT, hglbCopy);
+#endif
+	::CloseClipboard();
+	return true;
 }
 

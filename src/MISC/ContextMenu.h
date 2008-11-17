@@ -75,7 +75,9 @@ typedef enum
 	CTX_OPEN_CMD,
 	CTX_ADD_TO_FAVES,
 	CTX_FULL_PATH,
-	CTX_FULL_FILES
+	CTX_FULL_FILES,
+	CTX_GOTO_SCRIPT_PATH,
+	CTX_START_SCRIPT
 } eContextMenuID;
 
 class ContextMenu  
@@ -98,11 +100,11 @@ private:
 
 	void	InvokeCommand(LPCONTEXTMENU pContextMenu, UINT idCommand);
 	BOOL	GetContextMenu(void ** ppContextMenu, int & iMenuType);
-	void	FreePIDLArray (LPITEMIDLIST * pidlArray);
-	UINT	GetPIDLSize (LPCITEMIDLIST pidl);
-	LPBYTE	GetPIDLPos (LPCITEMIDLIST pidl, int nPos);
-	int		GetPIDLCount (LPCITEMIDLIST pidl);
-	LPITEMIDLIST CopyPIDL (LPCITEMIDLIST pidl, int cb = -1);
+	void	FreePIDLArray(LPITEMIDLIST * pidlArray);
+	UINT	GetPIDLSize(LPCITEMIDLIST pidl);
+	LPBYTE	GetPIDLPos(LPCITEMIDLIST pidl, int nPos);
+	int		GetPIDLCount(LPCITEMIDLIST pidl);
+	LPITEMIDLIST CopyPIDL(LPCITEMIDLIST pidl, int cb = -1);
 
 	/* notepad functions */
 	void	Rename(void);
@@ -114,8 +116,11 @@ private:
 	void	openFileInNewInstance(void);
 	void	openPrompt(void);
 	void	addToFaves(bool isFolder);
-	void	addFullPaths(void);
-	void	addFileNames(void);
+	void	addFullPathsCB(void);
+	void	addFileNamesCB(void);
+	bool	Str2CB(LPCTSTR str2cpy);
+	void	openScriptPath(void);
+	void	startNppExec(UINT cmdID);
 
 private:
 	HINSTANCE				_hInst;
@@ -130,6 +135,7 @@ private:
 
 	string					_strFirstElement;
 	vector<string>			_strArray;
+	vector<string>			_strNppScripts;
 };
 
 #endif // CONTEXTMENU_DEFINE_H
