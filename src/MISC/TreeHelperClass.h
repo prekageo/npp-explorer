@@ -28,9 +28,18 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 using namespace std;
 
-#define ICON_UPDATE_SIZE	100
+#ifdef _UNICODE
+#define string	wstring
+#endif
+
+typedef enum {
+	ICON_UPDATE_EVT_START,
+	ICON_UPDATE_EVT_RESP,
+	ICON_UPDATE_EVT_END,
+	ICON_UPDATE_EVT_MAX
+};
+
 typedef struct {
-	class TreeHelper	*pTree;
 	string				strLastPath;
 	HTREEITEM			hLastItem;
 } tTreeIconUpdate;
@@ -49,24 +58,27 @@ class TreeHelper
 public:
 	TreeHelper() : _hTreeCtrl(NULL), _hSemaphore(NULL) {};
 	~TreeHelper() {
-		if (_hSemaphore) {
+		if (_hSemaphore)
+		{
+			::SetEvent(_hEvent[ICON_UPDATE_EVT_END]);
+			::WaitForSingleObject(_hEvent[ICON_UPDATE_EVT_RESP], INFINITE);
+
+			for (UINT i = 0; i < ICON_UPDATE_EVT_MAX; i++) {
+				::CloseHandle(_hEvent[i]);
+				_hEvent[i] = NULL;
+			}
 			::CloseHandle(_hSemaphore);
-			delete [] _ptIconUpdate;
+			_vIconUpdate.clear();
 		}
 	};
 
-	void UpdateOverlayIcon(tTreeIconUpdate* ptIconUpdate);
+	void UpdateOverlayIcon(void);
 
 protected:
 
-	void UseOverlayThreading(void) {
-		_ptIconUpdate = (tTreeIconUpdate*)new tTreeIconUpdate[ICON_UPDATE_SIZE];
-		::ZeroMemory(_ptIconUpdate, sizeof(tTreeIconUpdate) * ICON_UPDATE_SIZE);
-		_hSemaphore	= ::CreateSemaphore(NULL, 100, 100, NULL);
-	};
+	void UseOverlayThreading(void);
 
 	virtual void GetFolderPathName(HTREEITEM currentItem, LPTSTR folderPathName) = 0;
-
 	void DrawChildren(HTREEITEM parentItem);
 	void UpdateChildren(LPTSTR pszParentPath, HTREEITEM pCurrentItem, BOOL doRecursive = TRUE );
 	HTREEITEM InsertChildFolder(LPTSTR childFolderName, HTREEITEM parentItem, HTREEITEM insertAfter = TVI_LAST, BOOL bChildrenTest = TRUE);
@@ -75,6 +87,7 @@ protected:
 	void DeleteChildren(HTREEITEM parentItem);
 	BOOL GetItemText(HTREEITEM hItem, LPTSTR szBuf, INT bufSize);
 	LPARAM GetParam(HTREEITEM hItem);
+	void SetParam(HTREEITEM hItem, LPARAM lParam);
 	BOOL GetItemIcons(HTREEITEM hItem, LPINT iIcon, LPINT piSelected, LPINT iOverlay);
 	BOOL IsItemExpanded(HTREEITEM hItem);
 
@@ -92,7 +105,7 @@ private:	/* for thread */
 	void SetOverlayIcon(HTREEITEM hItem, INT iOverlayIcon);
 	void TREE_LOCK(void) {
 		while (_hSemaphore) {
-			if (::WaitForSingleObject(_hSemaphore, 50) == WAIT_OBJECT_0)
+			if (::WaitForSingleObject(_hSemaphore, INFINITE) == WAIT_OBJECT_0)
 				return;
 		}
 	};
@@ -107,9 +120,10 @@ protected:
 
 private:
 	/* member var for overlay update thread */
-	tTreeIconUpdate*	_ptIconUpdate;
-	HANDLE				_hSemaphore;
-	HANDLE				_hOverThread;
+	vector<tTreeIconUpdate>		_vIconUpdate;
+	HANDLE						_hSemaphore;
+	HANDLE						_hEvent[ICON_UPDATE_EVT_MAX];
+	HANDLE						_hOverThread;
 };
 
 #endif // TREEHELPERCLASS_H
