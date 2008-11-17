@@ -39,44 +39,46 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #define SHGFI_OVERLAYINDEX 0x000000040
 
 
-CONST INT	nbFunc	= 6;
+CONST INT	nbFunc	= 9;
 
 
 
 /* information for notepad */
-CONST TCHAR  PLUGIN_NAME[] = "&Explorer";
+CONST TCHAR  PLUGIN_NAME[] = _T("&Explorer");
 
 TCHAR		configPath[MAX_PATH];
 TCHAR		iniFilePath[MAX_PATH];
 
 /* ini file sections */
-CONST TCHAR WindowData[]		= "WindowData";
-CONST TCHAR Explorer[]			= "Explorer";
-CONST TCHAR Faves[]				= "Faves";
+CONST TCHAR WindowData[]		= _T("WindowData");
+CONST TCHAR Explorer[]			= _T("Explorer");
+CONST TCHAR Faves[]				= _T("Faves");
 
 
 
 /* section Explorer */
-CONST TCHAR LastPath[]			= "LastPath";
-CONST TCHAR SplitterPos[]		= "SplitterPos";
-CONST TCHAR SplitterPosHor[]	= "SplitterPosHor";
-CONST TCHAR SortAsc[]			= "SortAsc";
-CONST TCHAR SortPos[]			= "SortPos";
-CONST TCHAR ColPosName[]		= "ColPosName";
-CONST TCHAR ColPosExt[]			= "ColPosExt";
-CONST TCHAR ColPosSize[]		= "ColPosSize";
-CONST TCHAR ColPosDate[]		= "ColPosDate";
-CONST TCHAR ShowHiddenData[]	= "ShowHiddenData";
-CONST TCHAR ShowBraces[]		= "ShowBraces";
-CONST TCHAR ShowLongInfo[]		= "ShowLongInfo";
-CONST TCHAR AddExtToName[]		= "AddExtToName";
-CONST TCHAR AutoUpdate[]		= "AutoUpdate";
-CONST TCHAR SizeFormat[]		= "SizeFormat";
-CONST TCHAR DateFormat[]		= "DateFormat";
-CONST TCHAR FilterHistory[]		= "FilterHistory";
-CONST TCHAR LastFilter[]		= "LastFilter";
-CONST TCHAR TimeOut[]			= "TimeOut";
-CONST TCHAR UseSystemIcons[]	= "UseSystemIcons";
+CONST TCHAR LastPath[]			= _T("LastPath");
+CONST TCHAR SplitterPos[]		= _T("SplitterPos");
+CONST TCHAR SplitterPosHor[]	= _T("SplitterPosHor");
+CONST TCHAR SortAsc[]			= _T("SortAsc");
+CONST TCHAR SortPos[]			= _T("SortPos");
+CONST TCHAR ColPosName[]		= _T("ColPosName");
+CONST TCHAR ColPosExt[]			= _T("ColPosExt");
+CONST TCHAR ColPosSize[]		= _T("ColPosSize");
+CONST TCHAR ColPosDate[]		= _T("ColPosDate");
+CONST TCHAR ShowHiddenData[]	= _T("ShowHiddenData");
+CONST TCHAR ShowBraces[]		= _T("ShowBraces");
+CONST TCHAR ShowLongInfo[]		= _T("ShowLongInfo");
+CONST TCHAR AddExtToName[]		= _T("AddExtToName");
+CONST TCHAR AutoUpdate[]		= _T("AutoUpdate");
+CONST TCHAR SizeFormat[]		= _T("SizeFormat");
+CONST TCHAR DateFormat[]		= _T("DateFormat");
+CONST TCHAR FilterHistory[]		= _T("FilterHistory");
+CONST TCHAR LastFilter[]		= _T("LastFilter");
+CONST TCHAR TimeOut[]			= _T("TimeOut");
+CONST TCHAR UseSystemIcons[]	= _T("UseSystemIcons");
+CONST TCHAR NppExecAppName[]	= _T("NppExecAppName");
+CONST TCHAR NppExecScriptPath[]	= _T("NppExecScriptPath");
 
 
 /* global values */
@@ -84,6 +86,7 @@ HMODULE				hShell32;
 NppData				nppData;
 HANDLE				g_hModule;
 HWND				g_HSource;
+INT					g_docCnt = 0;
 TCHAR				g_currentFile[MAX_PATH];
 FuncItem			funcItem[nbFunc];
 toolbarIcons		g_TBExplorer;
@@ -105,7 +108,7 @@ TCHAR				szLastElement[MAX_PATH];
 BOOL				isNotepadCreated	= FALSE;
 
 /* section Faves */
-CONST TCHAR			LastElement[]		= "LastElement";
+CONST TCHAR			LastElement[]		= _T("LastElement");
 
 /* for subclassing */
 WNDPROC				wndProcNotepad		= NULL;
@@ -135,18 +138,21 @@ BOOL APIENTRY DllMain( HANDLE hModule,
 			/* Set function pointers */
 			funcItem[0]._pFunc = toggleExplorerDialog;
 			funcItem[1]._pFunc = toggleFavesDialog;
-			funcItem[2]._pFunc = toggleFavesDialog;
-			funcItem[3]._pFunc = openOptionDlg;
-			funcItem[4]._pFunc = openOptionDlg;
-			funcItem[5]._pFunc = openHelpDlg;
+			funcItem[2]._pFunc = NULL;
+			funcItem[3]._pFunc = gotoPath;
+			funcItem[4]._pFunc = clearFilter;
+			funcItem[5]._pFunc = NULL;
+			funcItem[6]._pFunc = openOptionDlg;
+			funcItem[7]._pFunc = NULL;
+			funcItem[8]._pFunc = openHelpDlg;
 			
 			/* Fill menu names */
-			strcpy(funcItem[0]._itemName, "&Explorer...");
-			strcpy(funcItem[1]._itemName, "&Favorites...");
-			strcpy(funcItem[2]._itemName, "----------------");
-			strcpy(funcItem[3]._itemName, "Explorer &Options...");
-			strcpy(funcItem[4]._itemName, "----------------");
-			strcpy(funcItem[5]._itemName, "&Help...");
+			_tcscpy(funcItem[0]._itemName, _T("&Explorer..."));
+			_tcscpy(funcItem[1]._itemName, _T("&Favorites..."));
+			_tcscpy(funcItem[3]._itemName, _T("&Go to Path..."));
+			_tcscpy(funcItem[4]._itemName, _T("&Clear Filter"));
+			_tcscpy(funcItem[6]._itemName, _T("Explorer &Options..."));
+			_tcscpy(funcItem[8]._itemName, _T("&Help..."));
 
 			/* Set shortcuts */
 			funcItem[0]._pShKey = new ShortcutKey;
@@ -163,6 +169,9 @@ BOOL APIENTRY DllMain( HANDLE hModule,
 			funcItem[3]._pShKey				= NULL;
 			funcItem[4]._pShKey				= NULL;
 			funcItem[5]._pShKey				= NULL;
+			funcItem[6]._pShKey				= NULL;
+			funcItem[7]._pShKey				= NULL;
+			funcItem[8]._pShKey				= NULL;
 
 			/* set image list and icon */
 			ghImgList = ImageList_Create(16, 16, ILC_COLOR32 | ILC_MASK, 6, 30);
@@ -172,6 +181,9 @@ BOOL APIENTRY DllMain( HANDLE hModule,
 			ImageList_AddIcon(ghImgList, ::LoadIcon((HINSTANCE)g_hModule, MAKEINTRESOURCE(IDI_SESSION)));
 			ImageList_AddIcon(ghImgList, ::LoadIcon((HINSTANCE)g_hModule, MAKEINTRESOURCE(IDI_GROUP)));
 			ImageList_AddIcon(ghImgList, ::LoadIcon((HINSTANCE)g_hModule, MAKEINTRESOURCE(IDI_PARENTFOLDER)));
+
+			/* clear property struct */
+			::ZeroMemory(&exProp, sizeof(exProp));
 			break;
 		}	
 		case DLL_PROCESS_DETACH:
@@ -182,14 +194,9 @@ BOOL APIENTRY DllMain( HANDLE hModule,
 			/* destroy image list */
 			ImageList_Destroy(ghImgList);
 
-			/* destroy dialogs */
-			explorerDlg.destroy();
-			favesDlg.destroy();
-			optionDlg.destroy();
-			helpDlg.destroy();
-
 			/* Remove subclaasing */
-			SetWindowLong(nppData._nppHandle, GWL_WNDPROC, (LONG)wndProcNotepad);
+			if (wndProcNotepad != NULL)
+				SetWindowLongPtr(nppData._nppHandle, GWL_WNDPROC, (LONG)wndProcNotepad);
 
 			FreeLibrary(hShell32);
 	
@@ -236,10 +243,10 @@ extern "C" __declspec(dllexport) void setInfo(NppData notpadPlusData)
 	helpDlg.init((HINSTANCE)g_hModule, nppData);
 
 	/* Subclassing for Notepad */
-	wndProcNotepad = (WNDPROC)SetWindowLong(nppData._nppHandle, GWL_WNDPROC, (LPARAM)SubWndProcNotepad);
+	wndProcNotepad = (WNDPROC)SetWindowLongPtr(nppData._nppHandle, GWL_WNDPROC, (LPARAM)SubWndProcNotepad);
 }
 
-extern "C" __declspec(dllexport) LPCSTR getName()
+extern "C" __declspec(dllexport) LPCTSTR getName()
 {
 	return PLUGIN_NAME;
 }
@@ -257,55 +264,14 @@ extern "C" __declspec(dllexport) FuncItem * getFuncsArray(INT *nbF)
  */
 extern "C" __declspec(dllexport) void beNotified(SCNotification *notifyCode)
 {
-	static
-	UINT	currentDoc;
-	UINT	currentEdit;
-
 	if ((notifyCode->nmhdr.hwndFrom == nppData._scintillaMainHandle) ||
 		(notifyCode->nmhdr.hwndFrom == nppData._scintillaSecondHandle) ||
-		(notifyCode->nmhdr.code == TCN_TABDELETE))
+		(notifyCode->nmhdr.code == TCN_TABDELETE) ||
+		(notifyCode->nmhdr.code == TCN_SELCHANGE) ||
+		(notifyCode->nmhdr.code == NPPN_FILECLOSED) ||
+		(notifyCode->nmhdr.code == NPPN_FILEOPENED))
 	{
-		::SendMessage(nppData._nppHandle, NPPM_GETCURRENTSCINTILLA, 0, (LPARAM)&currentEdit);
-		g_HSource = (currentEdit == 0)?nppData._scintillaMainHandle:nppData._scintillaSecondHandle;
-
-		char		newPath[MAX_PATH];
-
-		/* update open files */
-		::SendMessage(nppData._nppHandle, NPPM_GETFULLCURRENTPATH, 0, (LPARAM)newPath);
-
-		if (strcmp(newPath, g_currentFile) != 0)
-		{
-			/* update current path in explorer and favorites */
-			strcpy(g_currentFile, newPath);
-			explorerDlg.NotifyNewFile();
-			favesDlg.NotifyNewFile();
-
-			/* update documents list */
-			INT			i = 0;
-			char		**fileNames;
-
-			INT docCnt = (INT)::SendMessage(nppData._nppHandle, NPPM_GETNBOPENFILES, 0, ALL_OPEN_FILES);
-
-			/* update doc information for file list () */
-			fileNames	= (char **)new char*[docCnt];
-
-			for (i = 0; i < docCnt; i++)
-				fileNames[i] = (char*)new char[MAX_PATH];
-
-			if (::SendMessage(nppData._nppHandle, NPPM_GETOPENFILENAMES, (WPARAM)fileNames, (LPARAM)docCnt)) {
-				UpdateCurrUsedDocs(fileNames, docCnt);
-				if (explorerDlg.isVisible())
-					RedrawWindow(explorerDlg.getHSelf(), NULL, NULL, TRUE);
-				if (favesDlg.isVisible())
-					RedrawWindow(favesDlg.getHSelf(), NULL, NULL, TRUE);
-			}
-
-			for (i = 0; i < docCnt; i++)
-				delete [] fileNames[i];
-			delete [] fileNames;
-
-			currentDoc = docCnt;
-		}
+		UpdateDocs();
 	}
 	if (notifyCode->nmhdr.hwndFrom == nppData._nppHandle)
 	{
@@ -334,12 +300,16 @@ extern "C" __declspec(dllexport) void beNotified(SCNotification *notifyCode)
  */
 extern "C" __declspec(dllexport) LRESULT messageProc(UINT Message, WPARAM wParam, LPARAM lParam)
 {
-   if (Message == WM_CREATE)
-   {
-      initMenu();
-   }
    return TRUE;
 }
+
+
+#ifdef UNICODE
+extern "C" __declspec(dllexport) BOOL isUnicode()
+{
+	return TRUE;
+}
+#endif
 
 
 /***
@@ -362,20 +332,44 @@ void loadSettings(void)
 	/* initialize the config directory */
 	::SendMessage(nppData._nppHandle, NPPM_GETPLUGINSCONFIGDIR, MAX_PATH, (LPARAM)configPath);
 
-	/* Test if config path exist */
-	if (PathFileExists(configPath) == FALSE)
+	/* Test if config path exist, if not create */
+	if (::PathFileExists(configPath) == FALSE)
 	{
-		::CreateDirectory(configPath, NULL);
+		vector<string>    vPaths;
+		do {
+			vPaths.push_back(configPath);
+			::PathRemoveFileSpec(configPath);
+		} while (::PathFileExists(configPath) == FALSE);
+
+		for (INT i = vPaths.size()-1; i >= 0; i--)
+		{
+			_tcscpy(configPath, vPaths[i].c_str());
+			::CreateDirectory(configPath, NULL);
+		}
+		vPaths.clear();
 	}
 
-	strcpy(iniFilePath, configPath);
-	strcat(iniFilePath, EXPLORER_INI);
-	if (PathFileExists(iniFilePath) == FALSE)
+	_tcscpy(iniFilePath, configPath);
+	_tcscat(iniFilePath, EXPLORER_INI);
+	if (::PathFileExists(iniFilePath) == FALSE)
 	{
-		::CloseHandle(::CreateFile(iniFilePath, GENERIC_READ | GENERIC_WRITE, FILE_SHARE_READ | FILE_SHARE_WRITE, NULL, OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL));
+		HANDLE	hFile			= NULL;
+#ifdef UNICODE
+		CHAR	szBOM[]			= {0xFF, 0xFE};
+		DWORD	dwByteWritten	= 0;
+#endif
+			
+		if (hFile != INVALID_HANDLE_VALUE)
+		{
+			hFile = ::CreateFile(iniFilePath, GENERIC_READ | GENERIC_WRITE, FILE_SHARE_READ | FILE_SHARE_WRITE, NULL, OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
+#ifdef UNICODE
+			::WriteFile(hFile, szBOM, sizeof(szBOM), &dwByteWritten, NULL);
+#endif
+			::CloseHandle(hFile);
+		}
 	}
 
-	::GetPrivateProfileString(Explorer, LastPath, "C:\\", exProp.szCurrentPath, MAX_PATH, iniFilePath);
+	::GetPrivateProfileString(Explorer, LastPath, _T("C:\\"), exProp.szCurrentPath, MAX_PATH, iniFilePath);
 	exProp.iSplitterPos				= ::GetPrivateProfileInt(Explorer, SplitterPos, 120, iniFilePath);
 	exProp.iSplitterPosHorizontal	= ::GetPrivateProfileInt(Explorer, SplitterPosHor, 200, iniFilePath);
 	exProp.bAscending				= ::GetPrivateProfileInt(Explorer, SortAsc, TRUE, iniFilePath);
@@ -393,20 +387,22 @@ void loadSettings(void)
 	exProp.fmtDate					= (eDateFmt)::GetPrivateProfileInt(Explorer, DateFormat, DFMT_ENG, iniFilePath);
 	exProp.uTimeout					= ::GetPrivateProfileInt(Explorer, TimeOut, 1000, iniFilePath);
 	exProp.bUseSystemIcons			= ::GetPrivateProfileInt(Explorer, UseSystemIcons, TRUE, iniFilePath);
+	::GetPrivateProfileString(Explorer, NppExecAppName, _T("NppExec.dll"), exProp.nppExecProp.szAppName, MAX_PATH, iniFilePath);
+	::GetPrivateProfileString(Explorer, NppExecScriptPath, configPath, exProp.nppExecProp.szScriptPath, MAX_PATH, iniFilePath);
 
 	TCHAR	number[3];
-	LPTSTR	pszTemp = new TCHAR[MAX_PATH];
+	TCHAR	pszTemp[MAX_PATH];
 	for (INT i = 0; i < 20; i++)
 	{
-		sprintf(number, "%d", i);
-		if (::GetPrivateProfileString(FilterHistory, number, "", pszTemp, MAX_PATH, iniFilePath) != 0)
+		_stprintf(number, _T("%d"), i);
+		if (::GetPrivateProfileString(FilterHistory, number, _T(""), pszTemp, MAX_PATH, iniFilePath) != 0)
 			exProp.vStrFilterHistory.push_back(pszTemp);
 	}
-	::GetPrivateProfileString(Explorer, LastFilter, "*.*", pszTemp, MAX_PATH, iniFilePath);
+	::GetPrivateProfileString(Explorer, LastFilter, _T("*.*"), pszTemp, MAX_PATH, iniFilePath);
 	exProp.strLastFilter = pszTemp;
-	delete [] pszTemp;
 
-	::GetPrivateProfileString(Faves, LastElement, "", szLastElement, MAX_PATH, iniFilePath);
+	if (::PathFileExists(exProp.szCurrentPath) == FALSE)
+		_tcscpy(exProp.szCurrentPath, _T("C:\\"));
 }
 
 /***
@@ -419,30 +415,32 @@ void saveSettings(void)
 	TCHAR	temp[256];
 
 	::WritePrivateProfileString(Explorer, LastPath, exProp.szCurrentPath, iniFilePath);
-	::WritePrivateProfileString(Explorer, SplitterPos, itoa(exProp.iSplitterPos, temp, 10), iniFilePath);
-	::WritePrivateProfileString(Explorer, SplitterPosHor, itoa(exProp.iSplitterPosHorizontal, temp, 10), iniFilePath);
-	::WritePrivateProfileString(Explorer, SortAsc, itoa(exProp.bAscending, temp, 10), iniFilePath);
-	::WritePrivateProfileString(Explorer, SortPos, itoa(exProp.iSortPos, temp, 10), iniFilePath);
-	::WritePrivateProfileString(Explorer, ColPosName, itoa(exProp.iColumnPosName, temp, 10), iniFilePath);
-	::WritePrivateProfileString(Explorer, ColPosExt, itoa(exProp.iColumnPosExt, temp, 10), iniFilePath);
-	::WritePrivateProfileString(Explorer, ColPosSize, itoa(exProp.iColumnPosSize, temp, 10), iniFilePath);
-	::WritePrivateProfileString(Explorer, ColPosDate, itoa(exProp.iColumnPosDate, temp, 10), iniFilePath);
-	::WritePrivateProfileString(Explorer, ShowHiddenData, itoa(exProp.bShowHidden, temp, 10), iniFilePath);
-	::WritePrivateProfileString(Explorer, ShowBraces, itoa(exProp.bViewBraces, temp, 10), iniFilePath);
-	::WritePrivateProfileString(Explorer, ShowLongInfo, itoa(exProp.bViewLong, temp, 10), iniFilePath);
-	::WritePrivateProfileString(Explorer, AddExtToName, itoa(exProp.bAddExtToName, temp, 10), iniFilePath);
-	::WritePrivateProfileString(Explorer, AutoUpdate, itoa(exProp.bAutoUpdate, temp, 10), iniFilePath);
-	::WritePrivateProfileString(Explorer, SizeFormat, itoa((INT)exProp.fmtSize, temp, 10), iniFilePath);
-	::WritePrivateProfileString(Explorer, DateFormat, itoa((INT)exProp.fmtDate, temp, 10), iniFilePath);
-	::WritePrivateProfileString(Explorer, DateFormat, itoa((INT)exProp.fmtDate, temp, 10), iniFilePath);
-	::WritePrivateProfileString(Explorer, TimeOut, itoa((INT)exProp.uTimeout, temp, 10), iniFilePath);
-	::WritePrivateProfileString(Explorer, UseSystemIcons, itoa(exProp.bUseSystemIcons, temp, 10), iniFilePath);
+	::WritePrivateProfileString(Explorer, SplitterPos, _itot(exProp.iSplitterPos, temp, 10), iniFilePath);
+	::WritePrivateProfileString(Explorer, SplitterPosHor, _itot(exProp.iSplitterPosHorizontal, temp, 10), iniFilePath);
+	::WritePrivateProfileString(Explorer, SortAsc, _itot(exProp.bAscending, temp, 10), iniFilePath);
+	::WritePrivateProfileString(Explorer, SortPos, _itot(exProp.iSortPos, temp, 10), iniFilePath);
+	::WritePrivateProfileString(Explorer, ColPosName, _itot(exProp.iColumnPosName, temp, 10), iniFilePath);
+	::WritePrivateProfileString(Explorer, ColPosExt, _itot(exProp.iColumnPosExt, temp, 10), iniFilePath);
+	::WritePrivateProfileString(Explorer, ColPosSize, _itot(exProp.iColumnPosSize, temp, 10), iniFilePath);
+	::WritePrivateProfileString(Explorer, ColPosDate, _itot(exProp.iColumnPosDate, temp, 10), iniFilePath);
+	::WritePrivateProfileString(Explorer, ShowHiddenData, _itot(exProp.bShowHidden, temp, 10), iniFilePath);
+	::WritePrivateProfileString(Explorer, ShowBraces, _itot(exProp.bViewBraces, temp, 10), iniFilePath);
+	::WritePrivateProfileString(Explorer, ShowLongInfo, _itot(exProp.bViewLong, temp, 10), iniFilePath);
+	::WritePrivateProfileString(Explorer, AddExtToName, _itot(exProp.bAddExtToName, temp, 10), iniFilePath);
+	::WritePrivateProfileString(Explorer, AutoUpdate, _itot(exProp.bAutoUpdate, temp, 10), iniFilePath);
+	::WritePrivateProfileString(Explorer, SizeFormat, _itot((INT)exProp.fmtSize, temp, 10), iniFilePath);
+	::WritePrivateProfileString(Explorer, DateFormat, _itot((INT)exProp.fmtDate, temp, 10), iniFilePath);
+	::WritePrivateProfileString(Explorer, DateFormat, _itot((INT)exProp.fmtDate, temp, 10), iniFilePath);
+	::WritePrivateProfileString(Explorer, TimeOut, _itot((INT)exProp.uTimeout, temp, 10), iniFilePath);
+	::WritePrivateProfileString(Explorer, UseSystemIcons, _itot(exProp.bUseSystemIcons, temp, 10), iniFilePath);
+	::WritePrivateProfileString(Explorer, NppExecAppName, exProp.nppExecProp.szAppName, iniFilePath);
+	::WritePrivateProfileString(Explorer, NppExecScriptPath, exProp.nppExecProp.szScriptPath, iniFilePath);
 
 	for (INT i = exProp.vStrFilterHistory.size() - 1; i >= 0 ; i--)
 	{
-		::WritePrivateProfileString(FilterHistory, itoa(i, temp, 10), exProp.vStrFilterHistory[i].c_str(), iniFilePath); 
+		::WritePrivateProfileString(FilterHistory, _itot(i, temp, 10), exProp.vStrFilterHistory[i].c_str(), iniFilePath);
 	}
-	::WritePrivateProfileString(Explorer, LastFilter, exProp.strLastFilter.c_str(), iniFilePath); 
+	::WritePrivateProfileString(Explorer, LastFilter, exProp.strLastFilter.c_str(), iniFilePath);
 }
 
 
@@ -453,10 +451,6 @@ void saveSettings(void)
  */
 void initMenu(void)
 {
-	HMENU		hMenu	= ::GetMenu(nppData._nppHandle);
-
-	::ModifyMenu(hMenu, funcItem[2]._cmdID, MF_BYCOMMAND | MF_SEPARATOR, 0, 0);
-	::ModifyMenu(hMenu, funcItem[4]._cmdID, MF_BYCOMMAND | MF_SEPARATOR, 0, 0);
 }
 
 
@@ -478,13 +472,37 @@ HWND getCurrentHScintilla(INT which)
 void toggleExplorerDialog(void)
 {
 	UINT state = ::GetMenuState(::GetMenu(nppData._nppHandle), funcItem[DOCKABLE_EXPLORER_INDEX]._cmdID, MF_BYCOMMAND);
-	explorerDlg.doDialog(state & MF_CHECKED ? false : true);
+	if (state & MF_CHECKED) {
+		explorerDlg.doDialog(false);
+	} else {
+		UpdateDocs();
+		explorerDlg.doDialog();
+	}
 }
 
 void toggleFavesDialog(void)
 {
 	UINT state = ::GetMenuState(::GetMenu(nppData._nppHandle), funcItem[DOCKABLE_FAVORTIES_INDEX]._cmdID, MF_BYCOMMAND);
-	favesDlg.doDialog(state & MF_CHECKED ? false : true);
+	if (state & MF_CHECKED) {
+		favesDlg.doDialog(false);
+	} else {
+		UpdateDocs();
+		favesDlg.doDialog();
+	}
+}
+
+void gotoPath(void)
+{
+	UINT state = ::GetMenuState(::GetMenu(nppData._nppHandle), funcItem[DOCKABLE_EXPLORER_INDEX]._cmdID, MF_BYCOMMAND);
+	if (state & MF_UNCHECKED) {
+		explorerDlg.doDialog();
+	}
+	explorerDlg.gotoPath();
+}
+
+void clearFilter(void)
+{
+	explorerDlg.clearFilter();
 }
 
 void openOptionDlg(void)
@@ -513,7 +531,7 @@ LRESULT CALLBACK SubWndProcNotepad(HWND hWnd, UINT message, WPARAM wParam, LPARA
 		case WM_ACTIVATE:
 		{
 			if (((LOWORD(wParam) == WA_ACTIVE) || (LOWORD(wParam) == WA_CLICKACTIVE)) && 
-				(isNotepadCreated == TRUE) && ((HWND)lParam != hWnd))
+				(explorerDlg.isVisible()) && ((HWND)lParam != hWnd))
 			{
 				if (exProp.bAutoUpdate == TRUE) {
 					::KillTimer(explorerDlg.getHSelf(), EXT_UPDATEACTIVATE);
@@ -528,7 +546,8 @@ LRESULT CALLBACK SubWndProcNotepad(HWND hWnd, UINT message, WPARAM wParam, LPARA
 		}
 		case WM_DEVICECHANGE:
 		{
-			if ((wParam == DBT_DEVICEARRIVAL) || (wParam == DBT_DEVICEREMOVECOMPLETE))
+			if ( (explorerDlg.isVisible()) &&
+				((wParam == DBT_DEVICEARRIVAL) || (wParam == DBT_DEVICEREMOVECOMPLETE)))
 			{
 				::KillTimer(explorerDlg.getHSelf(), EXT_UPDATEDEVICE);
 				::SetTimer(explorerDlg.getHSelf(), EXT_UPDATEDEVICE, 1000, NULL);
@@ -568,37 +587,45 @@ BOOL VolumeNameExists(LPTSTR rootDrive, LPTSTR volumeName)
 
 bool IsValidFileName(LPTSTR pszFileName)
 {
-	if (strpbrk(pszFileName, "\\/:*?\"<>") == NULL)
+	if (_tcspbrk(pszFileName, _T("\\/:*?\"<>")) == NULL)
 		return true;
 
-	::MessageBox(NULL, "Filename does not contain any of this characters:\n       \\ / : * ? \" < >", "Error", MB_OK);
+	TCHAR	TEMP[128];
+	TCHAR	msgBoxTxt[128];
+
+	if (NLGetText((HINSTANCE)g_hModule, nppData._nppHandle, _T("PossibleChars"), TEMP, 128)) {
+		_stprintf(msgBoxTxt, TEMP, _T("\n       \\ / : * ? \" < >"));
+		::MessageBox(NULL, msgBoxTxt, _T("Error"), MB_OK);
+	} else {
+		::MessageBox(NULL, _T("Filename does not contain any of this characters:\n       \\ / : * ? \" < >"), _T("Error"), MB_OK);
+	}
 	return false;
 }
 
-bool IsValidFolder(WIN32_FIND_DATA Find)
+bool IsValidFolder(const WIN32_FIND_DATA & Find)
 {
 	if ((Find.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) && 
 		(!(Find.dwFileAttributes & FILE_ATTRIBUTE_HIDDEN) || exProp.bShowHidden) &&
-		 (strcmp(Find.cFileName, ".") != 0) && 
-		 (strcmp(Find.cFileName, "..") != 0) &&
+		 (_tcscmp(Find.cFileName, _T(".")) != 0) && 
+		 (_tcscmp(Find.cFileName, _T("..")) != 0) &&
 		 (Find.cFileName[0] != '?'))
 		return true;
 
 	return false;
 }
 
-bool IsValidParentFolder(WIN32_FIND_DATA Find)
+bool IsValidParentFolder(const WIN32_FIND_DATA & Find)
 {
 	if ((Find.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) && 
 		(!(Find.dwFileAttributes & FILE_ATTRIBUTE_HIDDEN) || exProp.bShowHidden) &&
-		 (strcmp(Find.cFileName, ".") != 0) &&
+		 (_tcscmp(Find.cFileName, _T(".")) != 0) &&
 		 (Find.cFileName[0] != '?'))
 		return true;
 
 	return false;
 }
 
-bool IsValidFile(WIN32_FIND_DATA Find)
+bool IsValidFile(const WIN32_FIND_DATA & Find)
 {
 	if (!(Find.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) && 
 		(!(Find.dwFileAttributes & FILE_ATTRIBUTE_HIDDEN) || exProp.bShowHidden))
@@ -614,11 +641,11 @@ BOOL HaveChildren(LPTSTR parentFolderPathName)
 	BOOL				bFound		= TRUE;
 	BOOL				bRet		= FALSE;
 
-	if (parentFolderPathName[strlen(parentFolderPathName) - 1] != '\\')
-		strcat(parentFolderPathName, "\\");
+	if (parentFolderPathName[_tcslen(parentFolderPathName) - 1] != '\\')
+		_tcscat(parentFolderPathName, _T("\\"));
 
 	/* add wildcard */
-	strcat(parentFolderPathName, "*");
+	_tcscat(parentFolderPathName, _T("*"));
 
 	if ((hFind = ::FindFirstFile(parentFolderPathName, &Find)) == INVALID_HANDLE_VALUE)
 		return FALSE;
@@ -637,6 +664,41 @@ BOOL HaveChildren(LPTSTR parentFolderPathName)
 	return bRet;
 }
 
+BOOL ConvertNetPathName(LPCTSTR pPathName, LPTSTR pRemotePath, UINT length)
+{
+	DWORD			dwRemoteLength	= 0;
+	DWORD			driveList		= ::GetLogicalDrives();
+	TCHAR			drivePathName[]	= _T(" :");	// it is longer for function 'HaveChildren()'
+	TCHAR			volumeName[MAX_PATH];
+	TCHAR			remoteName[MAX_PATH];
+
+	for (int i = 1; i < 32; i++)
+	{
+		drivePathName[0] = 'A' + i;
+
+		if (0x01 & (driveList >> i))
+		{
+			_stprintf(volumeName, _T("%c:"), 'A' + i);
+
+			/* call get connection twice to get the real size */
+			dwRemoteLength = 1;
+			if (ERROR_MORE_DATA == WNetGetConnection(volumeName, remoteName, &dwRemoteLength))
+			{
+				if ((dwRemoteLength < MAX_PATH) && (NO_ERROR == WNetGetConnection(volumeName, remoteName, &dwRemoteLength)))
+				{
+					if (_tcsstr(pPathName, remoteName) != NULL)
+					{
+						_tcscpy(pRemotePath, volumeName);
+						_tcsncat(pRemotePath, &pPathName[dwRemoteLength - 1], length - 2);
+						return TRUE;
+					}
+				}
+			}
+		}
+	}
+	return FALSE;
+}
+
 /**************************************************************************
  *	Get system images
  */
@@ -649,7 +711,7 @@ HIMAGELIST GetSmallImageList(BOOL bSystem)
 
 	if (bSystem) {
 		if (himlSys == NULL) {
-			himlSys = (HIMAGELIST)SHGetFileInfo("C:\\", 0, &sfi, sizeof(SHFILEINFO), SHGFI_SYSICONINDEX | SHGFI_SMALLICON);
+			himlSys = (HIMAGELIST)SHGetFileInfo(_T("C:\\"), 0, &sfi, sizeof(SHFILEINFO), SHGFI_SYSICONINDEX | SHGFI_SMALLICON);
 		}
 		himl = himlSys;
 	} else {
@@ -659,39 +721,52 @@ HIMAGELIST GetSmallImageList(BOOL bSystem)
 	return himl;
 }
 
-void ExtractIcons(LPCSTR currentPath, LPCSTR volumeName, eDevType type, 
+void ExtractIcons(LPCTSTR currentPath, LPCTSTR volumeName, eDevType type, 
 	LPINT piIconNormal, LPINT piIconSelected, LPINT piIconOverlayed)
 {
 	SHFILEINFO		sfi	= {0};
-	UINT			length = strlen(currentPath) - 1;
+	UINT			length = _tcslen(currentPath) - 1;
 	TCHAR			TEMP[MAX_PATH];
 	UINT			stOverlay = (piIconOverlayed ? SHGFI_OVERLAYINDEX : 0);
 
-	strcpy(TEMP, currentPath);
-	if (TEMP[length] == '*')
+	_tcscpy(TEMP, currentPath);
+	if (TEMP[length] == '*') {
 		TEMP[length] = '\0';
-	else if (TEMP[length] != '\\')
-		strcat(TEMP, "\\");
+	} else if (TEMP[length] != '\\') {
+		_tcscat(TEMP, _T("\\"));
+	}
+	if (volumeName != NULL) {
+		_tcscat(TEMP, volumeName);
+	}
 
-	if (volumeName != NULL)
-		strcat(TEMP, volumeName);
+	if (_tcsstr(TEMP, _T("C:\\Users\\Public\\"))) {
+		OutputDebugString(TEMP);
+		OutputDebugString(_T("\n"));
+		OutputDebugString(currentPath);
+		OutputDebugString(_T(" "));
+		OutputDebugString(volumeName);
+		OutputDebugString(_T("\n"));
+	}
 
 	if (exProp.bUseSystemIcons == FALSE)
 	{
 		/* get drive icon in any case correct */
 		if (type == DEVT_DRIVE)
 		{
+			::ZeroMemory(&sfi, sizeof(SHFILEINFO));
 			SHGetFileInfo(TEMP, 
-				0, 
+				-1,
 				&sfi, 
 				sizeof(SHFILEINFO), 
 				SHGFI_ICON | SHGFI_SMALLICON | stOverlay);
 			::DestroyIcon(sfi.hIcon);
+
+			::ZeroMemory(&sfi, sizeof(SHFILEINFO));
 			SHGetFileInfo(TEMP, 
 				FILE_ATTRIBUTE_NORMAL, 
 				&sfi, 
 				sizeof(SHFILEINFO), 
-				SHGFI_ICON | SHGFI_SMALLICON | stOverlay);
+				SHGFI_ICON | SHGFI_SMALLICON | stOverlay | SHGFI_USEFILEATTRIBUTES);
 
 			/* find drive icon in own image list */
 			UINT	onPos = 0;
@@ -732,49 +807,62 @@ void ExtractIcons(LPCSTR currentPath, LPCSTR volumeName, eDevType type,
 		/* get normal and overlayed icon */
 		if ((type == DEVT_DIRECTORY) || (type == DEVT_DRIVE))
 		{
+			::ZeroMemory(&sfi, sizeof(SHFILEINFO));
 			SHGetFileInfo(TEMP, 
-				0, 
+				-1,
 				&sfi, 
 				sizeof(SHFILEINFO), 
 				SHGFI_ICON | SHGFI_SMALLICON | stOverlay);
+			::DestroyIcon(sfi.hIcon);
+
 			if (type == DEVT_DRIVE)
-			{
-				::DestroyIcon(sfi.hIcon);
+			{	
+				::ZeroMemory(&sfi, sizeof(SHFILEINFO));
 				SHGetFileInfo(TEMP, 
 					FILE_ATTRIBUTE_NORMAL, 
 					&sfi, 
 					sizeof(SHFILEINFO), 
 					SHGFI_ICON | SHGFI_SMALLICON | stOverlay | SHGFI_USEFILEATTRIBUTES);
+				::DestroyIcon(sfi.hIcon);
 			}
 		}
 		else
 		{
+			::ZeroMemory(&sfi, sizeof(SHFILEINFO));
 			SHGetFileInfo(TEMP, 
 				FILE_ATTRIBUTE_NORMAL, 
 				&sfi, 
 				sizeof(SHFILEINFO), 
 				SHGFI_ICON | SHGFI_SMALLICON | stOverlay | SHGFI_USEFILEATTRIBUTES);
+			::DestroyIcon(sfi.hIcon);
 		}
-		::DestroyIcon(sfi.hIcon);
 
 		*piIconNormal	= sfi.iIcon & 0x000000ff;
 		if (piIconOverlayed != NULL)
 			*piIconOverlayed = sfi.iIcon >> 24;
 
-		/* get selected icon */
+		/* get selected (open) icon */
 		if (type == DEVT_DIRECTORY)
 		{
+			::ZeroMemory(&sfi, sizeof(SHFILEINFO));
 			SHGetFileInfo(TEMP, 
-				0, 
+				0,
 				&sfi, 
 				sizeof(SHFILEINFO), 
 				SHGFI_SYSICONINDEX | SHGFI_SMALLICON | SHGFI_OPENICON);
+			::DestroyIcon(sfi.hIcon);
+
 			*piIconSelected = sfi.iIcon;
 		}
 		else
 		{
 			*piIconSelected = *piIconNormal;
 		}
+	}
+
+	if (_tcsstr(TEMP, _T("C:\\Users\\Public\\"))) {
+		_stprintf(TEMP, _T("  TYPE   %d\n  Normal %d\n  Selected %d\n"), *piIconNormal, *piIconSelected);
+		OutputDebugString(TEMP);
 	}
 }
 
@@ -787,8 +875,6 @@ HRESULT ResolveShortCut(LPCTSTR lpszShortcutPath, LPTSTR lpszFilePath, int maxBu
     CComPtr<IShellLink> ipShellLink;
         // buffer that receives the null-terminated string for the drive and path
     TCHAR szPath[MAX_PATH];     
-        // buffer that receives the null-terminated string for the description
-    TCHAR szDesc[MAX_PATH]; 
         // structure that receives the information about the shortcut
     WIN32_FIND_DATA wfd;    
     WCHAR wszTemp[MAX_PATH];
@@ -808,9 +894,8 @@ HRESULT ResolveShortCut(LPCTSTR lpszShortcutPath, LPTSTR lpszFilePath, int maxBu
         CComQIPtr<IPersistFile> ipPersistFile(ipShellLink);
 
         // IPersistFile is using LPCOLESTR, so make sure that the string is Unicode
-#if !defined _UNICODE
-        MultiByteToWideChar(CP_ACP, 0, lpszShortcutPath,
-                                       -1, wszTemp, MAX_PATH);
+#if !defined UNICODE
+        MultiByteToWideChar(CP_ACP, 0, lpszShortcutPath, -1, wszTemp, MAX_PATH);
 #else
         wcsncpy(wszTemp, lpszShortcutPath, MAX_PATH);
 #endif
@@ -824,16 +909,10 @@ HRESULT ResolveShortCut(LPCTSTR lpszShortcutPath, LPTSTR lpszFilePath, int maxBu
             if (hRes == S_OK) 
             {
                 // Get the path to the shortcut target
-                hRes = ipShellLink->GetPath(szPath, 
-                                     MAX_PATH, &wfd, SLGP_RAWPATH); 
+                hRes = ipShellLink->GetPath(szPath, MAX_PATH, &wfd, SLGP_RAWPATH); 
 				if (hRes == S_OK) 
 				{
-					// Get the description of the target
-					hRes = ipShellLink->GetDescription(szDesc, MAX_PATH); 
-					if (hRes == S_OK) 
-					{
-		                lstrcpyn(lpszFilePath, szPath, maxBuf);
-					}
+	                _tcsncpy(lpszFilePath, szPath, maxBuf);
 				}
             } 
         } 
@@ -846,6 +925,62 @@ HRESULT ResolveShortCut(LPCTSTR lpszShortcutPath, LPTSTR lpszFilePath, int maxBu
 /**************************************************************************
  *	Current docs
  */
+void UpdateDocs(void)
+{
+	static
+	UINT	currentDoc;
+	UINT	currentEdit;
+
+	::SendMessage(nppData._nppHandle, NPPM_GETCURRENTSCINTILLA, 0, (LPARAM)&currentEdit);
+	g_HSource = (currentEdit == 0)?nppData._scintillaMainHandle:nppData._scintillaSecondHandle;
+
+	INT			newDocCnt = 0;
+	TCHAR		newPath[MAX_PATH];
+
+	/* update open files */
+	::SendMessage(nppData._nppHandle, NPPM_GETFULLCURRENTPATH, 0, (LPARAM)newPath);
+	newDocCnt = (INT)::SendMessage(nppData._nppHandle, NPPM_GETNBOPENFILES, 0, ALL_OPEN_FILES);
+
+	if ((_tcscmp(newPath, g_currentFile) != 0) || (newDocCnt != g_docCnt))
+	{
+		/* update current path in explorer and favorites */
+		_tcscpy(g_currentFile, newPath);
+		g_docCnt = newDocCnt;
+		explorerDlg.NotifyNewFile();
+		favesDlg.NotifyNewFile();
+
+		/* update documents list */
+		INT			i = 0;
+		LPTSTR		*fileNames;
+
+		INT docCnt = (INT)::SendMessage(nppData._nppHandle, NPPM_GETNBOPENFILES, 0, ALL_OPEN_FILES);
+
+		/* update doc information for file list () */
+		fileNames	= (LPTSTR*)new LPTSTR[docCnt];
+
+		for (i = 0; i < docCnt; i++)
+			fileNames[i] = (LPTSTR)new TCHAR[MAX_PATH];
+
+		if (::SendMessage(nppData._nppHandle, NPPM_GETOPENFILENAMES, (WPARAM)fileNames, (LPARAM)docCnt)) {
+			if (explorerDlg.isVisible() || favesDlg.isVisible()) {
+				UpdateCurrUsedDocs(fileNames, docCnt);
+			}
+			if (explorerDlg.isVisible()) {
+				RedrawWindow(explorerDlg.getHSelf(), NULL, NULL, TRUE);
+			}
+			if (favesDlg.isVisible()) {
+				RedrawWindow(favesDlg.getHSelf(), NULL, NULL, TRUE);
+			}
+		}
+
+		for (i = 0; i < docCnt; i++)
+			delete [] fileNames[i];
+		delete [] fileNames;
+
+		currentDoc = docCnt;
+	}
+}
+
 void UpdateCurrUsedDocs(LPTSTR* pFiles, UINT numFiles)
 {
 	TCHAR	pszLongName[MAX_PATH];
@@ -867,7 +1002,7 @@ BOOL IsFileOpen(LPCTSTR pCurrFile)
 {
 	for (UINT iCurrFiles = 0; iCurrFiles < g_vStrCurrentFiles.size(); iCurrFiles++)
 	{
-		if (stricmp(g_vStrCurrentFiles[iCurrFiles].c_str(), pCurrFile) == 0)
+		if (_tcsicmp(g_vStrCurrentFiles[iCurrFiles].c_str(), pCurrFile) == 0)
 		{
 			return TRUE;
 		}
@@ -875,6 +1010,196 @@ BOOL IsFileOpen(LPCTSTR pCurrFile)
 	return FALSE;
 }
 
+/**************************************************************************
+ *	compare arguments and convert
+ */
+BOOL ConvertCall(LPTSTR pszExplArg, LPTSTR pszName, LPTSTR *p_pszNppArg, vector<string> vFileList)
+{
+	TCHAR			szElement[MAX_PATH];
+	LPTSTR			pszPtr		= NULL;
+	LPTSTR			pszEnd		= NULL;
+	UINT			iCount		= 0;
+	eVarExNppExec	varElement	= VAR_UNKNOWN;
+
+#ifdef UNICODE
+	TCHAR			szBOM		= 0xFEFF;
+	if (pszExplArg[0] != szBOM) {
+		::MessageBox(nppData._nppHandle, _T("Missing BOM in file"), _T("Error"), MB_OK | MB_ICONERROR);
+		return FALSE;
+	}
+	pszExplArg++;
+	pszPtr = _tcstok(pszExplArg, _T(" "));
+#else
+	/* get name of NppExec plugin */
+	pszPtr = _tcstok(pszExplArg, _T(" "));
+#endif					
+
+	if (_tcscmp(pszPtr, _T("//Explorer:")) != 0) {
+		TCHAR	szTemp[MAX_PATH];
+		_stprintf(szTemp, _T("Format of first line needs to be:\n//Explorer: NPPEXEC_DLL_NAME PARAM_X[0] PARAM_X[1]"));
+		::MessageBox(nppData._nppHandle, szTemp, _T("Error"), MB_OK | MB_ICONERROR);
+		return FALSE;
+	}
+
+	pszPtr = _tcstok(NULL, _T(" "));
+	_tcscpy(pszName, pszPtr);
+
+	pszPtr = _tcstok(NULL, _T(" "));
+
+	while (pszPtr != NULL)
+	{
+		/* find string element in explorer argument list */
+		if (_tcsstr(pszPtr, cVarExNppExec[VAR_FULL_PATH]) != NULL) {
+			varElement = VAR_FULL_PATH;
+		} else if (_tcsstr(pszPtr, cVarExNppExec[VAR_ROOT_PATH]) != NULL) {
+			varElement = VAR_ROOT_PATH;
+		} else if (_tcsstr(pszPtr, cVarExNppExec[VAR_PARENT_FULL_DIR]) != NULL) {
+			varElement = VAR_PARENT_FULL_DIR;
+		} else if (_tcsstr(pszPtr, cVarExNppExec[VAR_PARENT_DIR]) != NULL) {
+			varElement = VAR_PARENT_DIR;
+		} else if (_tcsstr(pszPtr, cVarExNppExec[VAR_FULL_FILE]) != NULL) {
+			varElement = VAR_FULL_FILE;
+		} else if (_tcsstr(pszPtr, cVarExNppExec[VAR_FILE_NAME]) != NULL) {
+			varElement = VAR_FILE_NAME;
+		} else if (_tcsstr(pszPtr, cVarExNppExec[VAR_FILE_EXT]) != NULL) {
+			varElement = VAR_FILE_EXT;
+		} else {
+			TCHAR	szTemp[MAX_PATH];
+			_stprintf(szTemp, _T("Argument \"%s\" unknown."), pszPtr);
+			::MessageBox(nppData._nppHandle, szTemp, _T("Error"), MB_OK | MB_ICONERROR);
+
+			return FALSE;
+		}
+
+		/* get array list position of given files. Note: of by 1 because of '[' */
+		pszPtr += _tcslen(cVarExNppExec[varElement]) + 1;
+
+		pszEnd = _tcsstr(pszPtr, _T("]"));
+
+		if (pszEnd == NULL) {
+			return FALSE;
+		} else{
+			*pszEnd = NULL;
+		}
+
+		/* control if file element exist */
+		iCount = _ttoi(pszPtr);
+		if (iCount > vFileList.size())
+		{
+			TCHAR	szTemp[MAX_PATH];
+			_stprintf(szTemp, _T("Element \"%d\" of argument \"%s\" not selected."), iCount, pszPtr);
+			::MessageBox(nppData._nppHandle, szTemp, _T("Error"), MB_OK | MB_ICONERROR);
+			return FALSE;
+		}
+
+		BOOL	cpyDone	= TRUE;
+
+		/* copy full file in any case to element array */
+		_tcscpy(szElement, vFileList[iCount].c_str());
+		::PathRemoveBackslash(szElement);
+
+		/* copy file element to argument list as requested */
+		switch (varElement)
+		{
+			case VAR_FULL_PATH:
+				/* nothing to do, because copy still done */
+				break;
+			case VAR_ROOT_PATH:
+				cpyDone = ::PathStripToRoot(szElement);
+				break;
+			case VAR_PARENT_FULL_DIR:
+				if (::PathRemoveFileSpec(szElement) == 0) {
+					cpyDone = FALSE;
+				}
+				break;
+			case VAR_PARENT_DIR:
+				if (::PathRemoveFileSpec(szElement) != 0) {
+					::PathStripPath(szElement);
+				} else {
+					cpyDone = FALSE;
+				}
+				break;
+			case VAR_FULL_FILE:
+				::PathStripPath(szElement);
+				break;
+			case VAR_FILE_NAME:
+				::PathStripPath(szElement);
+				if (*(::PathFindExtension(szElement)) != 0) {
+					*(::PathFindExtension(szElement)) = 0;
+				} else {
+					cpyDone = FALSE;
+				}
+				break;
+			case VAR_FILE_EXT:
+				if (*(::PathFindExtension(szElement)) != 0) {
+					_tcscpy(szElement, ::PathFindExtension(vFileList[iCount].c_str()) + 1);
+				} else {
+					cpyDone = FALSE;
+				}
+				break;
+		}
+
+		if (cpyDone == TRUE)
+		{
+			/* concatinate arguments finally */
+			LPTSTR	pszTemp	= *p_pszNppArg;
+
+			if (*p_pszNppArg != NULL) {
+				*p_pszNppArg = (LPTSTR)new TCHAR[_tcslen(pszTemp) + _tcslen(szElement) + 4];
+			} else {
+				*p_pszNppArg = (LPTSTR)new TCHAR[_tcslen(szElement) + 3];
+			}
+
+			if (*p_pszNppArg != NULL)
+			{
+				if (pszTemp != NULL) {
+					_stprintf(*p_pszNppArg, _T("%s \"%s\""), pszTemp, szElement);
+					delete [] pszTemp;
+				} else {
+					_stprintf(*p_pszNppArg, _T("\"%s\""), szElement);
+				}
+			}
+			else
+			{
+				if (pszTemp != NULL) {
+					delete [] pszTemp;
+				}
+				return FALSE;
+			}
+		}
+
+		pszPtr = _tcstok(NULL, _T(" "));
+	}
+
+	return TRUE;
+}
+
+
+/**************************************************************************
+ *	Scroll up/down test function
+ */
+eScDir GetScrollDirection(HWND hWnd, UINT offTop, UINT offBottom)
+{
+	RECT	rcUp	= {0};
+	RECT	rcDown	= {0};
+
+	::GetClientRect(hWnd, &rcUp);
+	::ClientToScreen(hWnd, &rcUp);
+	rcDown = rcUp;
+
+	rcUp.top += offTop;
+	rcUp.bottom = rcUp.top + 20;
+	rcDown.bottom += offBottom;
+	rcDown.top = rcDown.bottom - 20;
+
+	POINT	pt		= {0};
+	::GetCursorPos(&pt);
+	if (::PtInRect(&rcUp, pt) == TRUE)
+		return SCR_UP;
+	else if (::PtInRect(&rcDown, pt) == TRUE)
+		return SCR_DOWN;
+	return SCR_OUTSIDE;
+}
 
 /**************************************************************************
  *	Windows helper functions
@@ -918,7 +1243,7 @@ void ErrorMessage(DWORD err)
 	LPVOID	lpMsgBuf;
 
 	FormatMessage(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS, NULL, err, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), (LPTSTR) & lpMsgBuf, 0, NULL);	// Process any inserts in lpMsgBuf.
-	::MessageBox(NULL, (LPCTSTR) lpMsgBuf, "Error", MB_OK | MB_ICONINFORMATION);
+	::MessageBox(NULL, (LPCTSTR) lpMsgBuf, _T("Error"), MB_OK | MB_ICONINFORMATION);
 
 	LocalFree(lpMsgBuf);
 }

@@ -29,22 +29,24 @@ LANGUAGE LANG_GERMAN, SUBLANG_GERMAN
 // Dialog
 //
 
-IDD_HELP_DLG DIALOGEX 0, 0, 230, 179
+IDD_HELP_DLG DIALOGEX 0, 0, 230, 192
 STYLE DS_SETFONT | DS_FIXEDSYS | WS_POPUP | WS_BORDER | WS_SYSMENU
 FONT 8, "MS Shell Dlg", 0, 0, 0x1
 BEGIN
-    DEFPUSHBUTTON   "&Ok",IDOK,89,158,50,14
+    LTEXT           "Go to Path...\t\tLink to a given directory",
+                    IDC_STATIC_GOTO,17,121,197,8
+    DEFPUSHBUTTON   "&Ok",IDOK,89,171,50,14
     LTEXT           "jens.plugin.npp@gmx.de",IDC_EMAIL_LINK,65,41,80,8
     LTEXT           "Author:",IDC_STATIC_AUTHOR,12,31,51,9
-    GROUPBOX        "Menu entries",IDC_STATIC_MENU,7,96,216,56
+    GROUPBOX        "Menu entries",IDC_STATIC_MENU,7,95,216,72
     LTEXT           "eMail:",IDC_STATIC_MAIL,12,41,51,8
     CTEXT           "At first, I would like to thank Don for his great program and his support to create this plugin.",
                     IDC_STATIC_THXTO,7,67,216,25
     LTEXT           "Options...\t\tAllows you to personalize the\n\t\t\tsettings for explorers file list.",
-                    IDC_STATIC_OPT,17,121,197,16
-    CTEXT           "Explorer Plugin for Notepad++ v4.3                                  v1.6.1",
-                    IDC_STATIC,7,7,216,17,SS_CENTERIMAGE,WS_EX_DLGMODALFRAME | 
-                    WS_EX_TRANSPARENT
+                    IDC_STATIC_OPT,17,137,197,16
+    CTEXT           "Explorer Plugin for Notepad++ v5.1                                  v1.8",
+                    IDC_STATIC_VERSION,7,7,216,17,SS_CENTERIMAGE,
+                    WS_EX_DLGMODALFRAME | WS_EX_TRANSPARENT
     LTEXT           "http://sourceforge.net/projects/npp-plugins/",
                     IDC_NPP_PLUGINS_URL,65,52,158,8
     LTEXT           "URL:",IDC_STATIC,12,52,51,8
@@ -54,7 +56,9 @@ BEGIN
     LTEXT           "Favorites...\t\tViews the Favorites dialog.",
                     IDC_STATIC_FAV,17,113,197,8
     LTEXT           "Help...\t\t\tShows this help dialog.",IDC_STATIC_HELP,
-                    17,137,197,8
+                    17,153,197,8
+    LTEXT           "Clear Filter\t\tDeletes all filter elements",
+                    IDC_STATIC_CLEAR,17,129,197,8
 END
 
 IDD_EXPLORER_DLG DIALOGEX 64536, 0, 164, 267
@@ -66,10 +70,11 @@ FONT 8, "MS Shell Dlg", 0, 0, 0x1
 BEGIN
     CONTROL         "Tree2",IDC_TREE_FOLDER,"SysTreeView32",TVS_HASBUTTONS | 
                     TVS_HASLINES | TVS_SHOWSELALWAYS | TVS_FULLROWSELECT | 
-                    WS_BORDER | WS_TABSTOP | 0x800,2,22,161,78
+                    WS_BORDER | WS_TABSTOP | 0x800,2,22,161,78,
+                    WS_EX_ACCEPTFILES
     CONTROL         "List2",IDC_LIST_FILE,"SysListView32",LVS_REPORT | 
                     LVS_SHOWSELALWAYS | LVS_OWNERDATA | WS_BORDER | 
-                    WS_TABSTOP,2,119,161,118
+                    WS_TABSTOP,2,119,161,118,WS_EX_ACCEPTFILES
     COMBOBOX        IDC_COMBO_FILTER,28,251,135,69,CBS_DROPDOWN | 
                     CBS_AUTOHSCROLL | WS_VSCROLL | WS_TABSTOP
     CONTROL         "",IDC_BUTTON_SPLITTER,"Button",BS_OWNERDRAW,2,103,161,
@@ -111,7 +116,7 @@ BEGIN
     LTEXT           "Select a group",IDC_STATIC_SELECT,13,55,228,8
 END
 
-IDD_OPTION_DLG DIALOGEX 0, 0, 298, 114
+IDD_OPTION_DLG DIALOGEX 0, 0, 347, 154
 STYLE DS_SETFONT | DS_MODALFRAME | DS_FIXEDSYS | WS_POPUP | WS_CAPTION | 
     WS_SYSMENU
 CAPTION "Explorer Options"
@@ -121,10 +126,10 @@ BEGIN
                     BS_AUTOCHECKBOX | WS_TABSTOP,14,19,126,10
     CONTROL         "Separate &Extensions",IDC_CHECK_SEPEXT,"Button",
                     BS_AUTOCHECKBOX | WS_TABSTOP,14,31,126,10
-    GROUPBOX        "      &View 'Long' List",IDC_STATIC_LONG,7,52,137,55
-    COMBOBOX        IDC_COMBO_SIZE_FORMAT,47,70,90,59,CBS_DROPDOWNLIST | 
+    GROUPBOX        "      &View 'Long' List",IDC_STATIC_LONG,7,47,137,54
+    COMBOBOX        IDC_COMBO_SIZE_FORMAT,47,64,90,59,CBS_DROPDOWNLIST | 
                     WS_VSCROLL | WS_TABSTOP
-    COMBOBOX        IDC_COMBO_DATE_FORMAT,47,86,90,51,CBS_DROPDOWNLIST | 
+    COMBOBOX        IDC_COMBO_DATE_FORMAT,47,80,90,51,CBS_DROPDOWNLIST | 
                     WS_VSCROLL | WS_TABSTOP
     CONTROL         "Automatic &Update on Focus",IDC_CHECK_AUTO,"Button",
                     BS_AUTOCHECKBOX | WS_TABSTOP,157,19,124,8
@@ -133,16 +138,25 @@ BEGIN
     CONTROL         "Use Windows &Icons",IDC_CHECK_USEICON,"Button",
                     BS_AUTOCHECKBOX | WS_TABSTOP,157,43,124,8
     EDITTEXT        IDC_EDIT_TIMEOUT,157,68,40,12,ES_AUTOHSCROLL | ES_NUMBER
-    DEFPUSHBUTTON   "&Ok",IDOK,183,93,51,14
-    PUSHBUTTON      "&Cancel",IDCANCEL,240,93,51,14
+    DEFPUSHBUTTON   "&Ok",IDOK,289,10,51,14
+    PUSHBUTTON      "&Cancel",IDCANCEL,289,29,51,14
     CONTROL         "&V",IDC_CHECK_LONG,"Button",BS_AUTOCHECKBOX | 
-                    WS_TABSTOP,14,53,9,8
-    GROUPBOX        "File List",IDC_STATIC_FILELIST,7,7,137,100
-    LTEXT           "Size:",IDC_STATIC_SIZE,13,70,32,12,SS_CENTERIMAGE
-    LTEXT           "Date:",IDC_STATIC_DATE,13,86,32,12,SS_CENTERIMAGE
-    GROUPBOX        "General Options",IDC_STATIC_GENOPT,149,7,142,80
+                    WS_TABSTOP,14,48,9,8
+    GROUPBOX        "File List",IDC_STATIC_FILELIST,7,7,137,94
+    LTEXT           "Size:",IDC_STATIC_SIZE,13,64,32,12,SS_CENTERIMAGE
+    LTEXT           "Date:",IDC_STATIC_DATE,13,80,32,12,SS_CENTERIMAGE
+    GROUPBOX        "General Options",IDC_STATIC_GENOPT,143,7,140,94
     LTEXT           "Timeout Missed Drives (ms):",IDC_STATIC_TMO,157,57,124,
                     8
+    GROUPBOX        "NppExec Interface",IDC_STATIC_NPPEXEC,7,96,276,51
+    EDITTEXT        IDC_EDIT_EXECNAME,87,112,113,12,ES_AUTOHSCROLL
+    EDITTEXT        IDC_EDIT_SCRIPTPATH,87,127,168,12,ES_AUTOHSCROLL
+    LTEXT           "DLL Name:",IDC_STATIC_EXECNAME,15,112,69,12,
+                    SS_CENTERIMAGE
+    LTEXT           "Path of Scripts:",IDC_STATIC_SCRIPTPATH,15,126,69,12,
+                    SS_CENTERIMAGE
+    PUSHBUTTON      "...",IDC_BTN_OPENDLG,258,127,14,12
+    PUSHBUTTON      "Create Example",IDC_BTN_EXAMPLE_FILE,203,112,69,12
 END
 
 
@@ -188,7 +202,7 @@ BEGIN
         LEFTMARGIN, 7
         RIGHTMARGIN, 223
         TOPMARGIN, 7
-        BOTTOMMARGIN, 172
+        BOTTOMMARGIN, 185
     END
 
     IDD_EXPLORER_DLG, DIALOG
@@ -217,9 +231,9 @@ BEGIN
     IDD_OPTION_DLG, DIALOG
     BEGIN
         LEFTMARGIN, 7
-        RIGHTMARGIN, 291
+        RIGHTMARGIN, 340
         TOPMARGIN, 7
-        BOTTOMMARGIN, 107
+        BOTTOMMARGIN, 147
     END
 END
 #endif    // APSTUDIO_INVOKED
@@ -246,8 +260,8 @@ IDI_HEART               ICON                    "..\\res\\Heart.ico"
 // Bitmap
 //
 
-IDB_EX_UNDO             BITMAP                  "..\\res\\undo.bmp"
-IDB_EX_REDO             BITMAP                  "..\\res\\redo.bmp"
+IDB_EX_PREV             BITMAP                  "..\\res\\undo.bmp"
+IDB_EX_NEXT             BITMAP                  "..\\res\\redo.bmp"
 IDB_EX_FILENEW          BITMAP                  "..\\res\\newFile.bmp"
 IDB_EX_FOLDERNEW        BITMAP                  "..\\res\\newFolder.bmp"
 IDB_EX_FIND             BITMAP                  "..\\res\\findFile.bmp"
@@ -278,13 +292,13 @@ IDC_LEFTRIGHT           CURSOR                  "..\\res\\leftright.cur"
 //
 
 VS_VERSION_INFO VERSIONINFO
- FILEVERSION 1,6,1,0
- PRODUCTVERSION 1,6,1,0
+ FILEVERSION 1,8,0,0
+ PRODUCTVERSION 1,8,0,0
  FILEFLAGSMASK 0x3fL
 #ifdef _DEBUG
- FILEFLAGS 0x1L
+ FILEFLAGS 0x21L
 #else
- FILEFLAGS 0x0L
+ FILEFLAGS 0x20L
 #endif
  FILEOS 0x40004L
  FILETYPE 0x2L
@@ -297,12 +311,13 @@ BEGIN
             VALUE "Comments", "Visit https://sourceforge.net/projects/npp-plugins"
             VALUE "CompanyName", "Jens Lorenz"
             VALUE "FileDescription", "Notepad++ Explorer Plugin : a free (GNU) source code file explorer"
-            VALUE "FileVersion", "1, 6, 1, 0"
+            VALUE "FileVersion", "1, 8, 0, 0"
             VALUE "InternalName", "Explorer"
-            VALUE "LegalCopyright", "Copyright © 2006-2007"
+            VALUE "LegalCopyright", "Copyright © 2006-2008"
             VALUE "OriginalFilename", "Explorer.dll"
             VALUE "ProductName", "Jens Lorenz Explorer"
-            VALUE "ProductVersion", "1, 6, 1, 0"
+            VALUE "ProductVersion", "1, 8, 0, 0"
+            VALUE "SpecialBuild", "UNICODE"
         END
     END
     BLOCK "VarFileInfo"

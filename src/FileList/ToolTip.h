@@ -28,15 +28,15 @@ Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
 using namespace std;
 
-
 class ToolTip : public Window
 {
 public :
-	ToolTip() : _bTrackMouse(FALSE) {};
+	ToolTip() : _bTrackMouse(FALSE), _isLeftBtnDown(FALSE) {};
     
 	void destroy(void){
 		DestroyWindow(_hSelf);
 		_hSelf = NULL;
+		_isLeftBtnDown = FALSE;
 	};
 
 // Attributes
@@ -45,11 +45,13 @@ public:
 // Implementation
 public:
 	virtual void init(HINSTANCE hInst, HWND hParent);
-	void Show(RECT rectTitle, char* pszTitleText, int iXOff = 0, int iWidthOff = 0);
+	void Show(RECT rectTitle, LPTSTR pszTitleText, int iXOff = 0, int iWidthOff = 0);
+	void SendMessageToParent(UINT message);
 
 protected:
     WNDPROC		_defaultProc;
 	BOOL		_bTrackMouse;
+	BOOL		_isLeftBtnDown;
 	TOOLINFO	_ti;
 
 

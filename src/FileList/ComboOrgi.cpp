@@ -30,6 +30,7 @@ ComboOrgi::ComboOrgi()
 
 ComboOrgi::~ComboOrgi()
 {
+	_comboItems.clear();
 }
 
 void ComboOrgi::init(HWND hCombo)
@@ -41,8 +42,8 @@ void ComboOrgi::init(HWND hCombo)
 	comboBoxInfo.cbSize = sizeof(COMBOBOXINFO);
 
 	::SendMessage(_hCombo, CB_GETCOMBOBOXINFO, 0, (LPARAM)&comboBoxInfo);
-	::SetWindowLong(comboBoxInfo.hwndItem, GWL_USERDATA, reinterpret_cast<LONG>(this));
-	_hDefaultComboProc = reinterpret_cast<WNDPROC>(::SetWindowLong(comboBoxInfo.hwndItem, GWL_WNDPROC, reinterpret_cast<LONG>(wndDefaultProc)));
+	::SetWindowLongPtr(comboBoxInfo.hwndItem, GWL_USERDATA, reinterpret_cast<LONG>(this));
+	_hDefaultComboProc = reinterpret_cast<WNDPROC>(::SetWindowLongPtr(comboBoxInfo.hwndItem, GWL_WNDPROC, reinterpret_cast<LONG>(wndDefaultProc)));
 }
 
 
@@ -54,20 +55,12 @@ LRESULT ComboOrgi::runProc(HWND hwnd, UINT Message, WPARAM wParam, LPARAM lParam
 		{
 			if (wParam == 13)
 			{
-				LPSTR	pszText	= (LPSTR)new TCHAR[MAX_PATH];
+				TCHAR	pszText[MAX_PATH];
 
 				getText(pszText);
 				addText(pszText);
-
-				delete [] pszText;
-
 				return TRUE;
 			}
-			break;
-		}
-		case WM_DESTROY:
-		{
-			_comboItems.clear();
 			break;
 		}
 		default :
@@ -77,7 +70,7 @@ LRESULT ComboOrgi::runProc(HWND hwnd, UINT Message, WPARAM wParam, LPARAM lParam
 }
 
 
-void ComboOrgi::addText(LPSTR pszText)
+void ComboOrgi::addText(LPTSTR pszText)
 {
 	/* find item */
 	INT		count		= _comboItems.size();
@@ -86,7 +79,7 @@ void ComboOrgi::addText(LPSTR pszText)
 
 	for (; i < count; i++)
 	{
-		if (strcmp(pszText, _comboItems[i].c_str()) == 0)
+		if (_tcscmp(pszText, _comboItems[i].c_str()) == 0)
 		{
 			hasFoundOn = count - i - 1;
 		}
@@ -107,17 +100,17 @@ void ComboOrgi::addText(LPSTR pszText)
 }
 
 
-void ComboOrgi::setText(LPSTR pszText, UINT size)
+void ComboOrgi::setText(LPTSTR pszText, UINT size)
 {
 	::SendMessage(_hCombo, WM_SETTEXT, size, (LPARAM)pszText);
 }
 
-void ComboOrgi::getText(LPSTR pszText, UINT size)
+void ComboOrgi::getText(LPTSTR pszText, UINT size)
 {
 	::SendMessage(_hCombo, WM_GETTEXT, size, (LPARAM)pszText);
 }
 
-bool ComboOrgi::getSelText(LPSTR pszText)
+bool ComboOrgi::getSelText(LPTSTR pszText)
 {
 	INT		curSel = ::SendMessage(_hCombo, CB_GETCURSEL, 0, 0);
 
@@ -132,7 +125,7 @@ bool ComboOrgi::getSelText(LPSTR pszText)
 	return false;
 }
 
-void ComboOrgi::selectComboText(LPSTR pszText)
+void ComboOrgi::selectComboText(LPTSTR pszText)
 {
 	LRESULT			lResult	= -1;
 
@@ -147,13 +140,13 @@ void ComboOrgi::setComboList(vector<string> vStrList)
 	::SendMessage(_hCombo, CB_RESETCONTENT, 0, 0);
 	for (size_t i = 0; i < iCnt; i++)
 	{
-		addText((LPSTR)vStrList[i].c_str());
+		addText((LPTSTR)vStrList[i].c_str());
 	}
 }
 
 void ComboOrgi::getComboList(vector<string> & vStrList)
 {
-	LPSTR	pszTemp	= (LPSTR)new TCHAR[MAX_PATH];
+	TCHAR	szTemp[MAX_PATH];
 	size_t	iCnt	= ::SendMessage(_hCombo, CB_GETCOUNT, 0, 0);
 
 	vStrList.clear();
@@ -162,11 +155,10 @@ void ComboOrgi::getComboList(vector<string> & vStrList)
 	{
 		if (MAX_PATH > ::SendMessage(_hCombo, CB_GETLBTEXTLEN, i, 0))
 		{
-			::SendMessage(_hCombo, CB_GETLBTEXT, i, (LPARAM)pszTemp);
-			vStrList.push_back(pszTemp);
+			::SendMessage(_hCombo, CB_GETLBTEXT, i, (LPARAM)szTemp);
+			vStrList.push_back(szTemp);
 		}
 	}
-	delete [] pszTemp;
 }
 
 

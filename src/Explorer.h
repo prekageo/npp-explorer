@@ -26,6 +26,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include <zmouse.h>
 #include <windowsx.h>
 #include <commctrl.h>
+#include <tchar.h>
 
 #include "PluginInterface.h"
 #include "Notepad_plus_rc.h"
@@ -36,13 +37,22 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 using namespace std;
 
 
-
 #define DOCKABLE_EXPLORER_INDEX		0
 #define DOCKABLE_FAVORTIES_INDEX	1
 
 
 extern enum winVer gWinVersion;
 
+/************* some global defines ********************/
+
+#define DND_SCR_TIMEOUT		200
+
+#define SHORTCUT_ALL		0x01
+#define SHORTCUT_DELETE		0x04
+#define SHORTCUT_COPY		0x03
+#define SHORTCUT_PASTE		0x16
+#define SHORTCUT_CUT		0x18
+#define SHORTCUT_REFRESH	0x12
 
 /******************** faves ***************************/
 
@@ -79,8 +89,8 @@ static LPTSTR cFavesItemNames[11] = {
 
 typedef struct TItemElement {
 	UINT						uParam;
-	LPSTR						pszName;
-	LPSTR						pszLink;
+	LPTSTR						pszName;
+	LPTSTR						pszLink;
 	vector<TItemElement>		vElements;
 } tItemElement, *PELEM;
 
@@ -96,13 +106,9 @@ static LPTSTR cColumns[5] = {
 	_T("Date")
 };
 
-
-
 static TCHAR FAVES_DATA[]		= _T("\\Favorites.dat");
 static TCHAR EXPLORER_INI[]		= _T("\\Explorer.ini");
 static TCHAR CONFIG_PATH[]		= _T("\\plugins\\Config");
-
-
 
 /********************************************************/
 
@@ -110,6 +116,33 @@ static TCHAR CONFIG_PATH[]		= _T("\\plugins\\Config");
 #define TCN_TABDROPPED (TCN_FIRST - 10)
 #define TCN_TABDROPPEDOUTSIDE (TCN_FIRST - 11)
 #define TCN_TABDELETE (TCN_FIRST - 12)
+
+
+/********************************************************/
+
+/* see in notepad sources */
+static LPTSTR cVarExNppExec[] = {
+	_T("EXP_FULL_PATH"),
+	_T("EXP_ROOT_PATH"),
+	_T("EXP_PARENT_FULL_DIR"),
+	_T("EXP_PARENT_DIR"),
+	_T("EXP_FULL_FILE"),
+	_T("EXP_FILE_NAME"),
+	_T("EXP_FILE_EXT"),
+};
+
+
+typedef enum {
+	VAR_FULL_PATH,
+	VAR_ROOT_PATH,
+	VAR_PARENT_FULL_DIR,
+	VAR_PARENT_DIR,
+	VAR_FULL_FILE,
+	VAR_FILE_NAME,
+	VAR_FILE_EXT,
+	VAR_UNKNOWN
+} eVarExNppExec;
+
 
 /********************************************************/
 
@@ -151,9 +184,26 @@ const LPTSTR pszDateFmt[12] = {
 };
 
 typedef struct {
-	char	cDrv;
+	TCHAR	cDrv;
 	UINT	pos;
 } tDrvMap;
+
+typedef enum {
+	SCR_OUTSIDE,
+	SCR_UP,
+	SCR_DOWN
+} eScDir;
+
+typedef struct {
+	TCHAR			szScriptName[MAX_PATH];
+	TCHAR			szArguments[MAX_PATH];
+} tNppExecScripts;
+
+typedef struct {
+	TCHAR			szAppName[MAX_PATH];
+	TCHAR			szScriptPath[MAX_PATH];
+	vector<tNppExecScripts>	vNppExecScripts;
+} tNppExecProp;
 
 typedef struct {
 	/* pointer to global current path */
@@ -173,13 +223,44 @@ typedef struct {
 	BOOL			bAutoUpdate;
 	eSizeFmt		fmtSize;
 	eDateFmt		fmtDate;
+#ifdef _UNICODE
+	vector<wstring>	vStrFilterHistory;
+	wstring			strLastFilter;
+#else
 	vector<string>	vStrFilterHistory;
 	string			strLastFilter;
+#endif
 	UINT			uTimeout;
 	BOOL			bUseSystemIcons;
+	tNppExecProp	nppExecProp;
 } tExProp;
 
 
+#define MAX_NPP_EXAMPLE_LINE	22
+static LPTSTR szExampleScript[MAX_NPP_EXAMPLE_LINE] = {
+	_T("//Explorer: NppExec.dll EXP_FULL_PATH[0]\r\n"),
+	_T("// ------------------------------------------------------------------\r\n"),
+	_T("// NOTE: The first line is in every script necessary\r\n"),
+	_T("// Format of the first line:\r\n"),
+	_T("//   //Explorer:          = Identification for Explorer support\r\n"),
+	_T("//   NppExec.dll          = NppExec DLL identification\r\n"),
+	_T("//   EXP_FULL_PATH[0] ... = Exec arguments - [0]=First selected file\r\n"),
+	_T("// ------------------------------------------------------------------\r\n"),
+	_T("// Example for selected files in file list of Explorer:\r\n"),
+	_T("// - C:\\Folder1\\Folder2\\Filename1.Ext\r\n"),
+	_T("// - C:\\Folder1\\Folder2\\Filename2.Ext\r\n"),
+	_T("// ------------------------------------------------------------------\r\n"),
+	_T("// EXP_FULL_PATH[1]       = C:\\Folder1\\Folder2\\Filename2.Ext\r\n"),
+	_T("// EXP_ROOT_PATH[0]       = C:\r\n"),
+	_T("// EXP_PARENT_FULL_DIR[0] = C:\\Folder1\\Folder2\r\n"),
+	_T("// EXP_PARENT_DIR[0]      = Folder2\r\n"),
+	_T("// EXP_FULL_FILE[1]       = Filename2.Ext\r\n"),
+	_T("// EXP_FILE_NAME[0]       = Filename1\r\n"),
+	_T("// EXP_FILE_EXT[0]        = Ext\r\n"),
+	_T("\r\n"),
+	_T("// NppExec script body:\r\n"),
+	_T("cd $(ARGV[1])")
+};
 
 
 UINT ScintillaMsg(UINT message, WPARAM wParam = 0, LPARAM lParam = 0);
@@ -190,6 +271,8 @@ void initMenu(void);
 
 void toggleExplorerDialog(void);
 void toggleFavesDialog(void);
+void gotoPath(void);
+void clearFilter(void);
 void openOptionDlg(void);
 void openHelpDlg(void);
 
@@ -198,29 +281,37 @@ LRESULT CALLBACK SubWndProcNotepad(HWND hWnd, UINT message, WPARAM wParam, LPARA
 
 #define	ALLOW_PARENT_SEL	1
 
+void FileListUpdate(void);
 BOOL VolumeNameExists(LPTSTR rootDrive, LPTSTR volumeName);
 bool IsValidFileName(LPTSTR pszFileName);
-bool IsValidFolder(WIN32_FIND_DATA Find);
-bool IsValidParentFolder(WIN32_FIND_DATA Find);
-bool IsValidFile(WIN32_FIND_DATA Find);
+bool IsValidFolder(const WIN32_FIND_DATA & Find);
+bool IsValidParentFolder(const WIN32_FIND_DATA & Find);
+bool IsValidFile(const WIN32_FIND_DATA & Find);
 BOOL HaveChildren(LPTSTR parentFolderPathName);
+BOOL ConvertNetPathName(LPCTSTR pPathName, LPTSTR pRemotePath, UINT length);
 
 /* Get Image Lists */
 HIMAGELIST GetSmallImageList(BOOL bSystem);
-void ExtractIcons(LPCSTR currentPath, LPCSTR fileName, eDevType type, LPINT iIconNormal, LPINT iIconSelected, LPINT iIconOverlayed);
+void ExtractIcons(LPCTSTR currentPath, LPCTSTR fileName, eDevType type, LPINT iIconNormal, LPINT iIconSelected, LPINT iIconOverlayed);
 
 /* Resolve Links */
 HRESULT ResolveShortCut(LPCTSTR lpszShortcutPath, LPTSTR lpszFilePath, int maxBuf);
 
 /* current open files */
+void UpdateDocs(void);
 void UpdateCurrUsedDocs(LPTSTR *ppFiles, UINT numFiles);
 BOOL IsFileOpen(LPCTSTR pCurrFile);
 
-/* Extended Window Funcions */
+/* scroll up/down test function */
+eScDir GetScrollDirection(HWND hWnd, UINT offTop = 0, UINT offBottom = 0);
+
+/* Extended Window Functions */
 void ClientToScreen(HWND hWnd, RECT* rect);
 void ScreenToClient(HWND hWnd, RECT* rect);
 void ErrorMessage(DWORD err);
 
+/* Helper functions for NppExec */
+BOOL ConvertCall(LPTSTR pszExplArg, LPTSTR pszName, LPTSTR *p_pszNppArg, vector<string> vFileList);
 
 #endif //EXPLORER_H
 

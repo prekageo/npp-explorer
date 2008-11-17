@@ -43,7 +43,9 @@ typedef enum {
 	EID_UPDATE_DEVICE,
 	EID_UPDATE_ACTIVATE,
 	EID_UPDATE_ACTIVATEPATH,
+	EID_EXPAND_ITEM,
 	EID_THREAD_END,
+	EID_MAX_THREAD,
 	EID_GET_VOLINFO,
 	EID_MAX
 } eEventID;
@@ -56,7 +58,7 @@ typedef struct {
 } tGetVolumeInfo;
 
 
-class ExplorerDialog : public DockingDlgInterface, public TreeHelper
+class ExplorerDialog : public DockingDlgInterface, public TreeHelper, public CIDropTarget
 {
 public:
 	ExplorerDialog(void);
@@ -69,6 +71,7 @@ public:
 		::SendMessage(_hTreeCtrl, TVM_SETIMAGELIST, TVSIL_NORMAL, (LPARAM)GetSmallImageList(_pExProp->bUseSystemIcons));
 		::SetTimer(_hSelf, EXT_UPDATEDEVICE, 0, NULL);
 		_FileList.redraw();
+		::RedrawWindow(_ToolBar.getHSelf(), NULL, NULL, TRUE);
 		/* and only when dialog is visible, select item again */
 		SelectItem(_pExProp->szCurrentPath);
 	};
@@ -76,6 +79,9 @@ public:
 	void destroy(void) {};
 
    	void doDialog(bool willBeShown = true);
+
+	void gotoPath(void);
+	void clearFilter(void);
 
 	void NotifyNewFile(void);
 
@@ -86,7 +92,16 @@ public:
 
 	void NotifyEvent(DWORD event);
 
+public:
+	virtual bool OnDrop(FORMATETC* pFmtEtc, STGMEDIUM& medium, DWORD *pdwEffect);
+
 protected:
+
+	/* Subclassing tree */
+	LRESULT runTreeProc(HWND hwnd, UINT Message, WPARAM wParam, LPARAM lParam);
+	static LRESULT CALLBACK wndDefaultTreeProc(HWND hwnd, UINT Message, WPARAM wParam, LPARAM lParam) {
+		return (((ExplorerDialog *)(::GetWindowLong(hwnd, GWL_USERDATA)))->runTreeProc(hwnd, Message, wParam, lParam));
+	};
 
 	/* Subclassing splitter */
 	LRESULT runSplitterProc(HWND hwnd, UINT Message, WPARAM wParam, LPARAM lParam);
@@ -107,6 +122,14 @@ protected:
 	void SelectItem(POINT pt);
 	BOOL SelectItem(LPCTSTR path);
 
+	void onDelete(bool immediate = false);
+	void onCopy(void);
+	void onPaste(void);
+	void onCut(void);
+
+	void FolderExChange(CIDropSource* pdsrc, CIDataObject* pdobj, UINT dwEffect);
+	bool doPaste(LPCTSTR pszTo, LPDROPFILES hPaste, const DWORD & dwEffect);
+
 	void tb_cmd(UINT message);
 	void tb_not(LPNMTOOLBAR lpnmtb);
 
@@ -118,8 +141,11 @@ private:
 	NppData					_nppData;
 	tTbData					_data;
 	BOOL					_bStartupFinish;
+	HANDLE					_hExploreVolumeThread;
+	HTREEITEM				_hItemExpand;
 
-	/* splitter control process */
+	/* control process */
+	WNDPROC					_hDefaultTreeProc;
 	WNDPROC					_hDefaultSplitterProc;
 	
 	/* some status values */
@@ -149,6 +175,10 @@ private:
 
 	/* thread variable */
 	HCURSOR					_hCurWait;
+
+	/* drag and drop values */
+	BOOL					_isScrolling;
+	BOOL					_isDnDStarted;
 };
 
 

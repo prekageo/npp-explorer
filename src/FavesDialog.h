@@ -54,7 +54,7 @@ typedef enum {
 	FM_OPEN,
 	FM_OPENOTHERVIEW,
 	FM_OPENNEWINSTANCE,
-	FM_REOPEN
+	FM_ADDTOSESSION
 } eMenuID;
 
 
@@ -67,11 +67,14 @@ public:
     void init(HINSTANCE hInst, NppData nppData, LPTSTR pCurrentPath, tExProp *prop);
 
 	virtual void redraw(void) {
+		::RedrawWindow(_ToolBar.getHSelf(), NULL, NULL, TRUE);
 		ExpandElementsRecursive(TVI_ROOT);
 	};
 
 	void destroy(void)
 	{
+		/* save settings and destroy the resources */
+		SaveSettings();
 	};
 
    	void doDialog(bool willBeShown = true);
@@ -111,8 +114,8 @@ protected:
 	void UpdateLink(HTREEITEM hItem);
 	void UpdateNode(HTREEITEM hItem, BOOL haveChildren);
 
-	void SortElementList(vector<tItemElement>* parentElement);
-	void SortElementsRecursive(vector<tItemElement>* parentElement, int d, int h);
+	void SortElementList(vector<tItemElement> & parentElement);
+	void SortElementsRecursive(vector<tItemElement> & parentElement, int d, int h);
 
 	void DrawSessionChildren(HTREEITEM hItem);
 
@@ -137,10 +140,21 @@ protected:
 public:
 	void GetFolderPathName(HTREEITEM currentItem, LPTSTR folderPathName) {};
 
+protected:
+
+	/* Subclassing tree */
+	LRESULT runTreeProc(HWND hwnd, UINT Message, WPARAM wParam, LPARAM lParam);
+	static LRESULT CALLBACK wndDefaultTreeProc(HWND hwnd, UINT Message, WPARAM wParam, LPARAM lParam) {
+		return (((FavesDialog *)(::GetWindowLong(hwnd, GWL_USERDATA)))->runTreeProc(hwnd, Message, wParam, lParam));
+	};
+
 private:
 	/* Handles */
 	NppData					_nppData;
 	tTbData					_data;
+
+	/* control process */
+	WNDPROC					_hDefaultTreeProc;
 
 	/* Current active font in [Files] */
 	HFONT					_hFont;
@@ -158,6 +172,7 @@ private:
 	ToolBar					_ToolBar;
 	ReBar					_Rebar;
 
+	BOOL					_addToSession;
 	PELEM					_peOpenLink;
 	tExProp*				_pExProp;
 

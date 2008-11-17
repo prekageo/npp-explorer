@@ -26,17 +26,23 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include "ToolBar.h"
 #include "ToolTip.h"
 #include "window.h"
+#include "DragDropImpl.h"
 #include <commctrl.h>
 #include <shlwapi.h>
 #include <shlobj.h>
-#include <vector>
-#include <string>
+#include <shellapi.h>
 
-using namespace std;
+#ifdef _UNICODE
+#define string	wstring
+#endif
+
+typedef struct {
+	string			strPath;
+	vector<string>	vStrItems;
+} tStaInfo;
 
 
 static class FileList*	lpFileListClass	= NULL;
-
 
 /* pattern for column resize by mouse */
 static const WORD DotPattern[] = 
@@ -62,7 +68,7 @@ typedef struct {
 } tFileListData;
 
 
-class FileList : public Window
+class FileList : public Window, public CIDropTarget
 {
 public:
 	FileList(void);
@@ -71,17 +77,17 @@ public:
 	void init(HINSTANCE hInst, HWND hParent, HWND hParentList);
 	void initProp(tExProp* prop);
 
-	void viewPath(LPCSTR currentPath, BOOL redraw = FALSE);
+	void viewPath(LPCTSTR currentPath, BOOL redraw = FALSE);
 
 	BOOL notify(WPARAM wParam, LPARAM lParam);
 
 	void filterFiles(LPCTSTR currentFilter);
 	void SelectCurFile(void);
-	void SelectFolder(LPSTR selFolder);
+	void SelectFolder(LPTSTR selFolder);
 
 	virtual void destroy() {};
 	virtual void redraw(void) {
-		HIMAGELIST _hImlListSys = GetSmallImageList(_pExProp->bUseSystemIcons);
+		_hImlListSys = GetSmallImageList(_pExProp->bUseSystemIcons);
 		SetColumns();
 		Window::redraw();
 	};
@@ -89,13 +95,18 @@ public:
 	void ToggleStackRec(void);					// enables/disable trace of viewed directories
 	void ResetDirStack(void);					// resets the stack
 	void SetToolBarInfo(ToolBar *ToolBar, UINT idRedo, UINT idUndo);	// set dependency to a toolbar element
-	bool GetPrevDir(LPSTR pszPath);				// get previous directory
-	bool GetNextDir(LPSTR pszPath);				// get next directory
-	INT  GetPrevDirs(LPSTR *pszPathes);			// get previous directorys
-	INT  GetNextDirs(LPSTR *pszPathes);			// get next directorys
-	void OffsetItr(INT offsetItr);
+	bool GetPrevDir(LPTSTR pszPath, vector<string> & vStrItems);			// get previous directory
+	bool GetNextDir(LPTSTR pszPath, vector<string> & vStrItems);			// get next directory
+	INT  GetPrevDirs(LPTSTR *pszPathes);		// get previous directorys
+	INT  GetNextDirs(LPTSTR *pszPathes);		// get next directorys
+	void OffsetItr(INT offsetItr, vector<string> & vStrItems);			// get offset directory
+	void UpdateSelItems(void);
+	void SetItems(vector<string> vStrItems);
 
 	void UpdateOverlayIcon(void);
+
+public:
+	virtual bool OnDrop(FORMATETC* pFmtEtc, STGMEDIUM& medium, DWORD *pdwEffect);
 
 protected:
 
@@ -111,8 +122,10 @@ protected:
 		return (lpFileListClass->runHeaderProc(hwnd, Message, wParam, lParam));
 	};
 
-	void ReadIconToList(INT iItem, LPINT piIcon, LPINT piOverlayed, LPBOOL pbHidden);
-	void ReadArrayToList(LPSTR szItem, INT iItem ,INT iSubItem);
+	void ReadIconToList(UINT iItem, LPINT piIcon, LPINT piOverlayed, LPBOOL pbHidden);
+	void ReadArrayToList(LPTSTR szItem, INT iItem ,INT iSubItem);
+
+	void ShowToolTip(const LVHITTESTINFO & hittest);
 
 	void DrawDivider(UINT x);
 	void UpdateList(void);
@@ -122,18 +135,28 @@ protected:
 
 	BOOL FindNextItemInList(UINT maxFolder, UINT maxData, LPUINT puPos);
 
-	void QuickSortRecursiveCol(vector<tFileListData>* vList, INT d, INT h, INT column, BOOL bAscending);
-	void QuickSortRecursiveColEx(vector<tFileListData>* vList, INT d, INT h, INT column, BOOL bAscending);
+	void QuickSortRecursiveCol(INT d, INT h, INT column, BOOL bAscending);
+	void QuickSortRecursiveColEx(INT d, INT h, INT column, BOOL bAscending);
 
 	void onRMouseBtn();
 	void onLMouseBtnDbl();
 
-	void PushDir(LPCSTR str);
+	void onSelectItem(TCHAR charkey);
+	void onSelectAll(void);
+	void onDelete(bool immediate = false);
+	void onCopy(void);
+	void onPaste(void);
+	void onCut(void);
+
+	void FolderExChange(CIDropSource* pdsrc, CIDataObject* pdobj, UINT dwEffect);
+	bool doPaste(LPCTSTR pszTo, LPDROPFILES hData, const DWORD & dwEffect);
+
+	void PushDir(LPCTSTR str);
 	void UpdateToolBarElements(void);
 
 	void SetFocusItem(INT item) {
 		/* select first entry */
-		INT	dataSize	= _vFolders.size() + _vFiles.size();
+		INT	dataSize	= _uMaxElements;
 
 		/* at first unselect all */
 		for (INT iItem = 0; iItem < dataSize; iItem++)
@@ -147,9 +170,9 @@ protected:
 	void GetSize(__int64 size, string & str);
 	void GetDate(FILETIME ftLastWriteTime, string & str);
 
-	void GetFilterLists(LPSTR pszFilter, LPSTR pszExFilter);
-	BOOL DoFilter(LPCSTR pszFileName, LPSTR pszFilter, LPSTR pszExFilter);
-	INT  WildCmp(LPCSTR string, LPCSTR wild);
+	void GetFilterLists(LPTSTR pszFilter, LPTSTR pszExFilter);
+	BOOL DoFilter(LPCTSTR pszFileName, LPTSTR pszFilter, LPTSTR pszExFilter);
+	INT  WildCmp(LPCTSTR string, LPCTSTR wild);
 
 private:	/* for thread */
 
@@ -203,24 +226,27 @@ private:
 	UINT						_uMaxFolders;
 	UINT						_uMaxElements;
 	UINT						_uMaxElementsOld;
-	vector<tFileListData>		_vFolders;
-	vector<tFileListData>		_vFiles;
+	vector<tFileListData>		_vFileList;
 
 	/* search in list by typing of characters */
 	BOOL						_bSearchFile;
-	char						_strSearchFile[MAX_PATH];
+	TCHAR						_strSearchFile[MAX_PATH];
 
 	BOOL						_bOldAddExtToName;
 	BOOL						_bOldViewLong;
 
 	/* stack for prev and next dir */
 	BOOL						_isStackRec;
-	vector<string>				_vDirStack;
-	vector<string>::iterator	_itrPos;
+	vector<tStaInfo>			_vDirStack;
+	vector<tStaInfo>::iterator	_itrPos;
     
 	ToolBar*					_pToolBar;
 	UINT						_idRedo;
 	UINT						_idUndo;
+
+	/* scrolling on DnD */
+	BOOL						_isScrolling;
+	BOOL						_isDnDStarted;
 };
 
 

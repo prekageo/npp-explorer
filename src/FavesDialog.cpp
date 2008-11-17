@@ -38,31 +38,29 @@ static void GetFolderPathName(HTREEITEM currentItem, LPTSTR folderPathName);
 
 static ToolBarButtonUnit toolBarIcons[] = {
 	
-    {IDM_EX_LINK_NEW_FILE,  IDI_SEPARATOR_ICON,		IDI_SEPARATOR_ICON,		IDI_SEPARATOR_ICON, -1, 0},
-    {IDM_EX_LINK_NEW_FOLDER,IDI_SEPARATOR_ICON,		IDI_SEPARATOR_ICON,		IDI_SEPARATOR_ICON, -1, 0},
+    {IDM_EX_LINK_NEW_FILE,  IDI_SEPARATOR_ICON,		IDI_SEPARATOR_ICON,		IDI_SEPARATOR_ICON, IDB_EX_LINKNEWFILE, 0},
+    {IDM_EX_LINK_NEW_FOLDER,IDI_SEPARATOR_ICON,		IDI_SEPARATOR_ICON,		IDI_SEPARATOR_ICON, IDB_EX_LINKNEWFOLDER, 0},
 
 	//-------------------------------------------------------------------------------------//
 	{0,						IDI_SEPARATOR_ICON,		IDI_SEPARATOR_ICON,		IDI_SEPARATOR_ICON, IDI_SEPARATOR_ICON, 0},
 	//-------------------------------------------------------------------------------------//
 
-    {IDM_EX_LINK_NEW,  		IDI_SEPARATOR_ICON,		IDI_SEPARATOR_ICON,		IDI_SEPARATOR_ICON, -1, 0},
-	{IDM_EX_LINK_DELETE,	IDI_SEPARATOR_ICON,		IDI_SEPARATOR_ICON,		IDI_SEPARATOR_ICON, -1, 0},
+    {IDM_EX_LINK_NEW,  		IDI_SEPARATOR_ICON,		IDI_SEPARATOR_ICON,		IDI_SEPARATOR_ICON, IDB_EX_LINKNEW, 0},
+	{IDM_EX_LINK_DELETE,	IDI_SEPARATOR_ICON,		IDI_SEPARATOR_ICON,		IDI_SEPARATOR_ICON, IDB_EX_LINKDELETE, 0},
 
 	//-------------------------------------------------------------------------------------//
 	{0,						IDI_SEPARATOR_ICON,		IDI_SEPARATOR_ICON,		IDI_SEPARATOR_ICON, IDI_SEPARATOR_ICON, 0},
 	//-------------------------------------------------------------------------------------//
 
-    {IDM_EX_LINK_EDIT,	    IDI_SEPARATOR_ICON,		IDI_SEPARATOR_ICON,		IDI_SEPARATOR_ICON, -1, 0}
+    {IDM_EX_LINK_EDIT,	    IDI_SEPARATOR_ICON,		IDI_SEPARATOR_ICON,		IDI_SEPARATOR_ICON, IDB_EX_LINKEDIT, 0}
 };    
 		
-static int stdIcons[] = {IDB_EX_LINKNEWFILE, IDB_EX_LINKNEWFOLDER, IDB_EX_LINKNEW, IDB_EX_LINKDELETE, IDB_EX_LINKEDIT, 0};
-
 static LPTSTR szToolTip[23] = {
-	"Link Current File...",
-	"Link Current Folder...",
-	"New Link...",
-	"Delete Link",
-	"Edit Link..."
+	_T("Link Current File..."),
+	_T("Link Current Folder..."),
+	_T("New Link..."),
+	_T("Delete Link"),
+	_T("Edit Link...")
 };
 
 void FavesDialog::GetNameStrFromCmd(UINT resID, LPTSTR tip, UINT count)
@@ -83,6 +81,7 @@ FavesDialog::FavesDialog(void) : DockingDlgInterface(IDD_EXPLORER_DLG)
 	_hTreeCtrl				= NULL;
 	_isCut					= FALSE;
 	_hTreeCutCopy			= NULL;
+	_addToSession			= FALSE;
 }
 
 FavesDialog::~FavesDialog(void)
@@ -112,8 +111,8 @@ void FavesDialog::doDialog(bool willBeShown)
 
 		// define the default docking behaviour
 		_data.uMask			= DWS_DF_CONT_LEFT | DWS_ICONTAB;
-		if (!NLGetText(_hInst, _nppData._nppHandle, "Favorites", _data.pszName, MAX_PATH)) {
-			strcpy(_data.pszName, "Favorites");
+		if (!NLGetText(_hInst, _nppData._nppHandle, _T("Favorites"), _data.pszName, MAX_PATH)) {
+			_tcscpy(_data.pszName, _T("Favorites"));
 		}
 		_data.hIconTab		= (HICON)::LoadImage(_hInst, MAKEINTRESOURCE(IDI_HEART), IMAGE_ICON, 0, 0, LR_LOADMAP3DCOLORS | LR_LOADTRANSPARENT);
 		_data.pszModuleName	= getPluginFileName();
@@ -137,9 +136,9 @@ void FavesDialog::SaveSession(void)
 
 void FavesDialog::NotifyNewFile(void)
 {
-	if (isCreated())
+	if (isCreated() && isVisible())
 	{
-		LPTSTR	TEMP	= (LPTSTR)new TCHAR[MAX_PATH];
+		TCHAR	TEMP[MAX_PATH];
 
 		/* update "new file link" icon */
 		::SendMessage(_hParent, NPPM_GETFULLCURRENTPATH, 0, (LPARAM)TEMP);
@@ -147,9 +146,7 @@ void FavesDialog::NotifyNewFile(void)
 
 		/* update "new folder link" icon */
 		::SendMessage(_hParent, NPPM_GETCURRENTDIRECTORY, 0, (LPARAM)TEMP);
-		_ToolBar.enable(IDM_EX_LINK_NEW_FOLDER, (strlen(TEMP) != 0));
-
-		delete [] TEMP;
+		_ToolBar.enable(IDM_EX_LINK_NEW_FOLDER, (_tcslen(TEMP) != 0));
 	}
 }
 
@@ -199,52 +196,15 @@ BOOL CALLBACK FavesDialog::run_dlgProc(HWND hWnd, UINT Message, WPARAM wParam, L
 						}
 						break;
 					}
-					case NM_DBLCLK:
-					{
-						HTREEITEM	hItem	= TreeView_GetSelection(_hTreeCtrl);
-
-						if (hItem != NULL)
-						{
-							PELEM	pElem = (PELEM)GetParam(hItem);
-
-							if (pElem != NULL)
-							{
-								/* open the link */
-								_peOpenLink = pElem;
-								::SetTimer(_hSelf, EXT_OPENLINK, 50, NULL);
-							}
-							else
-							{
-								/* session file will be opened */
-								LPTSTR	TEMP	= (LPTSTR)new TCHAR[MAX_PATH];
-								
-								GetItemText(hItem, TEMP, MAX_PATH);
-								::SendMessage(_hParent, NPPM_DOOPEN, 0, (LPARAM)TEMP);
-
-								delete [] TEMP;
-							}
-						}
-						break;
-					}
 					case TVN_ITEMEXPANDING:
 					{
-						POINT			pt			= {0};
-						TVHITTESTINFO	ht			= {0};
-						DWORD			dwpos		= ::GetMessagePos();
-						HTREEITEM		hItem		= NULL;
-
-						pt.x = GET_X_LPARAM(dwpos);
-						pt.y = GET_Y_LPARAM(dwpos);
-
-						ht.pt = pt;
-						::ScreenToClient(_hTreeCtrl, &ht.pt);
-
-						hItem = TreeView_HitTest(_hTreeCtrl, &ht);
+						LPNMTREEVIEW	pnmtv	= (LPNMTREEVIEW) lParam;
+						HTREEITEM		hItem	= pnmtv->itemNew.hItem;
 
 						if (hItem != NULL)
 						{
 							/* get element information */
-							PELEM	pElem = (PELEM)GetParam(hItem);
+							PELEM	pElem = (PELEM)pnmtv->itemNew.lParam;
 
 							/* update expand state */
 							pElem->uParam ^= FAVES_PARAM_EXPAND;
@@ -255,7 +215,8 @@ BOOL CALLBACK FavesDialog::run_dlgProc(HWND hWnd, UINT Message, WPARAM wParam, L
 								{
 									/* nothing to do */
 								}
-								else if ((pElem->uParam & FAVES_SESSIONS) && (pElem->uParam & FAVES_PARAM_LINK))
+								else if (((pElem->uParam & FAVES_PARAM) == FAVES_SESSIONS) && 
+									((pElem->uParam & FAVES_PARAM) == FAVES_PARAM_LINK))
 								{
 									DeleteChildren(hItem);
 									DrawSessionChildren(hItem);
@@ -301,7 +262,7 @@ BOOL CALLBACK FavesDialog::run_dlgProc(HWND hWnd, UINT Message, WPARAM wParam, L
 						{
 							case CDDS_PREPAINT:
 							{
-								SetWindowLong(_hSelf, DWL_MSGRESULT, (LONG)CDRF_NOTIFYITEMDRAW);
+								SetWindowLongPtr(_hSelf, DWL_MSGRESULT, (LONG)CDRF_NOTIFYITEMDRAW);
 								return TRUE;
 							}
 							case CDDS_ITEMPREPAINT:
@@ -314,13 +275,11 @@ BOOL CALLBACK FavesDialog::run_dlgProc(HWND hWnd, UINT Message, WPARAM wParam, L
 									if ((pElem->uParam & FAVES_FILES) && (pElem->uParam & FAVES_PARAM_LINK)) {
 										if (IsFileOpen(pElem->pszLink) == TRUE) {
 											::SelectObject(lpCD->nmcd.hdc, _hFontUnder);
-											SetWindowLong(_hSelf, DWL_MSGRESULT, (LONG)CDRF_NOTIFYPOSTPAINT);
-											return TRUE;
 										}
 									}
 								}
 
-								SetWindowLong(_hSelf, DWL_MSGRESULT, (LONG)CDRF_NOTIFYPOSTPAINT);
+								SetWindowLongPtr(_hSelf, DWL_MSGRESULT, (LONG)CDRF_NOTIFYPOSTPAINT);
 								return TRUE;
 							}
 							case CDDS_ITEMPOSTPAINT:
@@ -377,7 +336,7 @@ BOOL CALLBACK FavesDialog::run_dlgProc(HWND hWnd, UINT Message, WPARAM wParam, L
 
 								::SelectObject(lpCD->nmcd.hdc, _hFont);
 
-								SetWindowLong(_hSelf, DWL_MSGRESULT, (LONG)CDRF_SKIPDEFAULT);
+								SetWindowLongPtr(_hSelf, DWL_MSGRESULT, (LONG)CDRF_SKIPDEFAULT);
 								return TRUE;
 							}
 							default:
@@ -388,6 +347,20 @@ BOOL CALLBACK FavesDialog::run_dlgProc(HWND hWnd, UINT Message, WPARAM wParam, L
 					default:
 						break;
 				}
+			}
+			else if ((nmhdr->hwndFrom == _Rebar.getHSelf()) && (nmhdr->code == RBN_CHEVRONPUSHED))
+			{
+				NMREBARCHEVRON * lpnm = (NMREBARCHEVRON*)nmhdr;
+				if (lpnm->wID == REBAR_BAR_TOOLBAR)
+				{
+					POINT pt;
+					pt.x = lpnm->rc.left;
+					pt.y = lpnm->rc.bottom;
+					ClientToScreen(nmhdr->hwndFrom, &pt);
+					tb_cmd(_ToolBar.doPopop(pt));
+					return TRUE;
+				}
+				break;
 			}
 			else if (nmhdr->code == TTN_GETDISPINFO)
 			{
@@ -433,6 +406,11 @@ BOOL CALLBACK FavesDialog::run_dlgProc(HWND hWnd, UINT Message, WPARAM wParam, L
 			}
 			break;
 		}
+		case WM_PAINT:
+		{
+			::RedrawWindow(_ToolBar.getHSelf(), NULL, NULL, TRUE);
+			break;
+		}
 		case WM_DESTROY:
 		{
 			::DeleteObject(_hFontUnder);
@@ -445,13 +423,9 @@ BOOL CALLBACK FavesDialog::run_dlgProc(HWND hWnd, UINT Message, WPARAM wParam, L
 				ImageList_Destroy(_hImageListSys);
 			break;
 		}
-		case WM_TIMER:
+		case EXM_OPENLINK:
 		{
-			if (wParam == EXT_OPENLINK)
-			{
-				::KillTimer(_hSelf, EXT_OPENLINK);
-				OpenLink(_peOpenLink);
-			}
+			OpenLink(_peOpenLink);
 			break;
 		}
 		default:
@@ -462,13 +436,63 @@ BOOL CALLBACK FavesDialog::run_dlgProc(HWND hWnd, UINT Message, WPARAM wParam, L
 	return FALSE;
 }
 
+LRESULT FavesDialog::runTreeProc(HWND hwnd, UINT Message, WPARAM wParam, LPARAM lParam)
+{
+	switch (Message)
+	{
+		case WM_LBUTTONDBLCLK:
+		{
+			TVHITTESTINFO	hti = {0};
+
+			hti.pt.x = GET_X_LPARAM(lParam);
+			hti.pt.y = GET_Y_LPARAM(lParam);
+
+			HTREEITEM hItem = TreeView_HitTest(_hTreeCtrl, &hti);
+
+			if (hItem != NULL)
+			{
+				PELEM	pElem = (PELEM)GetParam(hItem);
+
+				if (pElem != NULL)
+				{
+					/* open link only when double click on bitmap or label */
+					if (hti.flags & TVHT_ONITEM)
+					{
+						_peOpenLink = pElem;
+						::PostMessage(_hSelf, EXM_OPENLINK, 0, 0);
+					}
+
+					if ((!(pElem->uParam & FAVES_PARAM_MAIN)) &&
+						((pElem->uParam & FAVES_PARAM) == FAVES_SESSIONS))
+					{
+						return TRUE;
+					}
+				}
+				else
+				{
+					/* session file will be opened */
+					TCHAR	TEMP[MAX_PATH];
+					
+					GetItemText(hItem, TEMP, MAX_PATH);
+					::SendMessage(_hParent, NPPM_DOOPEN, 0, (LPARAM)TEMP);
+				}
+			}
+			break;
+		}
+		default:
+			break;
+	}
+	
+	return ::CallWindowProc(_hDefaultTreeProc, hwnd, Message, wParam, lParam);
+}
+
 void FavesDialog::tb_cmd(UINT message)
 {
 	switch (message)
 	{
 		case IDM_EX_LINK_NEW_FILE:
 		{
-			LPTSTR	TEMP	= (LPTSTR)new TCHAR[MAX_PATH];
+			TCHAR	TEMP[MAX_PATH];
 
 			::SendMessage(_hParent, NPPM_GETFULLCURRENTPATH, 0, (LPARAM)TEMP);
 
@@ -476,22 +500,18 @@ void FavesDialog::tb_cmd(UINT message)
 			{
 				AddToFavorties(FALSE, TEMP);
 			}
-
-			delete [] TEMP;
 			break;
 		}
 		case IDM_EX_LINK_NEW_FOLDER:
 		{
-			LPTSTR	TEMP	= (LPTSTR)new TCHAR[MAX_PATH];
+			TCHAR	TEMP[MAX_PATH];
 
 			::SendMessage(_hParent, NPPM_GETCURRENTDIRECTORY, 0, (LPARAM)TEMP);
 
-			if (strlen(TEMP) != 0)
+			if (_tcslen(TEMP) != 0)
 			{
 				AddToFavorties(TRUE, TEMP);
 			}
-
-			delete [] TEMP;
 			break;
 		}
 		case IDM_EX_LINK_NEW:
@@ -527,7 +547,7 @@ void FavesDialog::tb_cmd(UINT message)
 void FavesDialog::InitialDialog(void)
 {
 	/* change language */
-	NLChangeDialog(_hInst, _nppData._nppHandle, _hSelf, "Favorites");
+	NLChangeDialog(_hInst, _nppData._nppHandle, _hSelf, _T("Favorites"));
 
 	/* get font for drawing */
 	_hFont		= (HFONT)::SendMessage(_hSelf, WM_GETFONT, 0, 0);
@@ -538,6 +558,10 @@ void FavesDialog::InitialDialog(void)
 	lf.lfUnderline		= TRUE;
 	_hFontUnder	= ::CreateFontIndirect(&lf);
 
+	/* subclass tree */
+	::SetWindowLongPtr(_hTreeCtrl, GWL_USERDATA, (LONG)this);
+	_hDefaultTreeProc = (WNDPROC)::SetWindowLongPtr(_hTreeCtrl, GWL_WNDPROC, (LONG)wndDefaultTreeProc);
+
 	/* Load Image List */
 	_hImageListSys	= GetSmallImageList(TRUE);
 	_hImageList		= GetSmallImageList(FALSE);
@@ -546,10 +570,10 @@ void FavesDialog::InitialDialog(void)
 	::SendMessage(_hTreeCtrl, TVM_SETIMAGELIST, TVSIL_NORMAL, (LPARAM)_hImageListSys);
 
 	/* create toolbar */
-	_ToolBar.init(_hInst, _hSelf, 16, toolBarIcons, sizeof(toolBarIcons)/sizeof(ToolBarButtonUnit), true, stdIcons, sizeof(stdIcons)/sizeof(int));
-	_ToolBar.display();
-	_Rebar.init(_hInst, _hSelf, &_ToolBar);
-	_Rebar.display();
+	_ToolBar.init(_hInst, _hSelf, TB_STANDARD, toolBarIcons, sizeof(toolBarIcons)/sizeof(ToolBarButtonUnit));
+	_Rebar.init(_hInst, _hSelf);
+	_ToolBar.addToRebar(&_Rebar);
+	_Rebar.setIDVisible(REBAR_BAR_TOOLBAR, true);
 
 	/* add new items in list and make reference to items */
 	for (UINT i = 0; i < FAVES_ITEM_MAX; i++)
@@ -563,15 +587,15 @@ HTREEITEM FavesDialog::GetTreeItem(LPCTSTR pszGroupName)
 {
 	if (isCreated())
 	{
-		LPTSTR		ptr			= NULL;
-		LPTSTR		TEMP		= (LPTSTR)new TCHAR[MAX_PATH];
-		LPTSTR		pszName		= (LPTSTR)new TCHAR[MAX_PATH];
 		HTREEITEM	hItem		= TVI_ROOT;
+		LPTSTR		ptr			= NULL;
+		TCHAR		pszName[MAX_PATH];
+		TCHAR		TEMP[MAX_PATH];
 
 		/* copy the group name */
-		strcpy(TEMP, pszGroupName);
+		_tcscpy(TEMP, pszGroupName);
 
-		ptr = strtok(TEMP, " ");
+		ptr = _tcstok(TEMP, _T(" "));
 
 		/* no need to compare if tree item is NULL, it will never happen */
 		while (ptr != NULL)
@@ -580,18 +604,14 @@ HTREEITEM FavesDialog::GetTreeItem(LPCTSTR pszGroupName)
 			hItem = TreeView_GetChild(_hTreeCtrl, hItem);
 			GetItemText(hItem, pszName, MAX_PATH);
 
-			while (strcmp(ptr, pszName) != 0)
+			while (_tcscmp(ptr, pszName) != 0)
 			{
 				hItem = TreeView_GetNextItem(_hTreeCtrl, hItem, TVGN_NEXT);
 				GetItemText(hItem, pszName, MAX_PATH);
 			}
 			/* test next element */
-			ptr = strtok(NULL, " ");
+			ptr = _tcstok(NULL, _T(" "));
 		}
-
-		delete [] TEMP;
-		delete [] pszName;
-
 		return hItem;
 	}
 	
@@ -601,29 +621,29 @@ HTREEITEM FavesDialog::GetTreeItem(LPCTSTR pszGroupName)
 
 PELEM FavesDialog::GetElementPointer(LPCTSTR pszGroupName)
 {
-	LPTSTR					ptr			= NULL;
-	LPTSTR					TEMP		= (LPTSTR)new TCHAR[MAX_PATH];
-	ELEM_ITR				elem_itr	= _vDB.begin();
-	ELEM_ITR				elem_end	= _vDB.end();
+	LPTSTR			ptr			= NULL;
+	ELEM_ITR		elem_itr	= _vDB.begin();
+	ELEM_ITR		elem_end	= _vDB.end();
+	TCHAR			TEMP[MAX_PATH];
 
 	/* copy the group name */
-	strcpy(TEMP, pszGroupName);
+	_tcscpy(TEMP, pszGroupName);
 
-	ptr = strtok(TEMP, " ");
+	ptr = _tcstok(TEMP, _T(" "));
 
 	/* find element */
 	while (ptr != NULL)
 	{
 		for (; elem_itr != elem_end; elem_itr++)
 		{
-			if (strcmp(elem_itr->pszName, ptr) == 0)
+			if (_tcscmp(elem_itr->pszName, ptr) == 0)
 			{
 				break;
 			}
 		}
 
 		/* test next element */
-		ptr = strtok(NULL, " ");
+		ptr = _tcstok(NULL, _T(" "));
 
 		if (ptr != NULL)
 		{
@@ -631,8 +651,6 @@ PELEM FavesDialog::GetElementPointer(LPCTSTR pszGroupName)
 			elem_itr = elem_itr->vElements.begin();
 		}
 	}
-
-	delete [] TEMP;
 
 	return &(*elem_itr);
 }
@@ -662,20 +680,20 @@ void FavesDialog::PasteItem(HTREEITEM hItem)
 
 		if ((_isCut == FALSE) && (TreeView_GetParent(_hTreeCtrl, _hTreeCutCopy) == hItem))
 		{
-			element.pszName		= (LPTSTR)new TCHAR[strlen(pElemCC->pszName)+strlen("Copy of ")+1];
-			strcpy(element.pszName, "Copy of ");
-			strcat(element.pszName, pElemCC->pszName);
+			element.pszName		= (LPTSTR)new TCHAR[_tcslen(pElemCC->pszName)+_tcslen(_T("Copy of "))+1];
+			_tcscpy(element.pszName, _T("Copy of "));
+			_tcscat(element.pszName, pElemCC->pszName);
 		}
 		else
 		{
-			element.pszName		= (LPTSTR)new TCHAR[strlen(pElemCC->pszName)+1];
-			strcpy(element.pszName, pElemCC->pszName);
+			element.pszName		= (LPTSTR)new TCHAR[_tcslen(pElemCC->pszName)+1];
+			_tcscpy(element.pszName, pElemCC->pszName);
 		}
 
 		if (pElemCC->pszLink != NULL)
 		{
-			element.pszLink	= (LPTSTR)new TCHAR[strlen(pElemCC->pszLink)+1];
-			strcpy(element.pszLink, pElemCC->pszLink);
+			element.pszLink	= (LPTSTR)new TCHAR[_tcslen(pElemCC->pszLink)+1];
+			_tcscpy(element.pszLink, pElemCC->pszLink);
 		}
 		else
 		{
@@ -695,7 +713,7 @@ void FavesDialog::PasteItem(HTREEITEM hItem)
 			pParentElem->vElements.erase(pElemCC);
 
 			/* update information and delete element */
-			TreeView_DeleteItem(_hTreeCtrl, _hTreeCutCopy);
+			UpdateLink(hParentItem);
 			UpdateNode(hParentItem, (BOOL)pParentElem->vElements.size());
 		}
 		else
@@ -706,8 +724,8 @@ void FavesDialog::PasteItem(HTREEITEM hItem)
 		pElem->vElements.push_back(element);
 
 		/* update information */
-		UpdateNode(hItem, TRUE);
 		UpdateLink(hItem);
+		UpdateNode(hItem, TRUE);
 		TreeView_Expand(_hTreeCtrl, hItem, TVM_EXPAND | TVE_COLLAPSERESET);
 
 		_hTreeCutCopy = NULL;
@@ -715,8 +733,14 @@ void FavesDialog::PasteItem(HTREEITEM hItem)
 	else
 	{
 		TCHAR	TEMP[128];
-		sprintf(TEMP, "Could only be paste into %s", cFavesItemNames[pElemCC->uParam & FAVES_PARAM]);
-		::MessageBox(_hSelf, TEMP, "Error", MB_OK);
+		TCHAR	msgBoxTxt[128];
+
+		if (NLGetText(_hInst, _hParent, _T("OnlyPasteInto"), TEMP, 128)) {
+			_stprintf(msgBoxTxt, TEMP, cFavesItemNames[pElemCC->uParam & FAVES_PARAM]);
+		} else {
+			_stprintf(msgBoxTxt, _T("Could only be paste into %s"), cFavesItemNames[pElemCC->uParam & FAVES_PARAM]);
+		}
+		::MessageBox(_hParent, msgBoxTxt, _T("Error"), MB_OK);
 	}
 }
 
@@ -728,14 +752,14 @@ void FavesDialog::DuplicateRecursive(PELEM pTarget, PELEM pSource)
 		/* NOTE: Do not delete the old pointer! */
 		if (pTarget->vElements[i].pszName == pSource->vElements[i].pszName)
 		{
-			pTarget->vElements[i].pszName = (LPTSTR)new TCHAR[strlen(pSource->vElements[i].pszName)+1];
-			strcpy(pTarget->vElements[i].pszName, pSource->vElements[i].pszName);
+			pTarget->vElements[i].pszName = (LPTSTR)new TCHAR[_tcslen(pSource->vElements[i].pszName)+1];
+			_tcscpy(pTarget->vElements[i].pszName, pSource->vElements[i].pszName);
 		}
 		if ((pSource->vElements[i].pszLink != NULL) &&
 			(pTarget->vElements[i].pszLink == pSource->vElements[i].pszLink))
 		{
-			pTarget->vElements[i].pszLink = (LPTSTR)new TCHAR[strlen(pSource->vElements[i].pszLink)+1];
-			strcpy(pTarget->vElements[i].pszLink, pSource->vElements[i].pszLink);
+			pTarget->vElements[i].pszLink = (LPTSTR)new TCHAR[_tcslen(pSource->vElements[i].pszLink)+1];
+			_tcscpy(pTarget->vElements[i].pszLink, pSource->vElements[i].pszLink);
 		}
 
 		DuplicateRecursive(&pTarget->vElements[i], &pSource->vElements[i]);
@@ -755,13 +779,13 @@ void FavesDialog::AddToFavorties(BOOL isFolder, LPTSTR szLink)
 
 	/* fill out params */
 	pszName[0] = '\0';
-	strcpy(pszLink, szLink);
+	_tcscpy(pszLink, szLink);
 
 	/* create description */
-	if (!NLGetText(_hInst, _nppData._nppHandle, "New element in", pszComm, MAX_PATH)) {
-		strcpy(pszComm, "New element in %s");
+	if (!NLGetText(_hInst, _nppData._nppHandle, _T("New element in"), pszComm, MAX_PATH)) {
+		_tcscpy(pszComm, _T("New element in %s"));
 	}
-	sprintf(pszDesc, pszComm, cFavesItemNames[root]);
+	_stprintf(pszDesc, pszComm, cFavesItemNames[root]);
 
 	/* init properties dialog */
 	dlgProp.init(_hInst, _hParent);
@@ -774,12 +798,6 @@ void FavesDialog::AddToFavorties(BOOL isFolder, LPTSTR szLink)
 		/* open dialog */
 		if (dlgProp.doDialog(pszName, pszLink, pszDesc, MapPropDlg(root)) == TRUE)
 		{
-#if 0
-			/* remove last backslash */
-			if (pszLink[strlen(pszLink)-1] == '\\')
-				pszLink[strlen(pszLink)-1] = '\0';
-#endif
-
 			/* get selected item */
 			LPCTSTR		pszGroupName = dlgProp.getGroupName();
 			hItem = GetTreeItem(pszGroupName);
@@ -791,13 +809,13 @@ void FavesDialog::AddToFavorties(BOOL isFolder, LPTSTR szLink)
 			if (isOk == TRUE)
 			{
 				tItemElement	element;
-				element.pszName	= (LPTSTR)new TCHAR[strlen(pszName)+1];
-				element.pszLink	= (LPTSTR)new TCHAR[strlen(pszLink)+1];
+				element.pszName	= (LPTSTR)new TCHAR[_tcslen(pszName)+1];
+				element.pszLink	= (LPTSTR)new TCHAR[_tcslen(pszLink)+1];
 				element.uParam	= FAVES_PARAM_LINK | root;
 				element.vElements.clear();
 
-				strcpy(element.pszName, pszName);
-				strcpy(element.pszLink, pszLink);
+				_tcscpy(element.pszName, pszName);
+				_tcscpy(element.pszLink, pszLink);
 
 				/* push element back */
 				PELEM	pElem	= GetElementPointer(pszGroupName);
@@ -837,7 +855,7 @@ void FavesDialog::AddSaveSession(HTREEITEM hItem, BOOL bSave)
 	HTREEITEM	hParentItem	= NULL;
 	BOOL		isOk		= FALSE;
 	PELEM		pElem		= NULL;
-	int			root		= 0;
+	UINT		root		= FAVES_SESSIONS;
 	LPTSTR		pszName		= (LPTSTR)new TCHAR[MAX_PATH];
 	LPTSTR		pszLink		= (LPTSTR)new TCHAR[MAX_PATH];
 	LPTSTR		pszDesc		= (LPTSTR)new TCHAR[MAX_PATH];
@@ -847,27 +865,25 @@ void FavesDialog::AddSaveSession(HTREEITEM hItem, BOOL bSave)
 	pszLink[0] = '\0';
 
 	if (bSave == TRUE) {
-		if (!NLGetText(_hInst, _nppData._nppHandle, "Save current Session", pszDesc, MAX_PATH)) {
-			strcpy(pszDesc, "Save current Session");
+		if (!NLGetText(_hInst, _nppData._nppHandle, _T("Save current Session"), pszDesc, MAX_PATH)) {
+			_tcscpy(pszDesc, _T("Save current Session"));
 		}
 	} else {
-		if (!NLGetText(_hInst, _nppData._nppHandle, "Add existing Session", pszDesc, MAX_PATH)) {
-			strcpy(pszDesc, "Add existing Session");
+		if (!NLGetText(_hInst, _nppData._nppHandle, _T("Add existing Session"), pszDesc, MAX_PATH)) {
+			_tcscpy(pszDesc, _T("Add existing Session"));
 		}
 	}
 
 	/* if hItem is empty, extended dialog is necessary */
 	if (hItem == NULL)
 	{
-		/* select root element */
-		root	 = FAVES_SESSIONS;
+		/* this is called when notepad menu triggers this function */
 		dlgProp.setTreeElements(&_vDB[root], ICON_SESSION, TRUE);
 	}
 	else
 	{
-		hParentItem	= TreeView_GetParent(_hTreeCtrl, hItem);
-		pElem		= (PELEM)GetParam(hItem);
-		root		= (pElem->uParam & FAVES_PARAM);
+		/* get group or session information */
+		pElem	= (PELEM)GetParam(hItem);
 	}
 
 	/* init properties dialog */
@@ -877,6 +893,7 @@ void FavesDialog::AddSaveSession(HTREEITEM hItem, BOOL bSave)
 		/* open dialog */
 		if (dlgProp.doDialog(pszName, pszLink, pszDesc, MapPropDlg(root), bSave) == TRUE)
 		{
+			/* this is called when notepad menu triggers this function */
 			if (hItem == NULL)
 			{
 				/* get group name */
@@ -891,11 +908,17 @@ void FavesDialog::AddSaveSession(HTREEITEM hItem, BOOL bSave)
 					hItem = hParentItem;
 					hParentItem = TreeView_GetParent(_hTreeCtrl, hItem);
 				}
-			}
 
-			/* test if name not exist and link exist on known hItem */
-			if (DoesNameNotExist(hParentItem, hItem, pszName) == TRUE)
-				isOk = (bSave == TRUE ? TRUE : DoesLinkExist(pszLink, root));
+				/* test if name not exist and link exist on known hItem */
+				if (DoesNameNotExist(hParentItem, hItem, pszName) == TRUE)
+					isOk = (bSave == TRUE ? TRUE : DoesLinkExist(pszLink, root));
+			}
+			else
+			{
+				/* test if name not exist and link exist on known hItem */
+				if (DoesNameNotExist(hItem, NULL, pszName) == TRUE)
+					isOk = (bSave == TRUE ? TRUE : DoesLinkExist(pszLink, root));
+			}
 
 			if (isOk == TRUE)
 			{
@@ -903,23 +926,23 @@ void FavesDialog::AddSaveSession(HTREEITEM hItem, BOOL bSave)
 				if (pElem->uParam & FAVES_PARAM_LINK)
 				{
 					delete [] pElem->pszName;
-					pElem->pszName	= (LPTSTR)new TCHAR[strlen(pszName)+1];
-					strcpy(pElem->pszName, pszName);
+					pElem->pszName	= (LPTSTR)new TCHAR[_tcslen(pszName)+1];
+					_tcscpy(pElem->pszName, pszName);
 					delete [] pElem->pszLink;
-					pElem->pszLink	= (LPTSTR)new TCHAR[strlen(pszLink)+1];
-					strcpy(pElem->pszLink, pszLink);
+					pElem->pszLink	= (LPTSTR)new TCHAR[_tcslen(pszLink)+1];
+					_tcscpy(pElem->pszLink, pszLink);
 				}
 				else
 				{
 					/* push information back */
 					tItemElement	element;
-					element.pszName	= (LPTSTR)new TCHAR[strlen(pszName)+1];
-					element.pszLink	= (LPTSTR)new TCHAR[strlen(pszLink)+1];
+					element.pszName	= (LPTSTR)new TCHAR[_tcslen(pszName)+1];
+					element.pszLink	= (LPTSTR)new TCHAR[_tcslen(pszLink)+1];
 					element.uParam	= FAVES_PARAM_LINK | root;
 					element.vElements.clear();
 
-					strcpy(element.pszName, pszName);
-					strcpy(element.pszLink, pszLink);
+					_tcscpy(element.pszName, pszName);
+					_tcscpy(element.pszLink, pszLink);
 
 					pElem->vElements.push_back(element);
 				}
@@ -937,12 +960,22 @@ void FavesDialog::AddSaveSession(HTREEITEM hItem, BOOL bSave)
 		}
 	}
 
-	if ((isOk == TRUE) && (hItem != NULL))
+	if (isOk == TRUE)
 	{
-		UpdateLink(hParentItem);
-		DeleteChildren(hItem);
-		DrawSessionChildren(hItem);
-		TreeView_Expand(_hTreeCtrl, hParentItem, TVM_EXPAND | TVE_COLLAPSERESET);
+		/* special case for notepad menu trigger */
+		if ((hParentItem == NULL) && (hItem != NULL))
+		{
+			/* update the session items */
+			UpdateLink(hItem);
+			TreeView_Expand(_hTreeCtrl, hItem, TVM_EXPAND | TVE_COLLAPSERESET);
+		}
+
+		if ((hParentItem != NULL) && (hItem == NULL))
+		{
+			/* update the session items */
+			UpdateLink(hParentItem);
+			TreeView_Expand(_hTreeCtrl, hParentItem, TVM_EXPAND | TVE_COLLAPSERESET);
+		}
 	}
 
 	delete [] pszName;
@@ -966,10 +999,10 @@ void FavesDialog::NewItem(HTREEITEM hItem)
 	pszLink[0] = '\0';
 
 	/* set description text */
-	if (!NLGetText(_hInst, _nppData._nppHandle, "New element in", pszComm, MAX_PATH)) {
-		strcpy(pszComm, "New element in %s");
+	if (!NLGetText(_hInst, _nppData._nppHandle, _T("New element in"), pszComm, MAX_PATH)) {
+		_tcscpy(pszComm, _T("New element in %s"));
 	}
-	sprintf(pszDesc, pszComm, cFavesItemNames[root]);
+	_stprintf(pszDesc, pszComm, cFavesItemNames[root]);
 
 	/* init properties dialog */
 	dlgProp.init(_hInst, _hParent);
@@ -985,13 +1018,13 @@ void FavesDialog::NewItem(HTREEITEM hItem)
 			if (isOk == TRUE)
 			{
 				tItemElement	element;
-				element.pszName	= (LPTSTR)new TCHAR[strlen(pszName)+1];
-				element.pszLink	= (LPTSTR)new TCHAR[strlen(pszLink)+1];
+				element.pszName	= (LPTSTR)new TCHAR[_tcslen(pszName)+1];
+				element.pszLink	= (LPTSTR)new TCHAR[_tcslen(pszLink)+1];
 				element.uParam	= FAVES_PARAM_LINK | root;
 				element.vElements.clear();
 
-				strcpy(element.pszName, pszName);
-				strcpy(element.pszLink, pszLink);
+				_tcscpy(element.pszName, pszName);
+				_tcscpy(element.pszLink, pszLink);
 
 				pElem->vElements.push_back(element);
 			}
@@ -1038,12 +1071,12 @@ void FavesDialog::EditItem(HTREEITEM hItem)
 		if (pElem->uParam & FAVES_PARAM_GROUP)
 		{
 			/* get data of current selected element */
-			strcpy(pszName, pElem->pszName);
+			_tcscpy(pszName, pElem->pszName);
 			/* rename comment */
-			if (NLGetText(_hInst, _nppData._nppHandle, "Properties", pszDesc, MAX_PATH) == 0) {
+			if (NLGetText(_hInst, _nppData._nppHandle, _T("Properties"), pszDesc, MAX_PATH) == 0) {
 				_tcscpy(pszDesc, _T("Properties"));
 			}
-			if (NLGetText(_hInst, _nppData._nppHandle, "Favorites", pszComm, MAX_PATH) == 0) {
+			if (NLGetText(_hInst, _nppData._nppHandle, _T("Favorites"), pszComm, MAX_PATH) == 0) {
 				_tcscpy(pszComm, _T("Favorites"));
 			}
 
@@ -1064,8 +1097,8 @@ void FavesDialog::EditItem(HTREEITEM hItem)
 					if (isOk == TRUE)
 					{
 						delete [] pElem->pszName;
-						pElem->pszName	= (LPTSTR)new TCHAR[strlen(pszName)+1];
-						strcpy(pElem->pszName, pszName);
+						pElem->pszName	= (LPTSTR)new TCHAR[_tcslen(pszName)+1];
+						_tcscpy(pElem->pszName, pszName);
 					}
 				}
 				else
@@ -1077,9 +1110,9 @@ void FavesDialog::EditItem(HTREEITEM hItem)
 		else if (pElem->uParam & FAVES_PARAM_LINK)
 		{
 			/* get data of current selected element */
-			strcpy(pszName, pElem->pszName);
-			strcpy(pszLink, pElem->pszLink);
-			if (NLGetText(_hInst, _nppData._nppHandle, "Properties", pszDesc, MAX_PATH) == 0) {
+			_tcscpy(pszName, pElem->pszName);
+			_tcscpy(pszLink, pElem->pszLink);
+			if (NLGetText(_hInst, _nppData._nppHandle, _T("Properties"), pszDesc, MAX_PATH) == 0) {
 				_tcscpy(pszDesc, _T("Properties"));
 			}
 
@@ -1096,11 +1129,11 @@ void FavesDialog::EditItem(HTREEITEM hItem)
 					if (isOk == TRUE)
 					{
 						delete [] pElem->pszName;
-						pElem->pszName	= (LPTSTR)new TCHAR[strlen(pszName)+1];
-						strcpy(pElem->pszName, pszName);
+						pElem->pszName	= (LPTSTR)new TCHAR[_tcslen(pszName)+1];
+						_tcscpy(pElem->pszName, pszName);
 						delete [] pElem->pszLink;
-						pElem->pszLink	= (LPTSTR)new TCHAR[strlen(pszLink)+1];
-						strcpy(pElem->pszLink, pszLink);
+						pElem->pszLink	= (LPTSTR)new TCHAR[_tcslen(pszLink)+1];
+						_tcscpy(pElem->pszLink, pszLink);
 					}
 				}
 				else
@@ -1182,34 +1215,34 @@ void FavesDialog::OpenContext(HTREEITEM hItem, POINT pt)
 
 			if (root != FAVES_SESSIONS)
 			{
-				::AppendMenu(hMenu, MF_STRING, FM_NEWLINK, "New Link...");
-				::AppendMenu(hMenu, MF_STRING, FM_NEWGROUP, "New Group...");
+				::AppendMenu(hMenu, MF_STRING, FM_NEWLINK, _T("New Link..."));
+				::AppendMenu(hMenu, MF_STRING, FM_NEWGROUP, _T("New Group..."));
 			}
 			else
 			{
-				::AppendMenu(hMenu, MF_STRING, FM_ADDSESSION, "Add existing Session...");
-				::AppendMenu(hMenu, MF_STRING, FM_SAVESESSION, "Save Current Session...");
-				::AppendMenu(hMenu, MF_STRING, FM_NEWGROUP, "New Group...");
+				::AppendMenu(hMenu, MF_STRING, FM_ADDSESSION, _T("Add existing Session..."));
+				::AppendMenu(hMenu, MF_STRING, FM_SAVESESSION, _T("Save Current Session..."));
+				::AppendMenu(hMenu, MF_STRING, FM_NEWGROUP, _T("New Group..."));
 			}
 
 			if (pElem->uParam & FAVES_PARAM_GROUP)
 			{
 				::AppendMenu(hMenu, MF_SEPARATOR, 0, 0);
-				::AppendMenu(hMenu, MF_STRING, FM_COPY, "Copy");
-				::AppendMenu(hMenu, MF_STRING, FM_CUT, "Cut");
-				if (_hTreeCutCopy != NULL) ::AppendMenu(hMenu, MF_STRING, FM_PASTE, "Paste");
-				::AppendMenu(hMenu, MF_STRING, FM_DELETE, "Delete");
+				::AppendMenu(hMenu, MF_STRING, FM_COPY, _T("Copy"));
+				::AppendMenu(hMenu, MF_STRING, FM_CUT, _T("Cut"));
+				if (_hTreeCutCopy != NULL) ::AppendMenu(hMenu, MF_STRING, FM_PASTE, _T("Paste"));
+				::AppendMenu(hMenu, MF_STRING, FM_DELETE, _T("Delete"));
 				::AppendMenu(hMenu, MF_SEPARATOR, 0, 0);
-				::AppendMenu(hMenu, MF_STRING, FM_PROPERTIES, "Properties...");
+				::AppendMenu(hMenu, MF_STRING, FM_PROPERTIES, _T("Properties..."));
 			}
 			else if ((pElem->uParam & FAVES_PARAM_MAIN) && (_hTreeCutCopy != NULL))
 			{
 				::AppendMenu(hMenu, MF_SEPARATOR, 0, 0);
-				::AppendMenu(hMenu, MF_STRING, FM_PASTE, "Paste");
+				::AppendMenu(hMenu, MF_STRING, FM_PASTE, _T("Paste"));
 			}
 
 			/* change language */
-			NLChangeMenu(_hInst, _nppData._nppHandle, hMenu, "FavMenu", MF_BYCOMMAND);
+			NLChangeMenu(_hInst, _nppData._nppHandle, hMenu, _T("FavMenu"), MF_BYCOMMAND);
 			
 			/* track menu */
 			switch (::TrackPopupMenu(hMenu, TPM_RETURNCMD, pt.x, pt.y, 0, _hParent, NULL))
@@ -1238,13 +1271,13 @@ void FavesDialog::OpenContext(HTREEITEM hItem, POINT pt)
 
 					pszName[0] = '\0';
 
-					if (!NLGetText(_hInst, _nppData._nppHandle, "New group in", pszComm, MAX_PATH)) {
-						strcpy(pszComm, "New group in %s");
+					if (!NLGetText(_hInst, _nppData._nppHandle, _T("New group in"), pszComm, MAX_PATH)) {
+						_tcscpy(pszComm, _T("New group in %s"));
 					}
-					sprintf(pszDesc, pszComm, cFavesItemNames[root]);
+					_stprintf(pszDesc, pszComm, cFavesItemNames[root]);
 
 					/* init new dialog */
-					dlgNew.init(_hInst, _hParent, "Favorites");
+					dlgNew.init(_hInst, _hParent, _T("Favorites"));
 
 					/* open dialog */
 					while (isOk == FALSE)
@@ -1257,12 +1290,12 @@ void FavesDialog::OpenContext(HTREEITEM hItem, POINT pt)
 							if (isOk == TRUE)
 							{
 								tItemElement	element;
-								element.pszName	= (LPTSTR)new TCHAR[strlen(pszName)+1];
+								element.pszName	= (LPTSTR)new TCHAR[_tcslen(pszName)+1];
 								element.pszLink	= NULL;
 								element.uParam	= FAVES_PARAM_GROUP | root;
 								element.vElements.clear();
 
-								strcpy(element.pszName, pszName);
+								_tcscpy(element.pszName, pszName);
 
 								pElem->vElements.push_back(element);
 
@@ -1321,29 +1354,29 @@ void FavesDialog::OpenContext(HTREEITEM hItem, POINT pt)
 			/* create menu and attach one element */
 			hMenu = ::CreatePopupMenu();
 
-			::AppendMenu(hMenu, MF_STRING, FM_OPEN, "Open");
+			::AppendMenu(hMenu, MF_STRING, FM_OPEN, _T("Open"));
 
 			if (root == FAVES_FILES)
 			{
-				::AppendMenu(hMenu, MF_STRING, FM_OPENOTHERVIEW, "Open in Other View");
-				::AppendMenu(hMenu, MF_STRING, FM_OPENNEWINSTANCE, "Open in New Instance");
+				::AppendMenu(hMenu, MF_STRING, FM_OPENOTHERVIEW, _T("Open in Other View"));
+				::AppendMenu(hMenu, MF_STRING, FM_OPENNEWINSTANCE, _T("Open in New Instance"));
 			}
 			else if (root == FAVES_SESSIONS)
 			{
-				::AppendMenu(hMenu, MF_STRING, FM_REOPEN, "Reopen");
-				::AppendMenu(hMenu, MF_STRING, FM_SAVESESSION, "Save Current Session");
+				::AppendMenu(hMenu, MF_STRING, FM_ADDTOSESSION, _T("Add to Current Session"));
+				::AppendMenu(hMenu, MF_STRING, FM_SAVESESSION, _T("Save Current Session"));
 			}
 
 			::AppendMenu(hMenu, MF_SEPARATOR, 0, 0);
-			::AppendMenu(hMenu, MF_STRING, FM_COPY, "Copy");
-			::AppendMenu(hMenu, MF_STRING, FM_CUT, "Cut");
-			if (_hTreeCutCopy != NULL) ::AppendMenu(hMenu, MF_STRING, FM_PASTE, "Paste");
-			::AppendMenu(hMenu, MF_STRING, FM_DELETE, "Delete");
+			::AppendMenu(hMenu, MF_STRING, FM_COPY, _T("Copy"));
+			::AppendMenu(hMenu, MF_STRING, FM_CUT, _T("Cut"));
+			if (_hTreeCutCopy != NULL) ::AppendMenu(hMenu, MF_STRING, FM_PASTE, _T("Paste"));
+			::AppendMenu(hMenu, MF_STRING, FM_DELETE, _T("Delete"));
 			::AppendMenu(hMenu, MF_SEPARATOR, 0, 0);
-			::AppendMenu(hMenu, MF_STRING, FM_PROPERTIES, "Properties...");
+			::AppendMenu(hMenu, MF_STRING, FM_PROPERTIES, _T("Properties..."));
 
 			/* change language */
-			NLChangeMenu(_hInst, _nppData._nppHandle, hMenu, "FavMenu", MF_BYCOMMAND);
+			NLChangeMenu(_hInst, _nppData._nppHandle, hMenu, _T("FavMenu"), MF_BYCOMMAND);
 
 			/* track menu */
 			switch (::TrackPopupMenu(hMenu, TPM_RETURNCMD, pt.x, pt.y, 0, _hParent, NULL))
@@ -1356,7 +1389,7 @@ void FavesDialog::OpenContext(HTREEITEM hItem, POINT pt)
 				case FM_OPENOTHERVIEW:
 				{
 					::SendMessage(_hParent, NPPM_DOOPEN, 0, (LPARAM)pElem->pszLink);
-					::SendMessage(_hParent, WM_COMMAND, IDM_DOC_GOTO_ANOTHER_VIEW, 0);
+					::SendMessage(_hParent, WM_COMMAND, IDM_VIEW_GOTO_ANOTHER_VIEW, 0);
 					break;
 				}
 				case FM_OPENNEWINSTANCE:
@@ -1373,21 +1406,21 @@ void FavesDialog::OpenContext(HTREEITEM hItem, POINT pt)
 					PathRemoveFileSpec(pszNpp);
 
 					/* add notepad as default program */
-					strcat(pszNpp, "\\");
-					strcat(pszNpp, "notepad++.exe");
+					_tcscat(pszNpp, _T("\\"));
+					_tcscat(pszNpp, _T("notepad++.exe"));
 
-					sprintf(pszParams, "-multiInst %s", pElem->pszLink);
-					::ShellExecute(_hParent, "open", pszNpp, pszParams, ".", SW_SHOW);
+					_stprintf(pszParams, _T("-multiInst %s"), pElem->pszLink);
+					::ShellExecute(_hParent, _T("open"), pszNpp, pszParams, _T("."), SW_SHOW);
 
 					delete [] pszNpp;
 					delete [] pszParams;
 					break;
 				}
-				case FM_REOPEN:
+				case FM_ADDTOSESSION:
 				{
-					/* close files previously */
-					::SendMessage(_hParent, WM_COMMAND, IDM_FILE_CLOSEALL, 0);
+					_addToSession = TRUE;
 					OpenLink(pElem);
+					_addToSession = FALSE;
 					break;
 				}
 				case FM_SAVESESSION:
@@ -1430,21 +1463,21 @@ void FavesDialog::OpenContext(HTREEITEM hItem, POINT pt)
 		}
 		else
 		{
-			::MessageBox(_hSelf, "Element not found in List!", "Error", MB_OK);
+			if (NLMessageBox(_hInst, _hParent, _T("MsgBox NotInList"), MB_OK) == FALSE)
+				::MessageBox(_hParent, _T("Element not found in List!"), _T("Error"), MB_OK);
 		}
 	}
 }
 
 
-void FavesDialog::UpdateLink(HTREEITEM	hParentItem)
+void FavesDialog::UpdateLink(HTREEITEM hParentItem)
 {
 	BOOL		haveChildren	= FALSE;
 	INT			iIconNormal		= 0;
 	INT			iIconSelected	= 0;
 	INT			iIconOverlayed	= 0;
 	INT			root			= 0;
-	LPTSTR		TEMP			= (LPTSTR)new TCHAR[MAX_PATH];
-	HTREEITEM	pCurrentItem	= TreeView_GetNextItem(_hTreeCtrl, hParentItem, TVGN_CHILD);
+	HTREEITEM	hCurrentItem	= TreeView_GetNextItem(_hTreeCtrl, hParentItem, TVGN_CHILD);
 
 	/* get element list */
 	PELEM		parentElement	= (PELEM)GetParam(hParentItem);
@@ -1452,7 +1485,7 @@ void FavesDialog::UpdateLink(HTREEITEM	hParentItem)
 	if (parentElement != NULL)
 	{
 		/* sort list */
-		SortElementList(&parentElement->vElements);
+		SortElementList(parentElement->vElements);
 
 		/* update elements in parent tree */
 		for (size_t i = 0; i < parentElement->vElements.size(); i++)
@@ -1483,15 +1516,13 @@ void FavesDialog::UpdateLink(HTREEITEM	hParentItem)
 					case FAVES_FOLDERS:
 					{
 						/* get icons and update item */
-						strcpy(TEMP, pElem->pszLink);
-						ExtractIcons(TEMP, NULL, DEVT_DIRECTORY, &iIconNormal, &iIconSelected, &iIconOverlayed);
+						ExtractIcons(pElem->pszLink, NULL, DEVT_DIRECTORY, &iIconNormal, &iIconSelected, &iIconOverlayed);
 						break;
 					}
 					case FAVES_FILES:
 					{
 						/* get icons and update item */
-						strcpy(TEMP, pElem->pszLink);
-						ExtractIcons(TEMP, NULL, DEVT_FILE, &iIconNormal, &iIconSelected, &iIconOverlayed);
+						ExtractIcons(pElem->pszLink, NULL, DEVT_FILE, &iIconNormal, &iIconSelected, &iIconOverlayed);
 						break;
 					}
 					case FAVES_SESSIONS:
@@ -1510,38 +1541,44 @@ void FavesDialog::UpdateLink(HTREEITEM	hParentItem)
 			iIconSelected = iIconNormal;
 
 			/* update or add new item */
-			if (pCurrentItem != NULL)
+			if (hCurrentItem != NULL)
 			{
-				GetItemText(pCurrentItem, TEMP, MAX_PATH);
-				if (pElem == (PELEM)GetParam(pCurrentItem))
-				{
-					UpdateItem(pCurrentItem, pElem->pszName, iIconNormal, iIconSelected, iIconOverlayed, 0, haveChildren, (LPARAM)pElem);
-				}
-				else
-				{
-					HTREEITEM	hPrevItem = TreeView_GetNextItem(_hTreeCtrl, pCurrentItem, TVGN_PREVIOUS);
-					if (hPrevItem != NULL)
-						pCurrentItem = InsertItem(pElem->pszName, iIconNormal, iIconSelected, iIconOverlayed, 0, hParentItem, hPrevItem, haveChildren, (LPARAM)pElem);
-					else
-						pCurrentItem = InsertItem(pElem->pszName, iIconNormal, iIconSelected, iIconOverlayed, 0, hParentItem, TVI_FIRST, haveChildren, (LPARAM)pElem);
-				}
+				UpdateItem(hCurrentItem, pElem->pszName, iIconNormal, iIconSelected, iIconOverlayed, 0, haveChildren, (LPARAM)pElem);
 			}
 			else
 			{
-				pCurrentItem = InsertItem(pElem->pszName, iIconNormal, iIconSelected, iIconOverlayed, 0, hParentItem, TVI_LAST, haveChildren, (LPARAM)pElem);
+				hCurrentItem = InsertItem(pElem->pszName, iIconNormal, iIconSelected, iIconOverlayed, 0, hParentItem, TVI_LAST, haveChildren, (LPARAM)pElem);
 			}
-			pCurrentItem = TreeView_GetNextItem(_hTreeCtrl, pCurrentItem, TVGN_NEXT);
+
+			/* control item expand state and correct if necessary */
+			BOOL	isTreeExp	= (TreeView_GetItemState(_hTreeCtrl, hCurrentItem, TVIS_EXPANDED) & TVIS_EXPANDED ? TRUE : FALSE);
+			BOOL	isItemExp	= (pElem->uParam & FAVES_PARAM_EXPAND ? TRUE : FALSE);
+
+			/* toggle if state is not equal */
+			if (isTreeExp != isItemExp)
+			{
+				pElem->uParam ^= FAVES_PARAM_EXPAND;
+				TreeView_Expand(_hTreeCtrl, hCurrentItem, TVE_TOGGLE);
+			}
+
+			/* in any case redraw the session children items */
+			if ((pElem->uParam & FAVES_PARAM) == FAVES_SESSIONS)
+			{
+				DeleteChildren(hCurrentItem);
+				DrawSessionChildren(hCurrentItem);
+			}
+
+			hCurrentItem = TreeView_GetNextItem(_hTreeCtrl, hCurrentItem, TVGN_NEXT);
 		}
 
 		/* delete possible not existed items */
-		while (pCurrentItem != NULL)
+		while (hCurrentItem != NULL)
 		{
-			HTREEITEM	pPrevItem	= pCurrentItem;
-			pCurrentItem			= TreeView_GetNextItem(_hTreeCtrl, pCurrentItem, TVGN_NEXT);
+			HTREEITEM	pPrevItem	= hCurrentItem;
+			hCurrentItem			= TreeView_GetNextItem(_hTreeCtrl, hCurrentItem, TVGN_NEXT);
 			TreeView_DeleteItem(_hTreeCtrl, pPrevItem);
 		}
 	}
-	delete [] TEMP;
 }
 
 void FavesDialog::UpdateNode(HTREEITEM hItem, BOOL haveChildren)
@@ -1567,15 +1604,15 @@ void FavesDialog::DrawSessionChildren(HTREEITEM hItem)
 {
 	INT			i				= 0;
 	INT			docCnt			= 0;
-	TCHAR		**ppszFileNames	= NULL;
+	LPTSTR		*ppszFileNames	= NULL;
 	PELEM		pElem			= (PELEM)GetParam(hItem);
 
 	/* get document count and create resources */
 	docCnt			= (INT)::SendMessage(_hParent, NPPM_GETNBSESSIONFILES, 0, (LPARAM)pElem->pszLink);
-	ppszFileNames	= (TCHAR **)new LPTSTR[docCnt];
+	ppszFileNames	= (LPTSTR*)new LPTSTR[docCnt];
 
 	for (i = 0; i < docCnt; i++)
-		ppszFileNames[i] = new TCHAR[MAX_PATH];
+		ppszFileNames[i] = (LPTSTR)new TCHAR[MAX_PATH];
 
 	/* get file names */
 	if (::SendMessage(_hParent, NPPM_GETSESSIONFILES, (WPARAM)ppszFileNames, (LPARAM)pElem->pszLink) == TRUE)
@@ -1603,7 +1640,7 @@ BOOL FavesDialog::DoesNameNotExist(HTREEITEM hParentItem, HTREEITEM hCurrItem, L
 {
 	BOOL		bRet	= TRUE;
 	LPTSTR		TEMP	= (LPTSTR)new TCHAR[MAX_PATH];
-	HTREEITEM	hItem	= TreeView_GetNextItem(_hTreeCtrl, hParentItem, TVGN_CHILD);
+	HTREEITEM	hItem	= TreeView_GetChild(_hTreeCtrl, hParentItem);
 
 	while (hItem != NULL)
 	{
@@ -1611,9 +1648,10 @@ BOOL FavesDialog::DoesNameNotExist(HTREEITEM hParentItem, HTREEITEM hCurrItem, L
 		{
 			GetItemText(hItem, TEMP, MAX_PATH);
 
-			if (strcmp(pszName, TEMP) == 0)
+			if (_tcscmp(pszName, TEMP) == 0)
 			{
-				::MessageBox(_hSelf, "Name exists in node!", "Error", MB_OK);
+				if (NLMessageBox(_hInst, _hParent, _T("MsgBox ExistsInNode"), MB_OK) == FALSE)
+					::MessageBox(_hParent, _T("Name still exists in node!"), _T("Error"), MB_OK);
 				bRet = FALSE;
 				break;
 			}
@@ -1633,24 +1671,22 @@ BOOL FavesDialog::DoesLinkExist(LPTSTR pszLink, int root)
 	{
 		case FAVES_FOLDERS:
 		{
-			/* test if folder exists */
+			/* test if path exists */
 			bRet = ::PathFileExists(pszLink);
 			if (bRet == FALSE) {
-				::MessageBox(_hSelf, "Folder doesn't exist!", "Error", MB_OK);
+				if (NLMessageBox(_hInst, _hParent, _T("MsgBox FolderMiss"), MB_OK) == FALSE)
+					::MessageBox(_hParent, _T("Folder doesn't exist!"), _T("Error"), MB_OK);
 			}
 			break;
 		}
 		case FAVES_FILES:
 		case FAVES_SESSIONS:
 		{
-			/* test if file could be opened */
-			FILE*	hFile = fopen(pszLink, "r");
-
-			if (hFile != NULL) {
-				fclose(hFile);
-				bRet = TRUE;
-			} else {
-				::MessageBox(_hSelf, "File doesn't exist!", "Error", MB_OK);
+			/* test if path exists */
+			bRet = ::PathFileExists(pszLink);
+			if (bRet == FALSE) {
+				if (NLMessageBox(_hInst, _hParent, _T("MsgBox FileMiss"), MB_OK) == FALSE)
+					::MessageBox(_hParent, _T("File doesn't exist!"), _T("Error"), MB_OK);
 			}
 			break;
 		}
@@ -1660,7 +1696,8 @@ BOOL FavesDialog::DoesLinkExist(LPTSTR pszLink, int root)
 			break;
 		}
 		default:
-			::MessageBox(_hSelf, "Faves element doesn't exist", "Error", MB_OK);
+			if (NLMessageBox(_hInst, _hParent, _T("MsgBox FavesElemMiss"), MB_OK) == FALSE)
+				::MessageBox(_hParent, _T("Faves element doesn't exist!"), _T("Error"), MB_OK);
 			break;
 	}
 
@@ -1705,11 +1742,16 @@ void FavesDialog::OpenLink(PELEM pElem)
 			}
 			case FAVES_WEB:
 			{
-				::ShellExecute(_hParent, "open", pElem->pszLink, NULL, NULL, SW_SHOW);
+				::ShellExecute(_hParent, _T("open"), pElem->pszLink, NULL, NULL, SW_SHOW);
 				break;
 			}
 			case FAVES_SESSIONS:
 			{
+				/* in normal case close files previously */
+				if (_addToSession == FALSE) {
+					::SendMessage(_hParent, WM_COMMAND, IDM_FILE_CLOSEALL, 0);
+					_addToSession = FALSE;
+				}
 				::SendMessage(_hParent, NPPM_LOADSESSION, 0, (LPARAM)pElem->pszLink);
 				break;
 			}
@@ -1719,51 +1761,52 @@ void FavesDialog::OpenLink(PELEM pElem)
 	}
 }
 
-void FavesDialog::SortElementList(vector<tItemElement>* elementList)
+void FavesDialog::SortElementList(vector<tItemElement> & elementList)
 {
-	vector<tItemElement>		sortList;
-	vector<tItemElement>		lastList;
+	vector<tItemElement>	groupList;
+	vector<tItemElement>	linkList;
+	ELEM_ITR				itr			= elementList.begin();
 
 	/* get all last elements in a seperate list and remove from sort list */
-	for (ELEM_ITR itr = elementList->begin(); itr != elementList->end(); itr++)
+	for (; itr != elementList.end(); itr++)
 	{
 		if (itr->uParam & FAVES_PARAM_GROUP)
 		{
-			sortList.push_back(*itr);
+			groupList.push_back(*itr);
 		}
 		else if (itr->uParam & FAVES_PARAM_LINK)
 		{
-			lastList.push_back(*itr);
+			linkList.push_back(*itr);
 		}
 	}
 
 	/* get size of both lists */
-	UINT	sizeOfSort	= sortList.size();
-	UINT	sizeOfLast	= lastList.size();
+	UINT	sizeOfGroup	= groupList.size();
+	UINT	sizeOfLink	= linkList.size();
 
 	/* sort "sort list" */
-	SortElementsRecursive(&sortList, 0, sizeOfSort-1);
+	SortElementsRecursive(groupList, 0, sizeOfGroup-1);
 
 	/* sort "last list" */
-	SortElementsRecursive(&lastList, 0, sizeOfLast-1);
+	SortElementsRecursive(linkList, 0, sizeOfLink-1);
 
-	/* delete element list and attach the information of both the temp lists */
-	elementList->clear();
-	for (UINT i = 0; i < sizeOfSort; i++)
+	/* overwrite the information in field */
+	itr	= elementList.begin();
+	for (UINT i = 0; i < sizeOfGroup; i++, itr++)
 	{
-		elementList->push_back(sortList[i]);
+		*itr = groupList[i];
 	}
-	for (i = 0; i < sizeOfLast; i++)
+	for (i = 0; i < sizeOfLink; i++, itr++)
 	{
-		elementList->push_back(lastList[i]);
+		*itr = linkList[i];
 	}
 }
 
-void FavesDialog::SortElementsRecursive(vector<tItemElement>* vElement, int d, int h)
+void FavesDialog::SortElementsRecursive(vector<tItemElement> & vElement, int d, int h)
 {
 	int		i	= 0;
 	int		j	= 0;
-	string	str = "";
+	string	str = _T("");
 
 	/* return on empty list */
 	if (d > h || d < 0)
@@ -1772,20 +1815,20 @@ void FavesDialog::SortElementsRecursive(vector<tItemElement>* vElement, int d, i
 	i = h;
 	j = d;
 
-	str = (*vElement)[((int) ((d+h) / 2))].pszName;
+	str = vElement[((int) ((d+h) / 2))].pszName;
 	do
 	{
 		/* sort in alphabeticaly order */
-		while ((*vElement)[j].pszName < str) j++;
-		while ((*vElement)[i].pszName > str) i--;
+		while (vElement[j].pszName < str) j++;
+		while (vElement[i].pszName > str) i--;
 
 		if ( i >= j )
 		{
 			if ( i != j )
 			{
-				tItemElement buf = (*vElement)[i];
-				(*vElement)[i] = (*vElement)[j];
-				(*vElement)[j] = buf;
+				tItemElement buf = vElement[i];
+				vElement[i] = vElement[j];
+				vElement[j] = buf;
 			}
 			i--;
 			j++;
@@ -1808,7 +1851,17 @@ void FavesDialog::ExpandElementsRecursive(HTREEITEM hItem)
 		if (pElem->uParam & FAVES_PARAM_EXPAND)
 		{
 			UpdateLink(hCurrentItem);
-			TreeView_Expand(_hTreeCtrl, hCurrentItem, TVM_EXPAND);
+
+			/* toggle only the main items, because groups were updated automatically in UpdateLink() */
+			if (pElem->uParam & FAVES_PARAM_MAIN)
+			{
+				/* if node needs to be expand, delete the indicator first,
+				   because TreeView_Expand() function toggles the flag     */
+				pElem->uParam ^= FAVES_PARAM_EXPAND;
+				TreeView_Expand(_hTreeCtrl, hCurrentItem, TVE_TOGGLE);
+			}
+
+			/* traverse into the tree */
 			ExpandElementsRecursive(hCurrentItem);
 		}
 
@@ -1830,18 +1883,18 @@ void FavesDialog::ReadSettings(void)
 	{
 		/* create element list */
 		list.uParam		= FAVES_PARAM_MAIN | i;
-		list.pszName	= (LPTSTR)new TCHAR[strlen(cFavesItemNames[i])+1];
+		list.pszName	= (LPTSTR)new TCHAR[_tcslen(cFavesItemNames[i])+1];
 		list.pszLink	= NULL;
 		list.vElements.clear();
 
-		strcpy(list.pszName, cFavesItemNames[i]);
+		_tcscpy(list.pszName, cFavesItemNames[i]);
 
 		_vDB.push_back(list);
 	}
 
 	/* fill out tree and vDB */
-	strcpy(readFilePath, configPath);
-	strcat(readFilePath, FAVES_DATA);
+	_tcscpy(readFilePath, configPath);
+	_tcscat(readFilePath, FAVES_DATA);
 
 	hFile = ::CreateFile(readFilePath, GENERIC_READ, 0, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
 
@@ -1852,44 +1905,61 @@ void FavesDialog::ReadSettings(void)
 		if (size != -1)
 		{
 			LPTSTR			ptr		= NULL;
-			LPTSTR			data	= (LPTSTR)new TCHAR[size+1];
+			LPTSTR			data	= (LPTSTR)new TCHAR[size / sizeof(TCHAR)];
 
-			/* read data from file */
-			::ReadFile(hFile, data, size, &hasRead, NULL);
-
-			/* get first element */
-			ptr = strtok(data, "\n");
-
-			/* finaly, fill out the tree and the vDB */
-			for (i = 0; i < FAVES_ITEM_MAX; i++)
+			if (data != NULL)
 			{
-				/* error */
-				if (ptr == NULL)
-					break;
+				/* read data from file */
+				::ReadFile(hFile, data, size, &hasRead, NULL);
 
-				/* step over name tag */
-				if (strcmp(cFavesItemNames[i], ptr) == 0)
+#ifdef UNICODE
+				TCHAR	szBOM = 0xFEFF;
+				if (data[0] != szBOM)
 				{
-					ptr = strtok(NULL, "\n");
-					if (ptr == NULL) {
-						break;
-					} else if (strstr(ptr, "Expand=") == ptr) {
-						if (ptr[7] == '1')
-							_vDB[i].uParam |= FAVES_PARAM_EXPAND;
-						ptr = strtok(NULL, "\n");
-					}
+					::MessageBox(_nppData._nppHandle, _T("Error in file 'Favorites.dat'"), _T("Error"), MB_OK | MB_ICONERROR);
 				}
 				else
 				{
-					::MessageBox(_hSelf, "Error in file 'Favorites.dat'", "Error", MB_OK);
-					break;
+					ptr = data + 1;
+					ptr = _tcstok(ptr, _T("\n"));
+#else
+					/* get first element */
+					ptr = _tcstok(data, _T("\n"));
+#endif
+
+					/* finaly, fill out the tree and the vDB */
+					for (i = 0; i < FAVES_ITEM_MAX; i++)
+					{
+						/* error */
+						if (ptr == NULL)
+							break;
+
+						/* step over name tag */
+						if (_tcscmp(cFavesItemNames[i], ptr) == 0)
+						{
+							ptr = _tcstok(NULL, _T("\n"));
+							if (ptr == NULL) {
+								break;
+							} else if (_tcsstr(ptr, _T("Expand=")) == ptr) {
+								if (ptr[7] == '1')
+									_vDB[i].uParam |= FAVES_PARAM_EXPAND;
+								ptr = _tcstok(NULL, _T("\n"));
+							}
+						}
+						else
+						{
+							::MessageBox(_hSelf, _T("Error in file 'Favorites.dat'"), _T("Error"), MB_OK);
+							break;
+						}
+
+						/* now read the information */
+						ReadElementTreeRecursive(&_vDB[i], &ptr);
+					}
+#ifdef UNICODE
 				}
-
-				/* now read the information */
-				ReadElementTreeRecursive(&_vDB[i], &ptr);
+#endif
+				delete [] data;
 			}
-
-			delete [] data;
 		}
 
 		::CloseHandle(hFile);
@@ -1913,56 +1983,56 @@ void FavesDialog::ReadElementTreeRecursive(ELEM_ITR elem_itr, LPTSTR* ptr)
 			/* reached end of file -> leave */
 			break;
 		}
-		if (strcmp(*ptr, "#LINK") == 0)
+		if (_tcscmp(*ptr, _T("#LINK")) == 0)
 		{
 			/* link is found, get information and fill out the struct */
 
 			/* get element name */
-			*ptr = strtok(NULL, "\n");
-			if (strstr(*ptr, "\tName=") == *ptr)
+			*ptr = _tcstok(NULL, _T("\n"));
+			if (_tcsstr(*ptr, _T("\tName=")) == *ptr)
 			{
-				element.pszName	= (LPTSTR)new TCHAR[strlen(*ptr)-5];
-				strcpy(element.pszName, &(*ptr)[6]);
-				*ptr = strtok(NULL, "\n");
+				element.pszName	= (LPTSTR)new TCHAR[_tcslen(*ptr)-5];
+				_tcscpy(element.pszName, &(*ptr)[6]);
+				*ptr = _tcstok(NULL, _T("\n"));
 			}
 			else
-				::MessageBox(_hSelf, "Error in file 'Favorites.dat'\nName in LINK not correct!", "Error", MB_OK);
+				::MessageBox(_hSelf, _T("Error in file 'Favorites.dat'\nName in LINK not correct!"), _T("Error"), MB_OK);
 
 			/* get next element link */
-			if (strstr(*ptr, "\tLink=") == *ptr)
+			if (_tcsstr(*ptr, _T("\tLink=")) == *ptr)
 			{
-				element.pszLink	= (LPTSTR)new TCHAR[strlen(*ptr)-5];
-				strcpy(element.pszLink, &(*ptr)[6]);
-				*ptr = strtok(NULL, "\n");
+				element.pszLink	= (LPTSTR)new TCHAR[_tcslen(*ptr)-5];
+				_tcscpy(element.pszLink, &(*ptr)[6]);
+				*ptr = _tcstok(NULL, _T("\n"));
 			}
 			else
-				::MessageBox(_hSelf, "Error in file 'Favorites.dat'\nLink in LINK not correct!", "Error", MB_OK);
+				::MessageBox(_hSelf, _T("Error in file 'Favorites.dat'\nLink in LINK not correct!"), _T("Error"), MB_OK);
 
 			element.uParam	= FAVES_PARAM_LINK | root;
 			element.vElements.clear();
 			
 			elem_itr->vElements.push_back(element);
 		}
-		else if ((strcmp(*ptr, "#GROUP") == 0) || (strcmp(*ptr, "#GROOP") == 0))
+		else if ((_tcscmp(*ptr, _T("#GROUP")) == 0) || (_tcscmp(*ptr, _T("#GROUP")) == 0))
 		{
 			/* group is found, get information and fill out the struct */
 
 			/* get element name */
-			*ptr = strtok(NULL, "\n");
-			if (strstr(*ptr, "\tName=") == *ptr)
+			*ptr = _tcstok(NULL, _T("\n"));
+			if (_tcsstr(*ptr, _T("\tName=")) == *ptr)
 			{
-				element.pszName	= (LPTSTR)new TCHAR[strlen(*ptr)-5];
-				strcpy(element.pszName, &(*ptr)[6]);
-				*ptr = strtok(NULL, "\n");
+				element.pszName	= (LPTSTR)new TCHAR[_tcslen(*ptr)-5];
+				_tcscpy(element.pszName, &(*ptr)[6]);
+				*ptr = _tcstok(NULL, _T("\n"));
 			}
 			else
-				::MessageBox(_hSelf, "Error in file 'Favorites.dat'\nName in GROUP not correct!", "Error", MB_OK);
+				::MessageBox(_hSelf, _T("Error in file 'Favorites.dat'\nName in GROUP not correct!"), _T("Error"), MB_OK);
 
-			if (strstr(*ptr, "\tExpand=") == *ptr)
+			if (_tcsstr(*ptr, _T("\tExpand=")) == *ptr)
 			{
 				if ((*ptr)[8] == '1')
 					param = FAVES_PARAM_EXPAND;
-				*ptr = strtok(NULL, "\n");
+				*ptr = _tcstok(NULL, _T("\n"));
 			}
 
 			element.pszLink = NULL;
@@ -1973,15 +2043,15 @@ void FavesDialog::ReadElementTreeRecursive(ELEM_ITR elem_itr, LPTSTR* ptr)
 
 			ReadElementTreeRecursive(elem_itr->vElements.end()-1, ptr);
 		}
-		else if (strcmp(*ptr, "") == 0)
+		else if (_tcscmp(*ptr, _T("")) == 0)
 		{
 			/* step over empty lines */
-			*ptr = strtok(NULL, "\n");
+			*ptr = _tcstok(NULL, _T("\n"));
 		}
-		else if (strcmp(*ptr, "#END") == 0)
+		else if (_tcscmp(*ptr, _T("#END")) == 0)
 		{
 			/* on group end leave the recursion */
-			*ptr = strtok(NULL, "\n");
+			*ptr = _tcstok(NULL, _T("\n"));
 			break;
 		}
 		else
@@ -2003,13 +2073,21 @@ void FavesDialog::SaveSettings(void)
 	DWORD			hasWritten		= 0;
 	HANDLE			hFile			= NULL;
 
-	strcpy(saveFilePath, configPath);
-	strcat(saveFilePath, FAVES_DATA);
+#ifdef UNICODE
+	CHAR			szBOM[]			= {0xFF, 0xFE};
+#endif
+
+	_tcscpy(saveFilePath, configPath);
+	_tcscat(saveFilePath, FAVES_DATA);
 
 	hFile = ::CreateFile(saveFilePath, GENERIC_WRITE, 0, NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
 
 	if (hFile != INVALID_HANDLE_VALUE)
 	{
+#ifdef UNICODE
+		::WriteFile(hFile, szBOM, sizeof(szBOM), &hasWritten, NULL);
+#endif
+
 		/* delete allocated resources */
 		HTREEITEM	hItem = TreeView_GetNextItem(_hTreeCtrl, TVI_ROOT, TVGN_CHILD);
 
@@ -2018,8 +2096,8 @@ void FavesDialog::SaveSettings(void)
 			pElem = (PELEM)GetParam(hItem);
 
 			/* store tree */
-			sprintf(temp, "%s\nExpand=%i\n\n", cFavesItemNames[i], (bool)(_vDB[i].uParam & FAVES_PARAM_EXPAND));
-			WriteFile(hFile, temp, strlen(temp), &hasWritten, NULL);
+			_stprintf(temp, _T("%s\nExpand=%i\n\n"), cFavesItemNames[i], (_vDB[i].uParam & FAVES_PARAM_EXPAND) == FAVES_PARAM_EXPAND);
+			::WriteFile(hFile, temp, _tcslen(temp) * sizeof(TCHAR), &hasWritten, NULL);
 			SaveElementTreeRecursive(pElem, hFile);
 
 			/* delete tree */
@@ -2053,38 +2131,38 @@ void FavesDialog::SaveElementTreeRecursive(PELEM pElem, HANDLE hFile)
 
 		if (pElemItr->uParam & FAVES_PARAM_GROUP)
 		{
-			WriteFile(hFile, "#GROUP\n", strlen("#GROUP\n"), &hasWritten, NULL);
+			::WriteFile(hFile, _T("#GROUP\n"), _tcslen(_T("#GROUP\n")) * sizeof(TCHAR), &hasWritten, NULL);
 
-			size = strlen(pElemItr->pszName)+7;
+			size = (_tcslen(pElemItr->pszName)+7) * sizeof(TCHAR);
 			temp = (LPTSTR)new TCHAR[size+1];
-			sprintf(temp, "\tName=%s\n", pElemItr->pszName);
-			WriteFile(hFile, temp, size, &hasWritten, NULL);
+			_stprintf(temp, _T("\tName=%s\n"), pElemItr->pszName);
+			::WriteFile(hFile, temp, size, &hasWritten, NULL);
 			delete [] temp;
 
-			size = strlen("\tExpand=0\n\n");
+			size = _tcslen(_T("\tExpand=0\n\n")) * sizeof(TCHAR);
 			temp = (LPTSTR)new TCHAR[size+1];
-			sprintf(temp, "\tExpand=%i\n\n", (bool)(pElemItr->uParam & FAVES_PARAM_EXPAND));
-			WriteFile(hFile, temp, size, &hasWritten, NULL);
+			_stprintf(temp, _T("\tExpand=%i\n\n"), (pElemItr->uParam & FAVES_PARAM_EXPAND) == FAVES_PARAM_EXPAND);
+			::WriteFile(hFile, temp, size, &hasWritten, NULL);
 			delete [] temp;
 
 			SaveElementTreeRecursive(pElemItr, hFile);
 
-			WriteFile(hFile, "#END\n\n", strlen("#END\n\n"), &hasWritten, NULL);
+			::WriteFile(hFile, _T("#END\n\n"), _tcslen(_T("#END\n\n")), &hasWritten, NULL);
 		}
 		else if (pElemItr->uParam & FAVES_PARAM_LINK)
 		{
-			WriteFile(hFile, "#LINK\n", strlen("#LINK\n"), &hasWritten, NULL);
+			::WriteFile(hFile, _T("#LINK\n"), _tcslen(_T("#LINK\n")) * sizeof(TCHAR), &hasWritten, NULL);
 
-			size = strlen(pElemItr->pszName)+7;
-			temp = (LPTSTR)new TCHAR[size+1];
-			sprintf(temp, "\tName=%s\n", pElemItr->pszName);
-			WriteFile(hFile, temp, size, &hasWritten, NULL);
+			size = (_tcslen(pElemItr->pszName)+7) * sizeof(TCHAR);
+			temp = (LPTSTR)new TCHAR[size+1]; 
+			_stprintf(temp, _T("\tName=%s\n"), pElemItr->pszName);
+			::WriteFile(hFile, temp, size, &hasWritten, NULL);
 			delete [] temp;
 
-			size = strlen(pElemItr->pszLink)+8;
+			size = (_tcslen(pElemItr->pszLink)+8) * sizeof(TCHAR);
 			temp = (LPTSTR)new TCHAR[size+1];
-			sprintf(temp, "\tLink=%s\n\n", pElemItr->pszLink);
-			WriteFile(hFile, temp, size, &hasWritten, NULL);
+			_stprintf(temp, _T("\tLink=%s\n\n"), pElemItr->pszLink);
+			::WriteFile(hFile, temp, size, &hasWritten, NULL);
 			delete [] temp;
 		}
 	}

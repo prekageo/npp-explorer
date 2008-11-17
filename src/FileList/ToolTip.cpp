@@ -22,7 +22,6 @@ Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 #include "ExplorerResource.h"
 
 
-
 LRESULT CALLBACK dlgProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam);
 
 
@@ -36,22 +35,22 @@ void ToolTip::init(HINSTANCE hInst, HWND hParent)
              CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT, NULL, NULL, NULL, NULL );
 		if (!_hSelf)
 		{
-			systemMessage("System Err");
+			systemMessage(_T("System Err"));
 			throw int(6969);
 		}
 
-		::SetWindowLong(_hSelf, GWL_USERDATA, reinterpret_cast<LONG>(this));
-		_defaultProc = reinterpret_cast<WNDPROC>(::SetWindowLong(_hSelf, GWL_WNDPROC, reinterpret_cast<LONG>(staticWinProc)));
+		::SetWindowLongPtr(_hSelf, GWL_USERDATA, reinterpret_cast<LONG>(this));
+		_defaultProc = reinterpret_cast<WNDPROC>(::SetWindowLongPtr(_hSelf, GWL_WNDPROC, reinterpret_cast<LONG>(staticWinProc)));
 	}
 }
 
 
-void ToolTip::Show(RECT rectTitle, char* pszTitle, int iXOff, int iWidthOff)
+void ToolTip::Show(RECT rectTitle, LPTSTR pszTitle, int iXOff, int iWidthOff)
 {
 	if (isVisible())
 		destroy();
 
-	if (strlen(pszTitle) == 0)
+	if (_tcslen(pszTitle) == 0)
 		return;
 
 	// INITIALIZE MEMBERS OF THE TOOLINFO STRUCTURE
@@ -94,21 +93,31 @@ LRESULT ToolTip::runProc(UINT message, WPARAM wParam, LPARAM lParam)
 			_bTrackMouse = _TrackMouseEvent(&tme);
 			break;
 		}
-		case WM_LBUTTONDBLCLK:
-    	case WM_RBUTTONDOWN:
     	case WM_LBUTTONDOWN:
 		{
-			POINT			pt			= {0};
-			LVHITTESTINFO	hittest		= {0};
-
-			::GetCursorPos(&hittest.pt);
-			ScreenToClient(_hParent, &hittest.pt);
-			::SendMessage(_hParent, LVM_SUBITEMHITTEST, 0, (LPARAM)&hittest);
-			::SendMessage(_hParent, EXM_TOOLTIP, message, (LPARAM)&hittest);
+			_isLeftBtnDown = TRUE;
+			SendMessageToParent(WM_LBUTTONDOWN);
+			return TRUE;
+		}
+		case WM_LBUTTONUP:
+		{
+			_isLeftBtnDown = FALSE;
+			SendMessageToParent(message);
+			return TRUE;
+		}    	
+		case WM_RBUTTONUP:
+		case WM_RBUTTONDOWN:
+		case WM_LBUTTONDBLCLK:
+		{
+			SendMessageToParent(message);
 			return TRUE;
 		}
 		case WM_MOUSEMOVE:
 		{
+			if ((_isLeftBtnDown == TRUE) && (MK_LBUTTON & wParam))
+			{
+				SendMessageToParent(message);
+			}
 			if (!_bTrackMouse)
 			{
 				TRACKMOUSEEVENT tme;
@@ -123,9 +132,17 @@ LRESULT ToolTip::runProc(UINT message, WPARAM wParam, LPARAM lParam)
 			return TRUE;
 		}
  		case WM_MOUSEHOVER:
-		case WM_MOUSELEAVE:
 		{
 			destroy();
+			return TRUE;
+		}
+		case WM_MOUSELEAVE:
+		{
+			if (_isLeftBtnDown == FALSE) {
+				destroy();
+			} else {
+				_isLeftBtnDown = FALSE;
+			}
 			return TRUE;
 		}
 	}
@@ -133,3 +150,12 @@ LRESULT ToolTip::runProc(UINT message, WPARAM wParam, LPARAM lParam)
 	return ::CallWindowProc(_defaultProc, _hSelf, message, wParam, lParam);
 }
 
+void ToolTip::SendMessageToParent(UINT message)
+{
+	LVHITTESTINFO	hittest		= {0};
+
+	::GetCursorPos(&hittest.pt);
+	ScreenToClient(_hParent, &hittest.pt);
+	::SendMessage(_hParent, LVM_SUBITEMHITTEST, 0, (LPARAM)&hittest);
+	::SendMessage(_hParent, EXM_TOOLTIP, message, (LPARAM)&hittest.pt);
+}
