@@ -119,8 +119,8 @@ private:
 	void	addFullPathsCB(void);
 	void	addFileNamesCB(void);
 	bool	Str2CB(LPCTSTR str2cpy);
-	void	openScriptPath(void);
-	void	startNppExec(UINT cmdID);
+	void	openScriptPath(HMODULE hInst);
+	void	startNppExec(HMODULE hInst, UINT cmdID);
 
 private:
 	HINSTANCE				_hInst;

@@ -224,7 +224,16 @@ UINT ContextMenu::ShowContextMenu(HINSTANCE hInst, HWND hWndNpp, HWND hWndParent
 		_strNppScripts.clear();
 
 		/* add backslash if necessary */
-		_tcsncpy(TEMP, exProp.nppExecProp.szScriptPath, MAX_PATH-1);
+		if ((exProp.nppExecProp.szScriptPath[0] == '.') &&
+			(exProp.nppExecProp.szScriptPath[1] == '.'))
+		{
+			/* module path of notepad */
+			GetModuleFileName(hInst, TEMP, sizeof(TEMP));
+			PathRemoveFileSpec(TEMP);
+			PathAppend(TEMP, exProp.nppExecProp.szScriptPath);
+		} else {
+			_tcsncpy(TEMP, exProp.nppExecProp.szScriptPath, MAX_PATH-1);
+		}
 		if (TEMP[_tcslen(TEMP) - 1] != '\\')
 			_tcscat(TEMP, _T("\\"));
 
@@ -411,14 +420,14 @@ UINT ContextMenu::ShowContextMenu(HINSTANCE hInst, HWND hWndNpp, HWND hWndParent
 			}
 			case CTX_GOTO_SCRIPT_PATH:
 			{
-				openScriptPath();
+				openScriptPath(hInst);
 				break;
 			}
 			default: /* and greater */
 			{
 				if ((idCommand >= CTX_START_SCRIPT) && (idCommand <= (CTX_START_SCRIPT + _strNppScripts.size())))
 				{
-					startNppExec(idCommand - CTX_START_SCRIPT);
+					startNppExec(hInst, idCommand - CTX_START_SCRIPT);
 				}
 				break;
 			}
@@ -897,17 +906,36 @@ void ContextMenu::addFileNamesCB(void)
 	Str2CB(temp.c_str());
 }
 
-void ContextMenu::openScriptPath(void)
+void ContextMenu::openScriptPath(HMODULE hInst)
 {
-	::SendMessage(_hWndParent, EXM_OPENDIR, 0, (LPARAM)exProp.nppExecProp.szScriptPath);
+	TCHAR	TEMP[MAX_PATH];
+
+	if (exProp.nppExecProp.szScriptPath[0] == '.')
+	{
+		/* module path of notepad */
+		GetModuleFileName(hInst, TEMP, sizeof(TEMP));
+		PathRemoveFileSpec(TEMP);
+		PathAppend(TEMP, exProp.nppExecProp.szScriptPath);
+	} else {
+		_tcscpy(TEMP, exProp.nppExecProp.szScriptPath);
+	}
+	::SendMessage(_hWndParent, EXM_OPENDIR, 0, (LPARAM)TEMP);
 }
 
-void ContextMenu::startNppExec(UINT cmdID)
+void ContextMenu::startNppExec(HMODULE hInst, UINT cmdID)
 {
 	TCHAR	szScriptPath[MAX_PATH];
 
 	/* concatinate execute command */
-	_tcscpy(szScriptPath, exProp.nppExecProp.szScriptPath);
+	if (exProp.nppExecProp.szScriptPath[0] == '.')
+	{
+		/* module path of notepad */
+		GetModuleFileName(hInst, szScriptPath, sizeof(szScriptPath));
+		PathRemoveFileSpec(szScriptPath);
+		PathAppend(szScriptPath, exProp.nppExecProp.szScriptPath);
+	} else {
+		_tcscpy(szScriptPath, exProp.nppExecProp.szScriptPath);
+	}
 	if (szScriptPath[_tcslen(szScriptPath) - 1] != '\\')
 		_tcscat(szScriptPath, _T("\\"));
 	_tcscat(szScriptPath, _strNppScripts[cmdID].c_str());

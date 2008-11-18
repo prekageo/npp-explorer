@@ -131,7 +131,15 @@ BOOL CALLBACK OptionDlg::run_dlgProc(HWND hwnd, UINT Message, WPARAM wParam, LPA
 					DWORD	dwByteWritten	= 0;
 					TCHAR	szExampleScriptPath[MAX_PATH];
 
-					_tcscpy(szExampleScriptPath, _pProp->nppExecProp.szScriptPath);
+					if (_pProp->nppExecProp.szScriptPath[0] == '.')
+					{
+						/* module path of notepad */
+						GetModuleFileName(_hInst, szExampleScriptPath, sizeof(szExampleScriptPath));
+						PathRemoveFileSpec(szExampleScriptPath);
+						PathAppend(szExampleScriptPath, _pProp->nppExecProp.szScriptPath);
+					} else {
+						_tcscpy(szExampleScriptPath, _pProp->nppExecProp.szScriptPath);
+					}
 					::PathAppend(szExampleScriptPath, _T("Goto path.exec"));
 
 					HANDLE	hFile = ::CreateFile(szExampleScriptPath, 
