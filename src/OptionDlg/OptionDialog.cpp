@@ -114,7 +114,7 @@ BOOL CALLBACK OptionDlg::run_dlgProc(HWND hwnd, UINT Message, WPARAM wParam, LPA
 							if (::SHGetPathFromIDList(pidl, _pProp->nppExecProp.szScriptPath))
 							{
 								// Set edit control to the directory path.
-								::SetWindowText(::GetDlgItem(_hSelf, IDC_EDIT_LINK), _pProp->nppExecProp.szScriptPath);
+								::SetWindowText(::GetDlgItem(_hSelf, IDC_EDIT_SCRIPTPATH), _pProp->nppExecProp.szScriptPath);
 							}
 							pShellMalloc->Free(pidl);
 						}
