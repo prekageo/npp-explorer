@@ -77,7 +77,11 @@ BOOL CALLBACK PropDlg::run_dlgProc(HWND hWnd, UINT Message, WPARAM wParam, LPARA
 				if (szBuffer[_tcslen(szBuffer)-1] == '\\') {
 					szBuffer[_tcslen(szBuffer)-1] = '\0';
 				}
-				_tcscpy(_pName, (_tcsrchr(szBuffer, '\\')+1));
+				if (szBuffer[_tcslen(szBuffer)-1] == ':') {
+					_tcscpy(_pName, szBuffer);
+				} else {
+					_tcscpy(_pName, (_tcsrchr(szBuffer, '\\')+1));
+				}
 			}
 
 			/* set name and link */
