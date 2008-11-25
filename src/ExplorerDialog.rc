@@ -44,7 +44,7 @@ BEGIN
                     IDC_STATIC_THXTO,7,67,216,25
     LTEXT           "Options...\t\tAllows you to personalize the\n\t\t\tsettings for explorers file list.",
                     IDC_STATIC_OPT,17,137,197,16
-    CTEXT           "Explorer Plugin for Notepad++ v5.1                                  v1.8",
+    CTEXT           "Explorer Plugin for Notepad++ v5.1                                  v1.8.1",
                     IDC_STATIC_VERSION,7,7,216,17,SS_CENTERIMAGE,
                     WS_EX_DLGMODALFRAME | WS_EX_TRANSPARENT
     LTEXT           "http://sourceforge.net/projects/npp-plugins/",
@@ -292,8 +292,8 @@ IDC_LEFTRIGHT           CURSOR                  "..\\res\\leftright.cur"
 //
 
 VS_VERSION_INFO VERSIONINFO
- FILEVERSION 1,8,0,0
- PRODUCTVERSION 1,8,0,0
+ FILEVERSION 1,8,1,0
+ PRODUCTVERSION 1,8,1,0
  FILEFLAGSMASK 0x3fL
 #ifdef _DEBUG
  FILEFLAGS 0x21L
@@ -311,12 +311,12 @@ BEGIN
             VALUE "Comments", "Visit https://sourceforge.net/projects/npp-plugins"
             VALUE "CompanyName", "Jens Lorenz"
             VALUE "FileDescription", "Notepad++ Explorer Plugin : a free (GNU) source code file explorer"
-            VALUE "FileVersion", "1, 8, 0, 0"
+            VALUE "FileVersion", "1, 8, 1, 0"
             VALUE "InternalName", "Explorer"
             VALUE "LegalCopyright", "Copyright © 2006-2008"
             VALUE "OriginalFilename", "Explorer.dll"
             VALUE "ProductName", "Jens Lorenz Explorer"
-            VALUE "ProductVersion", "1, 8, 0, 0"
+            VALUE "ProductVersion", "1, 8, 1, 0"
             VALUE "SpecialBuild", "UNICODE"
         END
     END
