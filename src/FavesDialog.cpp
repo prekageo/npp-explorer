@@ -2147,7 +2147,7 @@ void FavesDialog::SaveElementTreeRecursive(PELEM pElem, HANDLE hFile)
 
 			SaveElementTreeRecursive(pElemItr, hFile);
 
-			::WriteFile(hFile, _T("#END\n\n"), _tcslen(_T("#END\n\n")), &hasWritten, NULL);
+			::WriteFile(hFile, _T("#END\n\n"), _tcslen(_T("#END\n\n")) * sizeof(TCHAR), &hasWritten, NULL);
 		}
 		else if (pElemItr->uParam & FAVES_PARAM_LINK)
 		{
