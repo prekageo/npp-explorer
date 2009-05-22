@@ -41,7 +41,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 using namespace std;
 
 
-typedef enum {
+typedef enum eMenuID {
 	FM_NEWLINK = 1,
 	FM_NEWGROUP,
 	FM_ADDSESSION,
