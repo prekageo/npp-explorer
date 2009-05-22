@@ -416,6 +416,9 @@
 				RelativePath="..\..\res\web.ico">
 			</File>
 		</Filter>
+		<File
+			RelativePath="..\..\NppDump.dmp">
+		</File>
 	</Files>
 	<Globals>
 	</Globals>
