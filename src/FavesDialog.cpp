@@ -715,6 +715,7 @@ void FavesDialog::PasteItem(HTREEITEM hItem)
 			/* update information and delete element */
 			UpdateLink(hParentItem);
 			UpdateNode(hParentItem, (BOOL)pParentElem->vElements.size());
+			ExpandElementsRecursive(hParentItem);
 		}
 		else
 		{
@@ -726,7 +727,11 @@ void FavesDialog::PasteItem(HTREEITEM hItem)
 		/* update information */
 		UpdateLink(hItem);
 		UpdateNode(hItem, TRUE);
-		TreeView_Expand(_hTreeCtrl, hItem, TVM_EXPAND | TVE_COLLAPSERESET);
+		ExpandElementsRecursive(hItem);
+		if ((pElem->uParam & FAVES_PARAM_EXPAND) == 0)
+		{
+			TreeView_Expand(_hTreeCtrl, hItem, TVM_EXPAND | TVE_COLLAPSERESET);
+		}
 
 		_hTreeCutCopy = NULL;
 	}
@@ -1585,7 +1590,7 @@ void FavesDialog::UpdateNode(HTREEITEM hItem, BOOL haveChildren)
 {
 	if (hItem != NULL)
 	{
-		LPTSTR	TEMP	= (LPTSTR)new TCHAR[MAX_PATH];
+		TCHAR	TEMP[MAX_PATH];
 
 		TVITEM			tvi;
 		tvi.mask		= TVIF_TEXT | TVIF_IMAGE | TVIF_SELECTEDIMAGE | TVIF_PARAM;
