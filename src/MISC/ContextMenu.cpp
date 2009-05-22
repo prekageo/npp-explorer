@@ -245,7 +245,7 @@ UINT ContextMenu::ShowContextMenu(HINSTANCE hInst, HWND hWndNpp, HWND hWndParent
 		{
 			do 
 			{
-				::AppendMenu(hMenuNppExec, MF_STRING, CTX_START_SCRIPT + _strNppScripts.size(), Find.cFileName);
+				::AppendMenu(hMenuNppExec, MF_STRING | (dwExecState == NPE_STATEREADY ? 0 : MF_DISABLED), CTX_START_SCRIPT + _strNppScripts.size(), Find.cFileName);
 				_strNppScripts.push_back(Find.cFileName);
 			} while (FindNextFile(hFind, &Find));
 
@@ -255,7 +255,7 @@ UINT ContextMenu::ShowContextMenu(HINSTANCE hInst, HWND hWndNpp, HWND hWndParent
 		if (_strNppScripts.size() != 0)
 			::AppendMenu(hMenuNppExec, MF_SEPARATOR, 0, NULL);
 		::AppendMenu(hMenuNppExec, MF_STRING, CTX_GOTO_SCRIPT_PATH, _T("Go to script folder"));
-		::AppendMenu(hMainMenu, MF_STRING | MF_POPUP | (dwExecState == NPE_STATEREADY ? 0 : MF_DISABLED), (UINT)hMenuNppExec, _T("NppExec Script(s)"));
+		::AppendMenu(hMainMenu, MF_STRING | MF_POPUP, (UINT)hMenuNppExec, _T("NppExec Script(s)"));
 	}
 	else
 	{
@@ -950,18 +950,37 @@ void ContextMenu::startNppExec(HMODULE hInst, UINT cmdID)
 		if (dwSize != -1)
 		{
 			TCHAR		szAppName[MAX_PATH];
-			DWORD		hasRead	= 0;
-			LPTSTR		pszPtr	= NULL;
-			LPTSTR		pszArg	= NULL;
-			LPTSTR		pszData	= (LPTSTR)new TCHAR[dwSize+1];
+			DWORD		hasRead		= 0;
+			LPTSTR		pszPtr		= NULL;
+			LPTSTR		pszArg		= NULL;
+			LPTSTR		pszData		= (LPTSTR)new TCHAR[dwSize+1];
 
 			if (pszData != NULL)
 			{
 				/* read data from file */
 				::ReadFile(hFile, pszData, dwSize, &hasRead, NULL);
 
+#ifdef UNICODE
+				TCHAR		szBOM		= 0xFEFF;
+				LPTSTR		pszData2	= NULL;
+
+				if (pszData[0] == szBOM) {
+					pszPtr = _tcstok(&pszData[1], _T("\n"));
+				} else if ((pszData[0] == _T('/'))) {
+					pszPtr = _tcstok(pszData, _T("\n"));
+				} else if (((LPSTR)pszData)[0] == '/') {
+					pszData2 = (LPTSTR)new TCHAR[dwSize * 2];
+					::MultiByteToWideChar(CP_ACP, 0, (LPSTR)pszData, -1, pszData2, dwSize * 2);
+					pszPtr = _tcstok(pszData2, _T("\n"));
+				} else {
+					::MessageBox(_hWndNpp, _T("Wrong file format"), _T("Error"), MB_OK | MB_ICONERROR);
+					delete [] pszData;
+					return; /* ============= Leave Function ================== */
+				}
+#else
 				/* get argument string to convert */
-				pszPtr = _tcstok(pszData, _T("\n"));
+				pszPtr = _tcstok(pszPtr, _T("\n"));
+#endif
 
 				if (ConvertCall(pszPtr, szAppName, &pszArg, _strArray) == TRUE)
 				{
@@ -990,6 +1009,9 @@ void ContextMenu::startNppExec(HMODULE hInst, UINT cmdID)
 					delete [] pszArg;
 				}
 				delete [] pszData;
+#ifdef UNICODE
+				delete [] pszData2;
+#endif
 			}
 		}
 

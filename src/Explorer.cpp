@@ -1021,18 +1021,8 @@ BOOL ConvertCall(LPTSTR pszExplArg, LPTSTR pszName, LPTSTR *p_pszNppArg, vector<
 	UINT			iCount		= 0;
 	eVarExNppExec	varElement	= VAR_UNKNOWN;
 
-#ifdef UNICODE
-	TCHAR			szBOM		= 0xFEFF;
-	if (pszExplArg[0] != szBOM) {
-		::MessageBox(nppData._nppHandle, _T("Missing BOM in file"), _T("Error"), MB_OK | MB_ICONERROR);
-		return FALSE;
-	}
-	pszExplArg++;
-	pszPtr = _tcstok(pszExplArg, _T(" "));
-#else
 	/* get name of NppExec plugin */
 	pszPtr = _tcstok(pszExplArg, _T(" "));
-#endif					
 
 	if (_tcscmp(pszPtr, _T("//Explorer:")) != 0) {
 		TCHAR	szTemp[MAX_PATH];
