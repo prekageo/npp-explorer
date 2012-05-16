@@ -53,7 +53,7 @@ BOOL CALLBACK OptionDlg::run_dlgProc(HWND hwnd, UINT Message, WPARAM wParam, LPA
 			{
 				::SendDlgItemMessage(_hSelf, IDC_COMBO_SIZE_FORMAT, CB_ADDSTRING, 0, (LPARAM)pszSizeFmt[i]);
 			}
-			for (i = 0; i < DFMT_MAX; i++)
+			for (int i = 0; i < DFMT_MAX; i++)
 			{
 				::SendDlgItemMessage(_hSelf, IDC_COMBO_DATE_FORMAT, CB_ADDSTRING, 0, (LPARAM)pszDateFmt[i]);
 			}

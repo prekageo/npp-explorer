@@ -1776,7 +1776,8 @@ void ExplorerDialog::GetFolderPathName(HTREEITEM currentItem, LPTSTR folderPathN
 	{
 		/* remove drive name */
 		_tcscpy(TEMP, folderPathName);
-		for (int i = 3; TEMP[i] != '\\'; i++);
+		int i;
+		for (i = 3; TEMP[i] != '\\'; i++);
 
 		_stprintf(folderPathName, _T("%c:%s"), TEMP[0], &TEMP[i]);
 	}

@@ -710,7 +710,7 @@ void FavesDialog::PasteItem(HTREEITEM hItem)
 
 			delete [] pElemCC->pszName;
 			delete [] pElemCC->pszLink;
-			pParentElem->vElements.erase(pElemCC);
+			pParentElem->vElements.erase(pParentElem->vElements.begin()+(pElemCC-&pParentElem->vElements[0]));
 
 			/* update information and delete element */
 			UpdateLink(hParentItem);
@@ -1170,7 +1170,7 @@ void FavesDialog::DeleteItem(HTREEITEM hItem)
 	{
 		/* delete child elements */
 		DeleteRecursive(pElem);
-		((PELEM)GetParam(hItemParent))->vElements.erase(pElem);
+		((PELEM)GetParam(hItemParent))->vElements.erase(((PELEM)GetParam(hItemParent))->vElements.begin()+(pElem-&((PELEM)GetParam(hItemParent))->vElements[0]));
 
 		/* update information and delete element */
 		TreeView_DeleteItem(_hTreeCtrl, hItem);
@@ -1801,7 +1801,7 @@ void FavesDialog::SortElementList(vector<tItemElement> & elementList)
 	{
 		*itr = groupList[i];
 	}
-	for (i = 0; i < sizeOfLink; i++, itr++)
+	for (int i = 0; i < sizeOfLink; i++, itr++)
 	{
 		*itr = linkList[i];
 	}
@@ -1933,7 +1933,7 @@ void FavesDialog::ReadSettings(void)
 #endif
 
 					/* finaly, fill out the tree and the vDB */
-					for (i = 0; i < FAVES_ITEM_MAX; i++)
+					for (int i = 0; i < FAVES_ITEM_MAX; i++)
 					{
 						/* error */
 						if (ptr == NULL)
@@ -1958,7 +1958,7 @@ void FavesDialog::ReadSettings(void)
 						}
 
 						/* now read the information */
-						ReadElementTreeRecursive(&_vDB[i], &ptr);
+						ReadElementTreeRecursive(_vDB.begin()+i, &ptr);
 					}
 #ifdef UNICODE
 				}
