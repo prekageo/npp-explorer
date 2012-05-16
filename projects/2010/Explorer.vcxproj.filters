@@ -1,0 +1,281 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="Quellcodedateien">
+      <UniqueIdentifier>{50169c76-5651-4551-a310-28ca5a39a47e}</UniqueIdentifier>
+      <Extensions>cpp;c;cxx;rc;def;r;odl;idl;hpj;bat</Extensions>
+    </Filter>
+    <Filter Include="Quellcodedateien\Common">
+      <UniqueIdentifier>{2eeba85f-92e9-4223-975f-bfd9515b6e60}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header-Dateien">
+      <UniqueIdentifier>{3bc2ac56-d530-41e4-85ed-2a97b060e747}</UniqueIdentifier>
+      <Extensions>h;hpp;hxx;hm;inl</Extensions>
+    </Filter>
+    <Filter Include="Header-Dateien\Common">
+      <UniqueIdentifier>{1a9484d0-9fd4-457e-b843-84abf41bfd3f}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header-Dateien\NativeLang">
+      <UniqueIdentifier>{d0150fd6-fdec-4ef8-a7ba-08df4b6a14e4}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header-Dateien\NppExec">
+      <UniqueIdentifier>{731d1870-c8c5-4f66-8e23-492c86879f39}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Ressourcendateien">
+      <UniqueIdentifier>{71d42226-cf4b-4a81-a8ae-b9074b5a6afe}</UniqueIdentifier>
+      <Extensions>ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe</Extensions>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="..\..\src\FileList\ComboOrgi.cpp">
+      <Filter>Quellcodedateien</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\MISC\ContextMenu.cpp">
+      <Filter>Quellcodedateien</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\PureDnD\DragDropImpl.cpp">
+      <Filter>Quellcodedateien</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\Explorer.cpp">
+      <Filter>Quellcodedateien</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\ExplorerDialog.cpp">
+      <Filter>Quellcodedateien</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\FavesDialog.cpp">
+      <Filter>Quellcodedateien</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\FileDlg\FileDlg.cpp">
+      <Filter>Quellcodedateien</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\FileList\FileList.cpp">
+      <Filter>Quellcodedateien</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\HelpDlg\HelpDialog.cpp">
+      <Filter>Quellcodedateien</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\NewDlg\NewDlg.cpp">
+      <Filter>Quellcodedateien</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\OptionDlg\OptionDialog.cpp">
+      <Filter>Quellcodedateien</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\PropDlg\PropDlg.cpp">
+      <Filter>Quellcodedateien</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\FileList\ToolTip.cpp">
+      <Filter>Quellcodedateien</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\MISC\TreeHelperClass.cpp">
+      <Filter>Quellcodedateien</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\HelpDlg\URLCtrl.cpp">
+      <Filter>Quellcodedateien</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\Common\Ccpp\ImageListSet.cpp">
+      <Filter>Quellcodedateien\Common</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\Common\Ccpp\StaticDialog.cpp">
+      <Filter>Quellcodedateien\Common</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\Common\Ccpp\SysMsg.cpp">
+      <Filter>Quellcodedateien\Common</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\Common\Ccpp\ToolBar.cpp">
+      <Filter>Quellcodedateien\Common</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\Common\Ccpp\stdafx.cpp">
+      <Filter>Quellcodedateien\Common</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="..\..\src\ExplorerDialog.rc">
+      <Filter>Quellcodedateien</Filter>
+    </ResourceCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="..\..\src\FileList\ComboOrgi.h">
+      <Filter>Header-Dateien</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\MISC\ContextMenu.h">
+      <Filter>Header-Dateien</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\PureDnD\DragDropImpl.h">
+      <Filter>Header-Dateien</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\Explorer.h">
+      <Filter>Header-Dateien</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\ExplorerDialog.h">
+      <Filter>Header-Dateien</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\ExplorerResource.h">
+      <Filter>Header-Dateien</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\FavesDialog.h">
+      <Filter>Header-Dateien</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\FileDlg\FileDlg.h">
+      <Filter>Header-Dateien</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\FileList\FileList.h">
+      <Filter>Header-Dateien</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\HelpDlg\HelpDialog.h">
+      <Filter>Header-Dateien</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\NewDlg\NewDlg.h">
+      <Filter>Header-Dateien</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\OptionDlg\OptionDialog.h">
+      <Filter>Header-Dateien</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\PropDlg\PropDlg.h">
+      <Filter>Header-Dateien</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\FileList\ToolTip.h">
+      <Filter>Header-Dateien</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\MISC\TreeHelperClass.h">
+      <Filter>Header-Dateien</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\HelpDlg\URLCtrl.h">
+      <Filter>Header-Dateien</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\resource.h">
+      <Filter>Header-Dateien</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\Common\Ccpp\Docking.h">
+      <Filter>Header-Dateien\Common</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\Common\Ccpp\DockingDlgInterface.h">
+      <Filter>Header-Dateien\Common</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\Common\Ccpp\ImageListSet.h">
+      <Filter>Header-Dateien\Common</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\Common\Ccpp\Notepad_plus_msgs.h">
+      <Filter>Header-Dateien\Common</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\Common\Ccpp\Notepad_plus_rc.h">
+      <Filter>Header-Dateien\Common</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\Common\Ccpp\PluginInterface.h">
+      <Filter>Header-Dateien\Common</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\Common\Ccpp\Scintilla.h">
+      <Filter>Header-Dateien\Common</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\Common\Ccpp\StaticDialog.h">
+      <Filter>Header-Dateien\Common</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\Common\Ccpp\SysMsg.h">
+      <Filter>Header-Dateien\Common</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\Common\Ccpp\ToolBar.h">
+      <Filter>Header-Dateien\Common</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\Common\Ccpp\Window.h">
+      <Filter>Header-Dateien\Common</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\Common\Ccpp\stdafx.h">
+      <Filter>Header-Dateien\Common</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\NativeLang\src\NativeLang_def.h">
+      <Filter>Header-Dateien\NativeLang</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\MISC\nppexec_msgs.h">
+      <Filter>Header-Dateien\NppExec</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="..\..\res\Heart.bmp">
+      <Filter>Ressourcendateien</Filter>
+    </None>
+    <None Include="..\..\res\Heart.ico">
+      <Filter>Ressourcendateien</Filter>
+    </None>
+    <None Include="..\..\res\SortDown.bmp">
+      <Filter>Ressourcendateien</Filter>
+    </None>
+    <None Include="..\..\res\SortUp.bmp">
+      <Filter>Ressourcendateien</Filter>
+    </None>
+    <None Include="..\..\res\bitmap1.bmp">
+      <Filter>Ressourcendateien</Filter>
+    </None>
+    <None Include="..\..\res\bmp00001.bmp">
+      <Filter>Ressourcendateien</Filter>
+    </None>
+    <None Include="..\..\res\explore.bmp">
+      <Filter>Ressourcendateien</Filter>
+    </None>
+    <None Include="..\..\res\explore.ico">
+      <Filter>Ressourcendateien</Filter>
+    </None>
+    <None Include="..\..\res\file.ico">
+      <Filter>Ressourcendateien</Filter>
+    </None>
+    <None Include="..\..\res\findFile.bmp">
+      <Filter>Ressourcendateien</Filter>
+    </None>
+    <None Include="..\..\res\folder.ico">
+      <Filter>Ressourcendateien</Filter>
+    </None>
+    <None Include="..\..\res\folderGo.bmp">
+      <Filter>Ressourcendateien</Filter>
+    </None>
+    <None Include="..\..\res\folderUser.bmp">
+      <Filter>Ressourcendateien</Filter>
+    </None>
+    <None Include="..\..\res\group.ico">
+      <Filter>Ressourcendateien</Filter>
+    </None>
+    <None Include="..\..\res\leftright.cur">
+      <Filter>Ressourcendateien</Filter>
+    </None>
+    <None Include="..\..\res\linkDelete.bmp">
+      <Filter>Ressourcendateien</Filter>
+    </None>
+    <None Include="..\..\res\linkEdit.bmp">
+      <Filter>Ressourcendateien</Filter>
+    </None>
+    <None Include="..\..\res\linkNew.bmp">
+      <Filter>Ressourcendateien</Filter>
+    </None>
+    <None Include="..\..\res\linkNewFile.bmp">
+      <Filter>Ressourcendateien</Filter>
+    </None>
+    <None Include="..\..\res\linkNewFolder.bmp">
+      <Filter>Ressourcendateien</Filter>
+    </None>
+    <None Include="..\..\res\newFile.bmp">
+      <Filter>Ressourcendateien</Filter>
+    </None>
+    <None Include="..\..\res\newFolder.bmp">
+      <Filter>Ressourcendateien</Filter>
+    </None>
+    <None Include="..\..\res\parent.ico">
+      <Filter>Ressourcendateien</Filter>
+    </None>
+    <None Include="..\..\res\redo.bmp">
+      <Filter>Ressourcendateien</Filter>
+    </None>
+    <None Include="..\..\res\session.ico">
+      <Filter>Ressourcendateien</Filter>
+    </None>
+    <None Include="..\..\res\undo.bmp">
+      <Filter>Ressourcendateien</Filter>
+    </None>
+    <None Include="..\..\res\update.bmp">
+      <Filter>Ressourcendateien</Filter>
+    </None>
+    <None Include="..\..\res\updown.cur">
+      <Filter>Ressourcendateien</Filter>
+    </None>
+    <None Include="..\..\res\web.ico">
+      <Filter>Ressourcendateien</Filter>
+    </None>
+    <None Include="..\..\NppDump.dmp" />
+  </ItemGroup>
+</Project>
