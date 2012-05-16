@@ -24,6 +24,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include "ExplorerDialog.h"
 #include "FavesDialog.h"
 #include "OptionDialog.h"
+#include "SnapOpenDialog.h"
 #include "HelpDialog.h"
 #include "ToolTip.h"
 #include "SysMsg.h"
@@ -38,7 +39,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #define SHGFI_OVERLAYINDEX 0x000000040
 
 
-CONST INT	nbFunc	= 9;
+CONST INT	nbFunc	= 10;
 
 
 
@@ -96,6 +97,7 @@ ExplorerDialog		explorerDlg;
 FavesDialog			favesDlg;
 OptionDlg			optionDlg;
 HelpDlg				helpDlg;
+SnapOpenDlg			snapOpenDlg;
 
 /* global explorer params */
 tExProp				exProp;
@@ -140,18 +142,20 @@ BOOL APIENTRY DllMain( HANDLE hModule,
 			funcItem[2]._pFunc = NULL;
 			funcItem[3]._pFunc = gotoPath;
 			funcItem[4]._pFunc = clearFilter;
-			funcItem[5]._pFunc = NULL;
-			funcItem[6]._pFunc = openOptionDlg;
-			funcItem[7]._pFunc = NULL;
-			funcItem[8]._pFunc = openHelpDlg;
+			funcItem[5]._pFunc = openSnapOpenDlg;
+			funcItem[6]._pFunc = NULL;
+			funcItem[7]._pFunc = openOptionDlg;
+			funcItem[8]._pFunc = NULL;
+			funcItem[9]._pFunc = openHelpDlg;
 			
 			/* Fill menu names */
 			_tcscpy(funcItem[0]._itemName, _T("&Explorer..."));
 			_tcscpy(funcItem[1]._itemName, _T("&Favorites..."));
 			_tcscpy(funcItem[3]._itemName, _T("&Go to Path..."));
 			_tcscpy(funcItem[4]._itemName, _T("&Clear Filter"));
-			_tcscpy(funcItem[6]._itemName, _T("Explorer &Options..."));
-			_tcscpy(funcItem[8]._itemName, _T("&Help..."));
+			_tcscpy(funcItem[5]._itemName, _T("&Snap Open..."));
+			_tcscpy(funcItem[7]._itemName, _T("Explorer &Options..."));
+			_tcscpy(funcItem[9]._itemName, _T("&Help..."));
 
 			/* Set shortcuts */
 			funcItem[0]._pShKey = new ShortcutKey;
@@ -167,10 +171,15 @@ BOOL APIENTRY DllMain( HANDLE hModule,
 			funcItem[2]._pShKey				= NULL;
 			funcItem[3]._pShKey				= NULL;
 			funcItem[4]._pShKey				= NULL;
-			funcItem[5]._pShKey				= NULL;
+			funcItem[5]._pShKey = new ShortcutKey;
+			funcItem[5]._pShKey->_isAlt		= true;
+			funcItem[5]._pShKey->_isCtrl	= true;
+			funcItem[5]._pShKey->_isShift	= false;
+			funcItem[5]._pShKey->_key		= 'O';
 			funcItem[6]._pShKey				= NULL;
 			funcItem[7]._pShKey				= NULL;
 			funcItem[8]._pShKey				= NULL;
+			funcItem[9]._pShKey				= NULL;
 
 			/* set image list and icon */
 			ghImgList = ImageList_Create(16, 16, ILC_COLOR32 | ILC_MASK, 6, 30);
@@ -239,6 +248,7 @@ extern "C" __declspec(dllexport) void setInfo(NppData notpadPlusData)
 	explorerDlg.init((HINSTANCE)g_hModule, nppData, &exProp);
 	favesDlg.init((HINSTANCE)g_hModule, nppData, szLastElement, &exProp);
 	optionDlg.init((HINSTANCE)g_hModule, nppData);
+	snapOpenDlg.init((HINSTANCE)g_hModule, nppData);
 	helpDlg.init((HINSTANCE)g_hModule, nppData);
 
 	/* Subclassing for Notepad */
@@ -515,6 +525,11 @@ void openOptionDlg(void)
 void openHelpDlg(void)
 {
 	helpDlg.doDialog();
+}
+
+void openSnapOpenDlg(void)
+{
+	snapOpenDlg.doDialog();
 }
 
 

@@ -28,7 +28,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include "FavesDialog.h"
 #include "ContextMenu.h"
 #include "nppexec_msgs.h"
-
+#include "ExplorerDialog.h"
 
 
 IContextMenu2 * g_IContext2		= NULL;
@@ -206,6 +206,7 @@ UINT ContextMenu::ShowContextMenu(HINSTANCE hInst, HWND hWndNpp, HWND hWndParent
 		::AppendMenu(hMainMenu, MF_STRING, CTX_NEW_FILE, _T("New File..."));
 		::AppendMenu(hMainMenu, MF_STRING, CTX_NEW_FOLDER, _T("New Folder..."));
 		::AppendMenu(hMainMenu, MF_STRING, CTX_FIND_IN_FILES, _T("Find in Files..."));
+		::AppendMenu(hMainMenu, MF_STRING, CTX_SET_AS_ROOT, _T("Set as Root"));
 	}
 	else
 	{
@@ -381,6 +382,11 @@ UINT ContextMenu::ShowContextMenu(HINSTANCE hInst, HWND hWndNpp, HWND hWndParent
 			case CTX_FIND_IN_FILES:
 			{
 				findInFiles();
+				break;
+			}
+			case CTX_SET_AS_ROOT:
+			{
+				setAsRoot();
 				break;
 			}
 			case CTX_OPEN:
@@ -792,6 +798,12 @@ void ContextMenu::newFolder(void)
 void ContextMenu::findInFiles(void)
 {
 	::SendMessage(_hWndNpp, NPPM_LAUNCHFINDINFILESDLG, (WPARAM)_strFirstElement.c_str(), NULL);
+}
+
+void ContextMenu::setAsRoot(void)
+{
+	extern ExplorerDialog explorerDlg;
+	explorerDlg.SetRootPath(_strFirstElement);
 }
 
 void ContextMenu::openFile(void)

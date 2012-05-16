@@ -69,6 +69,7 @@ typedef enum
 	CTX_NEW_FILE		= CTX_MAX,
 	CTX_NEW_FOLDER,
 	CTX_FIND_IN_FILES,
+	CTX_SET_AS_ROOT,
 	CTX_OPEN,
 	CTX_OPEN_DIFF_VIEW,
 	CTX_OPEN_NEW_INST,
@@ -111,6 +112,7 @@ private:
 	void	newFile(void);
 	void	newFolder(void);
 	void	findInFiles(void);
+	void	setAsRoot(void);
 	void	openFile(void);
 	void	openFileInOtherView(void);
 	void	openFileInNewInstance(void);

@@ -2017,3 +2017,19 @@ bool ExplorerDialog::doPaste(LPCTSTR pszTo, LPDROPFILES hData, const DWORD & dwE
 	return true;
 }
 
+string ExplorerDialog::GetSelectedPath()
+{
+	TCHAR	pszPath[MAX_PATH];
+	GetFolderPathName(TreeView_GetSelection(_hTreeCtrl), pszPath);
+	return pszPath;
+}
+
+string ExplorerDialog::GetRootPath()
+{
+	return rootPath;
+}
+
+void ExplorerDialog::SetRootPath(const string rootPath)
+{
+	this->rootPath = rootPath;
+}
