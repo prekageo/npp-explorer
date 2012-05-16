@@ -1,0 +1,7 @@
+*.suo
+*.vcxproj.user
+projects/2010/DEBUG
+projects/2010/Explorer.opensdf
+projects/2010/Explorer.sdf
+projects/2010/Release
+projects/2010/ipch
